@@ -1,3 +1,6 @@
+import 'dart:async';
+import 'dart:math';
+
 import 'package:flutter/material.dart';
 
 import '../game/cpu_ai.dart';
@@ -6,8 +9,11 @@ import '../theme.dart';
 import '../widgets/action_bar.dart';
 import '../widgets/circular_table.dart';
 import '../widgets/desert_background.dart';
+import '../widgets/reaction_panel.dart';
 
-enum _Phase { setup, choosing, reveal, over }
+enum _Phase { setup, choosing, reveal, over, showdown }
+
+enum _SdStage { prep, go, result }
 
 class OfflineGameScreen extends StatefulWidget {
   const OfflineGameScreen({super.key});
@@ -17,11 +23,11 @@ class OfflineGameScreen extends StatefulWidget {
 }
 
 class _OfflineGameScreenState extends State<OfflineGameScreen> {
-  // Western flavour names; seat 0 is always "나".
   static const _botNames = ['잭', '빌', '한스', '로사', '듀크'];
   final _cpu = CpuAi();
+  final _rand = Random();
 
-  int _botCount = 2; // me + 2 bots = 3 players by default
+  int _botCount = 2;
   int _n = 3;
 
   late List<int> _ammo;
@@ -37,12 +43,28 @@ class _OfflineGameScreenState extends State<OfflineGameScreen> {
   GameStatus _status = GameStatus.ongoing;
   int? _winner;
 
-  // Pending selection for this turn.
   ActKind? _selKind;
   int _selTarget = -1;
 
+  // Reaction showdown state.
+  _SdStage _sdStage = _SdStage.prep;
+  List<int> _sdPlayers = [];
+  bool _sdMeIn = false;
+  int _sdFastestBot = -1;
+  int _sdFastestMs = 9999;
+  bool _sdIFalse = false;
+  Timer? _sdPrep;
+  Timer? _sdGo;
+
   List<String> get _names =>
       ['나', for (var i = 0; i < _n - 1; i++) _botNames[i % _botNames.length]];
+
+  @override
+  void dispose() {
+    _sdPrep?.cancel();
+    _sdGo?.cancel();
+    super.dispose();
+  }
 
   void _start() {
     _n = 1 + _botCount;
@@ -81,6 +103,7 @@ class _OfflineGameScreenState extends State<OfflineGameScreen> {
             ? _cpu.chooseMove(seat: s, ammo: _ammo, alive: _alive)
             : Move.empty,
     ];
+    final aliveBefore = List<bool>.from(_alive);
     final out = resolveTurn(moves, _ammo, _alive);
     setState(() {
       _last = List<Move?>.from(moves);
@@ -90,9 +113,14 @@ class _OfflineGameScreenState extends State<OfflineGameScreen> {
       _ammo = out.ammoAfter;
       _alive = out.aliveAfter;
       _banner = _turnBanner(out);
-      _status = out.status;
-      _winner = out.winner;
-      _phase = out.status == GameStatus.ongoing ? _Phase.reveal : _Phase.over;
+      if (out.status == GameStatus.draw) {
+        // Final simultaneous wipe → reaction showdown instead of a draw.
+        _beginShowdown(aliveBefore);
+      } else {
+        _status = out.status;
+        _winner = out.winner;
+        _phase = out.status == GameStatus.ongoing ? _Phase.reveal : _Phase.over;
+      }
       _selKind = null;
       _selTarget = -1;
     });
@@ -119,13 +147,75 @@ class _OfflineGameScreenState extends State<OfflineGameScreen> {
     return out.fired.any((x) => x) ? '모두 막거나 빗나갔다!' : '장전과 방어... 다음 턴!';
   }
 
+  // ---- Reaction showdown -------------------------------------------------
+
+  void _beginShowdown(List<bool> aliveBefore) {
+    _sdPlayers = [
+      for (var s = 0; s < _n; s++)
+        if (aliveBefore[s]) s
+    ];
+    _sdMeIn = _sdPlayers.contains(0);
+    // Pre-roll each bot's reaction so the fastest is fixed for this round.
+    _sdFastestBot = -1;
+    _sdFastestMs = 9999;
+    for (final s in _sdPlayers) {
+      if (s == 0) continue;
+      final r = 280 + _rand.nextInt(560); // 280~840ms
+      if (r < _sdFastestMs) {
+        _sdFastestMs = r;
+        _sdFastestBot = s;
+      }
+    }
+    _sdIFalse = false;
+    _sdStage = _SdStage.prep;
+    _phase = _Phase.showdown;
+    _sdPrep?.cancel();
+    _sdGo?.cancel();
+    final prepMs = 500 + _rand.nextInt(900); // 0.5~1.4s
+    _sdPrep = Timer(Duration(milliseconds: prepMs), () {
+      if (!mounted) return;
+      setState(() => _sdStage = _SdStage.go);
+      // The fastest bot reacts after its pre-rolled time; if I don't beat it,
+      // it wins.
+      _sdGo = Timer(Duration(milliseconds: _sdFastestMs), () {
+        if (mounted) _finishShowdown(_sdFastestBot);
+      });
+    });
+  }
+
+  void _sdTap() {
+    if (!_sdMeIn || _sdStage == _SdStage.result) return;
+    if (_sdStage == _SdStage.prep) {
+      // Jumped the gun.
+      _sdIFalse = true;
+      _finishShowdown(_sdFastestBot >= 0 ? _sdFastestBot : _sdPlayers.first);
+    } else {
+      // Beat the bot.
+      _finishShowdown(0);
+    }
+  }
+
+  void _finishShowdown(int winner) {
+    _sdPrep?.cancel();
+    _sdGo?.cancel();
+    setState(() {
+      _sdStage = _SdStage.result;
+      _winner = winner;
+      _status = GameStatus.won;
+    });
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(title: Text('컴퓨터와 대결', style: posterTitle(20))),
       body: DesertBackground(
         child: SafeArea(
-          child: _phase == _Phase.setup ? _setup() : _game(),
+          child: switch (_phase) {
+            _Phase.setup => _setup(),
+            _Phase.showdown => _showdown(),
+            _ => _game(),
+          },
         ),
       ),
     );
@@ -210,6 +300,23 @@ class _OfflineGameScreenState extends State<OfflineGameScreen> {
     );
   }
 
+  // ---- Showdown ----------------------------------------------------------
+
+  Widget _showdown() {
+    if (_sdStage == _SdStage.result) return _resultCard(showdown: true);
+    final others = _sdPlayers
+        .where((s) => s != 0)
+        .map((s) => _names[s])
+        .toList();
+    return ReactionPanel(
+      stage: !_sdMeIn
+          ? ReactionStage.spectate
+          : (_sdStage == _SdStage.go ? ReactionStage.go : ReactionStage.prep),
+      opponents: others,
+      onTap: _sdTap,
+    );
+  }
+
   // ---- Game --------------------------------------------------------------
 
   Widget _game() {
@@ -270,10 +377,10 @@ class _OfflineGameScreenState extends State<OfflineGameScreen> {
   Widget _bottom() {
     switch (_phase) {
       case _Phase.setup:
+      case _Phase.showdown:
         return const SizedBox.shrink();
       case _Phase.choosing:
         if (!_alive[0]) {
-          // I'm out — spectate the bots fighting it out.
           return Padding(
             padding: const EdgeInsets.symmetric(horizontal: 24),
             child: Column(
@@ -339,28 +446,30 @@ class _OfflineGameScreenState extends State<OfflineGameScreen> {
     }
   }
 
-  Widget _resultCard() {
+  Widget _resultCard({bool showdown = false}) {
     final iWon = _status == GameStatus.won && _winner == 0;
-    final draw = _status == GameStatus.draw;
-    final title = draw
-        ? '무승부!'
-        : (iWon ? '승리! 최후의 1인' : '${_names[_winner!]} 승리');
-    return Container(
+    final String title;
+    if (showdown) {
+      title = _sdIFalse
+          ? '부정출발! 패배'
+          : (iWon ? '반응 승리! 최후의 1인' : '${_names[_winner!]} 반응 승리');
+    } else {
+      title = iWon ? '승리! 최후의 1인' : '${_names[_winner!]} 승리';
+    }
+    final body = Container(
       margin: const EdgeInsets.symmetric(horizontal: 20),
       padding: const EdgeInsets.all(18),
       decoration: BoxDecoration(
         color: CD.parchment,
         borderRadius: BorderRadius.circular(18),
-        border: Border.all(
-            color: draw ? CD.muted : (iWon ? CD.gold : CD.danger), width: 3),
+        border: Border.all(color: iWon ? CD.gold : CD.danger, width: 3),
       ),
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
           Text(title,
               textAlign: TextAlign.center,
-              style: posterTitle(28,
-                  color: draw ? CD.leather : (iWon ? CD.rust : CD.danger))),
+              style: posterTitle(26, color: iWon ? CD.rust : CD.danger)),
           const SizedBox(height: 14),
           Row(
             children: [
@@ -391,5 +500,8 @@ class _OfflineGameScreenState extends State<OfflineGameScreen> {
         ],
       ),
     );
+    // The showdown result stands alone (full screen); the normal result sits in
+    // the bottom slot under the table.
+    return showdown ? Center(child: body) : body;
   }
 }

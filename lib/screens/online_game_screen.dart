@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:firebase_database/firebase_database.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -8,6 +10,7 @@ import '../theme.dart';
 import '../widgets/action_bar.dart';
 import '../widgets/circular_table.dart';
 import '../widgets/desert_background.dart';
+import '../widgets/online_showdown.dart';
 
 class OnlineGameScreen extends StatefulWidget {
   final OnlineService service;
@@ -25,61 +28,124 @@ class OnlineGameScreen extends StatefulWidget {
 
 class _OnlineGameScreenState extends State<OnlineGameScreen> {
   bool _resetting = false;
-  int _seatOnLeave = -1;
+  int _presenceSeat = -1;
 
   // Pending action for the current turn.
   int _pendingTurn = -1;
   ActKind? _selKind;
   int _selTarget = -1;
 
+  // Mid-game reveal: briefly show who shot whom before the next turn's picker.
+  int _shownTurn = 0;
+  bool _revealing = false;
+  Timer? _revealTimer;
+
+  // Server clock skew for the reaction showdown.
+  int _serverOffset = 0;
+  StreamSubscription<DatabaseEvent>? _offsetSub;
+
+  @override
+  void initState() {
+    super.initState();
+    _offsetSub = widget.service.serverOffsetRef().onValue.listen((e) {
+      final v = e.snapshot.value;
+      if (v is num && mounted) setState(() => _serverOffset = v.toInt());
+    });
+  }
+
   @override
   void dispose() {
-    // Best-effort: free my seat when I back out (matters most pre-start).
-    if (_seatOnLeave >= 0) {
-      widget.service.leave(widget.code, _seatOnLeave);
-    }
+    _revealTimer?.cancel();
+    _offsetSub?.cancel();
+    // Backstop leave (onDisconnect handles hard disconnects).
+    if (_presenceSeat >= 0) widget.service.leave(widget.code, _presenceSeat);
     super.dispose();
   }
 
-  void _resetPendingFor(int turn) {
-    if (_pendingTurn != turn) {
-      _pendingTurn = turn;
-      _selKind = null;
-      _selTarget = -1;
+  Future<void> _leaveAndPop() async {
+    final seat = _presenceSeat;
+    _presenceSeat = -1;
+    if (seat >= 0) await widget.service.leave(widget.code, seat);
+    if (mounted) Navigator.of(context).pop();
+  }
+
+  void _updatePresence(int mySeat) {
+    if (mySeat >= 0 && mySeat != _presenceSeat) {
+      final old = _presenceSeat;
+      if (old >= 0) widget.service.clearPresence(widget.code, old);
+      _presenceSeat = mySeat;
+      widget.service.markPresence(widget.code, mySeat);
+    }
+  }
+
+  void _handleReveal(RoomView view) {
+    if (view.phase == OnlinePhase.waiting) {
+      _shownTurn = 0;
+      return;
+    }
+    if (view.phase == OnlinePhase.over) return;
+    // A rematch resets the turn counter — re-sync so reveals work next game.
+    if (view.turn < _shownTurn) _shownTurn = view.turn;
+    if (view.turn > _shownTurn) {
+      final hadAction =
+          view.seats.any((s) => s.fired) || view.seats.any((s) => s.hitThisTurn);
+      _shownTurn = view.turn;
+      if (hadAction) {
+        _revealing = true;
+        _revealTimer?.cancel();
+        _revealTimer = Timer(const Duration(milliseconds: 2600), () {
+          if (mounted) setState(() => _revealing = false);
+        });
+      }
     }
   }
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        title: Text('방 ${widget.code}', style: posterTitle(20)),
-        actions: [
-          IconButton(
-            tooltip: '방 코드 복사',
-            icon: const Icon(Icons.copy, size: 20),
-            onPressed: () => _copyCode(),
+    return PopScope(
+      canPop: false,
+      onPopInvokedWithResult: (didPop, _) {
+        if (!didPop) _leaveAndPop();
+      },
+      child: Scaffold(
+        appBar: AppBar(
+          leading: IconButton(
+            icon: const Icon(Icons.arrow_back),
+            onPressed: _leaveAndPop,
           ),
-        ],
-      ),
-      body: DesertBackground(
-        child: SafeArea(
-          child: StreamBuilder<DatabaseEvent>(
-            stream: widget.service.watch(widget.code),
-            builder: (context, snap) {
-              if (!snap.hasData) {
-                return const Center(
-                    child: CircularProgressIndicator(color: CD.rust));
-              }
-              final raw = snap.data!.snapshot.value;
-              if (raw is! Map) return _info('방이 사라졌어요.', back: true);
-              final view =
-                  OnlineService.computeView(Map.from(raw), widget.service.clientId);
-              _seatOnLeave = view.mySeat;
-              _maybeReset(view);
-              if (view.phase == OnlinePhase.waiting) return _waiting(view);
-              return _table(view);
-            },
+          title: Text('방 ${widget.code}', style: posterTitle(20)),
+          actions: [
+            IconButton(
+              tooltip: '방 코드 복사',
+              icon: const Icon(Icons.copy, size: 20),
+              onPressed: _copyCode,
+            ),
+          ],
+        ),
+        body: DesertBackground(
+          child: SafeArea(
+            child: StreamBuilder<DatabaseEvent>(
+              stream: widget.service.watch(widget.code),
+              builder: (context, snap) {
+                if (!snap.hasData) {
+                  return const Center(
+                      child: CircularProgressIndicator(color: CD.rust));
+                }
+                final raw = snap.data!.snapshot.value;
+                if (raw is! Map) return _info('방이 사라졌어요.', back: true);
+                final data = Map.from(raw);
+                final view =
+                    OnlineService.computeView(data, widget.service.clientId);
+                _updatePresence(view.mySeat);
+                _handleReveal(view);
+                _maybeReset(view);
+                if (view.phase == OnlinePhase.waiting) return _waiting(view);
+                if (view.status == GameStatus.draw && view.drawTurn >= 0) {
+                  return _showdownBody(view, data['showdown']);
+                }
+                return _table(view);
+              },
+            ),
           ),
         ),
       ),
@@ -94,16 +160,33 @@ class _OnlineGameScreenState extends State<OnlineGameScreen> {
   }
 
   void _maybeReset(RoomView view) {
-    // Host clears the board for a fresh round once everyone wants a rematch.
     if (view.phase == OnlinePhase.over &&
+        view.status == GameStatus.won &&
         view.isHost &&
-        view.rematchCount >= view.seatCount &&
-        view.seatCount >= kMinSeats &&
+        view.presentCount >= kMinSeats &&
+        view.rematchCount >= view.presentCount &&
         !_resetting) {
       _resetting = true;
       widget.service.recordWinAndReset(widget.code, view.winnerSeat);
     }
     if (view.phase != OnlinePhase.over) _resetting = false;
+  }
+
+  // ---- Reaction showdown -------------------------------------------------
+
+  Widget _showdownBody(RoomView view, Object? sdRaw) {
+    final seatNames = {for (final s in view.seats) s.seat: s.name};
+    return OnlineShowdown(
+      service: widget.service,
+      code: widget.code,
+      drawTurn: view.drawTurn,
+      participants: view.drawParticipants,
+      mySeat: view.mySeat,
+      seatNames: seatNames,
+      sdRaw: sdRaw is Map ? sdRaw : null,
+      serverOffset: _serverOffset,
+      isHost: view.isHost,
+    );
   }
 
   // ---- Waiting room ------------------------------------------------------
@@ -134,7 +217,7 @@ class _OnlineGameScreenState extends State<OnlineGameScreen> {
           child: Padding(
             padding: const EdgeInsets.all(10),
             child: CircularTable(
-              seats: _seatsOf(view),
+              seats: _seatsOf(view, false),
               mySeat: view.mySeat < 0 ? 0 : view.mySeat,
               center: Container(
                 padding:
@@ -187,16 +270,16 @@ class _OnlineGameScreenState extends State<OnlineGameScreen> {
 
   // ---- Table -------------------------------------------------------------
 
-  List<TableSeat> _seatsOf(RoomView view) => [
+  List<TableSeat> _seatsOf(RoomView view, bool reveal) => [
         for (final sv in view.seats)
           TableSeat(
-            name: sv.name,
+            name: view.started && !sv.joined ? '나감' : sv.name,
             ammo: sv.ammo,
             alive: sv.alive,
             isMe: sv.isMe,
-            joined: sv.joined,
+            joined: sv.joined || !view.started,
             submitted: sv.submittedThisTurn && view.phase != OnlinePhase.over,
-            hit: sv.hitThisTurn && view.phase == OnlinePhase.over,
+            hit: sv.hitThisTurn && reveal,
             lastMove: sv.lastMove,
             fired: sv.fired,
             firedTarget: sv.firedTarget,
@@ -204,8 +287,9 @@ class _OnlineGameScreenState extends State<OnlineGameScreen> {
       ];
 
   Widget _table(RoomView view) {
-    final reveal = view.phase == OnlinePhase.over;
-    final choosing = view.phase == OnlinePhase.choosing && view.seated;
+    final reveal = view.phase == OnlinePhase.over || _revealing;
+    final choosing =
+        view.phase == OnlinePhase.choosing && view.seated && !_revealing;
     if (choosing) _resetPendingFor(view.turn);
     final targetMode = choosing && _selKind == ActKind.shoot;
     return Column(
@@ -216,7 +300,7 @@ class _OnlineGameScreenState extends State<OnlineGameScreen> {
           child: Padding(
             padding: const EdgeInsets.all(8),
             child: CircularTable(
-              seats: _seatsOf(view),
+              seats: _seatsOf(view, reveal),
               mySeat: view.mySeat < 0 ? 0 : view.mySeat,
               reveal: reveal,
               targetMode: targetMode,
@@ -230,6 +314,14 @@ class _OnlineGameScreenState extends State<OnlineGameScreen> {
         const SizedBox(height: 10),
       ],
     );
+  }
+
+  void _resetPendingFor(int turn) {
+    if (_pendingTurn != turn) {
+      _pendingTurn = turn;
+      _selKind = null;
+      _selTarget = -1;
+    }
   }
 
   Widget _centerBanner(String banner) {
@@ -262,11 +354,12 @@ class _OnlineGameScreenState extends State<OnlineGameScreen> {
         spacing: 12,
         children: [
           for (final s in view.seats)
-            Text('${s.name} ${s.score}',
-                style: const TextStyle(
-                    color: Colors.white,
-                    fontSize: 12,
-                    fontWeight: FontWeight.w700)),
+            if (s.joined)
+              Text('${s.name} ${s.score}',
+                  style: const TextStyle(
+                      color: Colors.white,
+                      fontSize: 12,
+                      fontWeight: FontWeight.w700)),
         ],
       ),
     );
@@ -274,6 +367,14 @@ class _OnlineGameScreenState extends State<OnlineGameScreen> {
 
   Widget _bottom(RoomView view) {
     if (view.phase == OnlinePhase.over) return _result(view);
+
+    if (_revealing) {
+      return const Padding(
+        padding: EdgeInsets.all(16),
+        child: Text('결과 공개 중...',
+            style: TextStyle(color: CD.leather, fontWeight: FontWeight.w700)),
+      );
+    }
 
     if (!view.seated || (view.me != null && !view.me!.alive)) {
       return const Padding(
@@ -298,7 +399,6 @@ class _OnlineGameScreenState extends State<OnlineGameScreen> {
       );
     }
 
-    // Choosing.
     final myAmmo = view.me?.ammo ?? 0;
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 16),
@@ -306,10 +406,9 @@ class _OnlineGameScreenState extends State<OnlineGameScreen> {
         myAmmo: myAmmo,
         selected: _selKind,
         selectedTarget: _selTarget,
-        targetName:
-            _selTarget >= 0 && _selTarget < view.seats.length
-                ? view.seats[_selTarget].name
-                : null,
+        targetName: _selTarget >= 0 && _selTarget < view.seats.length
+            ? view.seats[_selTarget].name
+            : null,
         onSelect: (k) => setState(() {
           _selKind = k;
           if (k != ActKind.shoot) _selTarget = -1;
@@ -328,32 +427,29 @@ class _OnlineGameScreenState extends State<OnlineGameScreen> {
 
   Widget _result(RoomView view) {
     final iWon = view.iWon;
-    final draw = view.status == GameStatus.draw;
     return Container(
       margin: const EdgeInsets.symmetric(horizontal: 20),
       padding: const EdgeInsets.all(18),
       decoration: BoxDecoration(
         color: CD.parchment,
         borderRadius: BorderRadius.circular(18),
-        border: Border.all(
-            color: draw ? CD.muted : (iWon ? CD.gold : CD.danger), width: 3),
+        border: Border.all(color: iWon ? CD.gold : CD.danger, width: 3),
       ),
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
           Text(view.banner,
               textAlign: TextAlign.center,
-              style: posterTitle(26,
-                  color: draw ? CD.leather : (iWon ? CD.rust : CD.danger))),
+              style: posterTitle(26, color: iWon ? CD.rust : CD.danger)),
           const SizedBox(height: 12),
-          Text('다시하기 ${view.rematchCount}/${view.seatCount}',
+          Text('다시하기 ${view.rematchCount}/${view.presentCount}',
               style: const TextStyle(color: CD.muted)),
           const SizedBox(height: 10),
           Row(
             children: [
               Expanded(
                 child: OutlinedButton(
-                  onPressed: () => Navigator.pop(context),
+                  onPressed: _leaveAndPop,
                   style: OutlinedButton.styleFrom(
                     foregroundColor: CD.leather,
                     side: const BorderSide(color: CD.leather),
@@ -393,7 +489,7 @@ class _OnlineGameScreenState extends State<OnlineGameScreen> {
           if (back) ...[
             const SizedBox(height: 16),
             FilledButton(
-              onPressed: () => Navigator.pop(context),
+              onPressed: _leaveAndPop,
               style: FilledButton.styleFrom(backgroundColor: CD.rust),
               child: const Text('나가기'),
             ),

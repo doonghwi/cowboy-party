@@ -11,7 +11,7 @@ enum OnlinePhase { waiting, choosing, submitted, over }
 /// Render-ready snapshot of one seat at the table.
 class SeatView {
   final int seat;
-  final bool joined;
+  final bool joined; // player still present in the room
   final String name;
   final int ammo;
   final bool alive;
@@ -54,6 +54,7 @@ class RoomView {
   final int mySeat; // -1 if I'm not seated
   final List<SeatView> seats; // index == seat
   final int joinedCount;
+  final int presentCount; // players still in the room right now
   final bool canStart; // host may begin the round
   final Move? myPending;
   final bool iSubmitted;
@@ -66,6 +67,11 @@ class RoomView {
   final bool iRequestedRematch;
   final int rematchCount;
 
+  /// When the game ends in a simultaneous wipe, [status] is [GameStatus.draw]
+  /// and these describe the reaction-showdown that breaks the tie.
+  final int drawTurn; // -1 when not a draw
+  final List<int> drawParticipants; // seats that fell together
+
   const RoomView({
     required this.capacity,
     required this.seatCount,
@@ -76,6 +82,7 @@ class RoomView {
     required this.mySeat,
     required this.seats,
     required this.joinedCount,
+    required this.presentCount,
     required this.canStart,
     required this.myPending,
     required this.iSubmitted,
@@ -87,6 +94,8 @@ class RoomView {
     required this.justResolved,
     required this.iRequestedRematch,
     required this.rematchCount,
+    this.drawTurn = -1,
+    this.drawParticipants = const [],
   });
 
   bool get seated => mySeat >= 0;
@@ -108,9 +117,13 @@ class OnlineService {
   static const String databaseUrl =
       'https://cowboy-party-doonghwi-default-rtdb.asia-southeast1.firebasedatabase.app';
 
-  final DatabaseReference _root = FirebaseDatabase.instanceFor(
-          app: Firebase.app(), databaseURL: databaseUrl)
-      .ref();
+  final FirebaseDatabase _fdb = FirebaseDatabase.instanceFor(
+      app: Firebase.app(), databaseURL: databaseUrl);
+
+  late final DatabaseReference _root = _fdb.ref();
+
+  /// Live clock skew between this device and the RTDB server (ms).
+  DatabaseReference serverOffsetRef() => _fdb.ref('.info/serverTimeOffset');
 
   static const _codeChars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
   static const _idChars = 'abcdefghijklmnopqrstuvwxyz0123456789';
@@ -156,6 +169,7 @@ class OnlineService {
       'turns': null,
       'rematch': null,
       'score': null,
+      'showdown': null,
       'createdAt': ServerValue.timestamp,
     });
   }
@@ -198,6 +212,21 @@ class OnlineService {
     return JoinResult.full;
   }
 
+  /// Register a server-side "remove me on disconnect" so a player who closes the
+  /// app or drops their connection is cleared from the room automatically — the
+  /// reliable backstop for the explicit [leave].
+  Future<void> markPresence(String code, int seat) async {
+    try {
+      await room(code).child('players/${slotKey(seat)}').onDisconnect().remove();
+    } catch (_) {}
+  }
+
+  Future<void> clearPresence(String code, int seat) async {
+    try {
+      await room(code).child('players/${slotKey(seat)}').onDisconnect().cancel();
+    } catch (_) {}
+  }
+
   /// Host begins the round: compact the joined players into contiguous seats
   /// p0..p(n-1), lock [seatCount] and flip [started]. Compacting means a gap
   /// left by a pre-start departure never produces a dead seat mid-game.
@@ -224,6 +253,7 @@ class OnlineService {
       'started': true,
       'turns': null,
       'rematch': null,
+      'showdown': null,
     });
   }
 
@@ -245,11 +275,54 @@ class OnlineService {
         return Transaction.success(n + 1);
       });
     }
-    await room(code).update({'turns': null, 'rematch': null});
+    await room(code).update({'turns': null, 'rematch': null, 'showdown': null});
   }
 
+  /// Explicitly drop my seat. Awaited by callers so the write flushes before
+  /// the screen is torn down.
   Future<void> leave(String code, int seat) async {
-    await room(code).child('players/${slotKey(seat)}').remove();
+    try {
+      await clearPresence(code, seat);
+      await room(code).child('players/${slotKey(seat)}').remove();
+    } catch (_) {}
+  }
+
+  // ---- Reaction showdown (breaks a final simultaneous wipe) --------------
+
+  /// Host opens a reaction showdown for the seats that fell together on [turn].
+  /// [goAtServerMs] is the server-clock moment the "go" signal flips on.
+  Future<void> createShowdown(
+      String code, int turn, List<int> participants, int goAtServerMs) {
+    return room(code).child('showdown').set({
+      'turn': turn,
+      'round': 0,
+      'goAt': goAtServerMs,
+      'participants': {for (final s in participants) slotKey(s): true},
+      'winner': null,
+      'falseStart': null,
+    });
+  }
+
+  /// Re-run the showdown (everyone jumped the gun) with a fresh signal time.
+  Future<void> newShowdownRound(String code, int round, int goAtServerMs) {
+    return room(code).child('showdown').update({
+      'round': round,
+      'goAt': goAtServerMs,
+      'winner': null,
+      'falseStart': null,
+    });
+  }
+
+  Future<void> recordFalseStart(String code, int seat) {
+    return room(code).child('showdown/falseStart/${slotKey(seat)}').set(true);
+  }
+
+  /// Claim victory: the first valid tap to commit this transaction wins.
+  Future<void> tryWinShowdown(String code, int seat) {
+    return room(code).child('showdown/winner').runTransaction((cur) {
+      if (cur == null) return Transaction.success(seat);
+      return Transaction.abort();
+    });
   }
 
   // ---- Pure helpers ------------------------------------------------------
@@ -269,42 +342,39 @@ class OnlineService {
   }
 
   /// Deterministic replay of a room into a view for the caller's [myClientId].
-  /// Mirrors the offline engine exactly by funnelling every turn through
-  /// [resolveTurn].
   static RoomView computeView(Map data, String myClientId) {
     final players = _asMap(data['players']) ?? const {};
     final turnsMap = _asMap(data['turns']) ?? const {};
     final scoreMap = _asMap(data['score']) ?? const {};
     final rematchMap = _asMap(data['rematch']) ?? const {};
+    final showdown = _asMap(data['showdown']);
     final started = data['started'] == true;
     final isHost = data['host'] == myClientId;
     final capacity =
         (_asInt(data['capacity']) ?? kMaxSeats).clamp(kMinSeats, kMaxSeats);
 
-    // Find my seat by client id, and gather names/scores for every slot.
     var mySeat = -1;
     final names = <int, String>{};
-    final joinedSeats = <int>[];
+    final present = <int, bool>{};
     for (final e in players.entries) {
       final v = _asMap(e.value);
       if (v == null) continue;
       final s = seatOf(e.key.toString());
       names[s] = (v['name'] as String?) ?? '카우보이';
-      joinedSeats.add(s);
+      present[s] = true;
       if (v['id'] == myClientId) mySeat = s;
     }
-    joinedSeats.sort();
-    final joinedCount = joinedSeats.length;
+    final joinedCount = present.length;
 
     int scoreFor(int s) => _asInt(scoreMap[slotKey(s)]) ?? 0;
 
-    // ---- Waiting room (before the host starts) ---------------------------
+    // ---- Waiting room ----------------------------------------------------
     if (!started) {
       final seats = <SeatView>[
         for (var s = 0; s < capacity; s++)
           SeatView(
             seat: s,
-            joined: names.containsKey(s),
+            joined: present[s] == true,
             name: names[s] ?? '빈자리',
             ammo: 0,
             alive: true,
@@ -327,6 +397,7 @@ class OnlineService {
         mySeat: mySeat,
         seats: seats,
         joinedCount: joinedCount,
+        presentCount: joinedCount,
         canStart: isHost && joinedCount >= kMinSeats,
         myPending: null,
         iSubmitted: false,
@@ -342,7 +413,7 @@ class OnlineService {
       );
     }
 
-    // ---- Live game (after start) -----------------------------------------
+    // ---- Live game -------------------------------------------------------
     final n =
         (_asInt(data['seatCount']) ?? joinedCount).clamp(kMinSeats, kMaxSeats);
 
@@ -357,17 +428,80 @@ class OnlineService {
 
     while (true) {
       final turn = _asMap(turnsMap['t$t']);
-      final submitted = List<bool>.filled(n, false);
-      final moves = List<Move>.filled(n, Move.empty);
-      var allAliveSubmitted = true;
-      for (var s = 0; s < n; s++) {
-        if (!alive[s]) continue;
-        final raw = turn == null ? null : _asInt(turn[slotKey(s)]);
-        if (raw == null) {
-          allAliveSubmitted = false;
-        } else {
-          submitted[s] = true;
-          moves[s] = Move.decode(raw);
+      var submitted = List<bool>.filled(n, false);
+      var moves = List<Move>.filled(n, Move.empty);
+
+      bool computeSubs() {
+        submitted = List<bool>.filled(n, false);
+        moves = List<Move>.filled(n, Move.empty);
+        var all = true;
+        for (var s = 0; s < n; s++) {
+          if (!alive[s]) continue;
+          final raw = turn == null ? null : _asInt(turn[slotKey(s)]);
+          if (raw == null) {
+            all = false;
+          } else {
+            submitted[s] = true;
+            moves[s] = Move.decode(raw);
+          }
+        }
+        return all;
+      }
+
+      var allAliveSubmitted = computeSubs();
+
+      // If we're stuck waiting, drop any player who has LEFT the room — at the
+      // live frontier they can never submit, so otherwise everyone freezes.
+      // Applied only at the unresolved turn, so it never rewrites history.
+      if (!allAliveSubmitted) {
+        var dropped = false;
+        for (var s = 0; s < n; s++) {
+          if (alive[s] && present[s] != true) {
+            alive[s] = false;
+            dropped = true;
+          }
+        }
+        if (dropped) {
+          final survivors = [
+            for (var s = 0; s < n; s++)
+              if (alive[s]) s
+          ];
+          if (survivors.length <= 1) {
+            return _buildView(
+              phase: OnlinePhase.over,
+              capacity: capacity,
+              seatCount: n,
+              isHost: isHost,
+              turn: -1,
+              mySeat: mySeat,
+              names: names,
+              present: present,
+              ammo: ammo,
+              alive: alive,
+              lastMoves: lastMoves,
+              fired: List<bool>.filled(n, false),
+              firedTarget: List<int>.filled(n, -1),
+              hit: List<bool>.filled(n, false),
+              submitted: List<bool>.filled(n, false),
+              scoreFor: scoreFor,
+              joinedCount: joinedCount,
+              myPending: null,
+              iSubmitted: true,
+              submittedAlive: 0,
+              aliveCount: survivors.length,
+              banner: survivors.length == 1
+                  ? (survivors.first == mySeat
+                      ? '상대가 모두 나갔다 — 승리!'
+                      : '${names[survivors.first] ?? "카우보이"} 승리!')
+                  : '모두 떠났다!',
+              status: survivors.length == 1
+                  ? GameStatus.won
+                  : GameStatus.draw,
+              winner: survivors.length == 1 ? survivors.first : null,
+              rematchMap: rematchMap,
+            );
+          }
+          allAliveSubmitted = computeSubs();
         }
       }
 
@@ -389,6 +523,7 @@ class OnlineService {
           turn: t,
           mySeat: mySeat,
           names: names,
+          present: present,
           ammo: ammo,
           alive: alive,
           lastMoves: lastMoves,
@@ -413,6 +548,7 @@ class OnlineService {
         );
       }
 
+      final aliveBefore = List<bool>.from(alive);
       final out = resolveTurn(moves, ammo, alive);
       ammo = out.ammoAfter;
       lastMoves = List<Move?>.from(moves);
@@ -423,6 +559,27 @@ class OnlineService {
       banner = _turnBanner(out, names);
 
       if (out.status != GameStatus.ongoing) {
+        // A simultaneous wipe is decided by a reaction showdown, not a draw.
+        var status = out.status;
+        var winner = out.winner;
+        var drawTurn = -1;
+        var drawParticipants = const <int>[];
+        if (out.status == GameStatus.draw) {
+          final parts = [
+            for (var s = 0; s < n; s++)
+              if (aliveBefore[s]) s
+          ];
+          final sdWinner = (showdown != null && _asInt(showdown['turn']) == t)
+              ? _asInt(showdown['winner'])
+              : null;
+          if (sdWinner != null) {
+            status = GameStatus.won;
+            winner = sdWinner;
+          } else {
+            drawTurn = t;
+            drawParticipants = parts;
+          }
+        }
         return _buildView(
           phase: OnlinePhase.over,
           capacity: capacity,
@@ -431,6 +588,7 @@ class OnlineService {
           turn: -1,
           mySeat: mySeat,
           names: names,
+          present: present,
           ammo: ammo,
           alive: alive,
           lastMoves: lastMoves,
@@ -444,14 +602,14 @@ class OnlineService {
           iSubmitted: true,
           submittedAlive: 0,
           aliveCount: alive.where((a) => a).length,
-          banner: out.status == GameStatus.won
-              ? (out.winner == mySeat
-                  ? '최후의 1인! 승리!'
-                  : '${names[out.winner] ?? "카우보이"} 승리!')
-              : '모두 쓰러졌다... 무승부!',
-          status: out.status,
-          winner: out.winner,
+          banner: status == GameStatus.won
+              ? (winner == mySeat ? '최후의 1인! 승리!' : '${names[winner] ?? "카우보이"} 승리!')
+              : '모두 쓰러졌다!',
+          status: status,
+          winner: winner,
           rematchMap: rematchMap,
+          drawTurn: drawTurn,
+          drawParticipants: drawParticipants,
         );
       }
       t++;
@@ -466,6 +624,7 @@ class OnlineService {
     required int turn,
     required int mySeat,
     required Map<int, String> names,
+    required Map<int, bool> present,
     required List<int> ammo,
     required List<bool> alive,
     required List<Move?> lastMoves,
@@ -483,12 +642,14 @@ class OnlineService {
     required GameStatus status,
     required int? winner,
     required Map rematchMap,
+    int drawTurn = -1,
+    List<int> drawParticipants = const [],
   }) {
     final seats = <SeatView>[
       for (var s = 0; s < seatCount; s++)
         SeatView(
           seat: s,
-          joined: true,
+          joined: present[s] == true,
           name: names[s] ?? '카우보이',
           ammo: ammo[s],
           alive: alive[s],
@@ -501,6 +662,10 @@ class OnlineService {
           score: scoreFor(s),
         ),
     ];
+    final presentCount = [
+      for (var s = 0; s < seatCount; s++)
+        if (present[s] == true) s
+    ].length;
     var rematchCount = 0;
     var iRematch = false;
     for (var s = 0; s < seatCount; s++) {
@@ -519,6 +684,7 @@ class OnlineService {
       mySeat: mySeat,
       seats: seats,
       joinedCount: joinedCount,
+      presentCount: presentCount,
       canStart: false,
       myPending: myPending,
       iSubmitted: iSubmitted,
@@ -530,6 +696,8 @@ class OnlineService {
       justResolved: phase == OnlinePhase.over,
       iRequestedRematch: iRematch,
       rematchCount: rematchCount,
+      drawTurn: drawTurn,
+      drawParticipants: drawParticipants,
     );
   }
 
