@@ -10,6 +10,7 @@ import '../theme.dart';
 import '../widgets/action_bar.dart';
 import '../widgets/circular_table.dart';
 import '../widgets/desert_background.dart';
+import '../widgets/emoji_bar.dart';
 import '../widgets/online_showdown.dart';
 
 class OnlineGameScreen extends StatefulWidget {
@@ -29,6 +30,7 @@ class OnlineGameScreen extends StatefulWidget {
 class _OnlineGameScreenState extends State<OnlineGameScreen> {
   bool _resetting = false;
   int _presenceSeat = -1;
+  bool _startedNow = false;
 
   // Pending action for the current turn.
   int _pendingTurn = -1;
@@ -40,9 +42,16 @@ class _OnlineGameScreenState extends State<OnlineGameScreen> {
   bool _revealing = false;
   Timer? _revealTimer;
 
-  // Server clock skew for the reaction showdown.
+  // Server clock skew (for both staleness and the reaction showdown).
   int _serverOffset = 0;
   StreamSubscription<DatabaseEvent>? _offsetSub;
+  Timer? _heartbeat;
+  Timer? _staleTick;
+
+  // Emoji reactions floating over seats.
+  final Map<int, String> _reactions = {};
+  final Map<int, Timer> _rxTimers = {};
+  final Map<int, int> _seenReactTs = {};
 
   @override
   void initState() {
@@ -51,30 +60,79 @@ class _OnlineGameScreenState extends State<OnlineGameScreen> {
       final v = e.snapshot.value;
       if (v is num && mounted) setState(() => _serverOffset = v.toInt());
     });
+    // Keep my seat alive so a brief blip never reads as "left".
+    _heartbeat = Timer.periodic(const Duration(seconds: 4), (_) {
+      if (_presenceSeat >= 0) widget.service.heartbeat(widget.code, _presenceSeat);
+    });
+    // Re-evaluate staleness even when no RTDB events arrive.
+    _staleTick = Timer.periodic(const Duration(seconds: 5), (_) {
+      if (mounted) setState(() {});
+    });
   }
+
+  int get _nowServer =>
+      DateTime.now().millisecondsSinceEpoch + _serverOffset;
 
   @override
   void dispose() {
     _revealTimer?.cancel();
     _offsetSub?.cancel();
-    // Backstop leave (onDisconnect handles hard disconnects).
-    if (_presenceSeat >= 0) widget.service.leave(widget.code, _presenceSeat);
+    _heartbeat?.cancel();
+    _staleTick?.cancel();
+    for (final t in _rxTimers.values) {
+      t.cancel();
+    }
+    if (_presenceSeat >= 0) {
+      widget.service.leave(widget.code, _presenceSeat, started: _startedNow);
+    }
     super.dispose();
+  }
+
+  /// Float an emoji over [seat] for a couple seconds. Safe to call during build
+  /// (mutates state without setState; the clear timer triggers the rebuild).
+  void _showReaction(int seat, String emoji) {
+    _reactions[seat] = emoji;
+    _rxTimers[seat]?.cancel();
+    _rxTimers[seat] = Timer(const Duration(milliseconds: 2200), () {
+      if (mounted) setState(() => _reactions.remove(seat));
+    });
+  }
+
+  void _react(int seat, String emoji) {
+    setState(() => _showReaction(seat, emoji));
+  }
+
+  void _handleReactions(Map data) {
+    final react = data['react'];
+    if (react is! Map) return;
+    react.forEach((k, v) {
+      if (v is! Map) return;
+      final seat = int.tryParse(k.toString().replaceAll('p', ''));
+      final t = v['t'];
+      final e = v['e'];
+      if (seat == null || t is! num || e is! String) return;
+      final ts = t.toInt();
+      if (ts > (_seenReactTs[seat] ?? 0) && _nowServer - ts < 4000) {
+        _seenReactTs[seat] = ts;
+        _showReaction(seat, e);
+      }
+    });
   }
 
   Future<void> _leaveAndPop() async {
     final seat = _presenceSeat;
+    final started = _startedNow;
     _presenceSeat = -1;
-    if (seat >= 0) await widget.service.leave(widget.code, seat);
+    if (seat >= 0) await widget.service.leave(widget.code, seat, started: started);
     if (mounted) Navigator.of(context).pop();
   }
 
-  void _updatePresence(int mySeat) {
-    if (mySeat >= 0 && mySeat != _presenceSeat) {
-      final old = _presenceSeat;
-      if (old >= 0) widget.service.clearPresence(widget.code, old);
-      _presenceSeat = mySeat;
-      widget.service.markPresence(widget.code, mySeat);
+  void _track(RoomView view) {
+    _presenceSeat = view.mySeat;
+    _startedNow = view.started;
+    // Host makes silent players' departures sticky so all clients agree.
+    if (view.isHost && view.reapSeats.isNotEmpty) {
+      widget.service.markQuit(widget.code, view.reapSeats);
     }
   }
 
@@ -134,12 +192,23 @@ class _OnlineGameScreenState extends State<OnlineGameScreen> {
                 final raw = snap.data!.snapshot.value;
                 if (raw is! Map) return _info('방이 사라졌어요.', back: true);
                 final data = Map.from(raw);
-                final view =
-                    OnlineService.computeView(data, widget.service.clientId);
-                _updatePresence(view.mySeat);
+                final view = OnlineService.computeView(
+                    data, widget.service.clientId,
+                    nowServerMs: _nowServer);
+                _track(view);
                 _handleReveal(view);
-                _maybeReset(view);
-                if (view.phase == OnlinePhase.waiting) return _waiting(view);
+                _handleReactions(data);
+                _maybeReset(view, data['scored'] == true);
+                if (view.phase == OnlinePhase.waiting) {
+                  if (view.mySeat < 0) {
+                    return _info('방에서 나왔어요.', back: true);
+                  }
+                  return _waiting(view);
+                }
+                if (view.iAmOut) {
+                  return _info('연결이 끊겨 방에서 나가졌어요.\n다시 입장하려면 방 코드로 들어오세요.',
+                      back: true);
+                }
                 if (view.status == GameStatus.draw && view.drawTurn >= 0) {
                   return _showdownBody(view, data['showdown']);
                 }
@@ -159,15 +228,21 @@ class _OnlineGameScreenState extends State<OnlineGameScreen> {
     );
   }
 
-  void _maybeReset(RoomView view) {
+  void _maybeReset(RoomView view, bool scored) {
     if (view.phase == OnlinePhase.over &&
         view.status == GameStatus.won &&
-        view.isHost &&
-        view.presentCount >= kMinSeats &&
-        view.rematchCount >= view.presentCount &&
-        !_resetting) {
-      _resetting = true;
-      widget.service.recordWinAndReset(widget.code, view.winnerSeat);
+        view.isHost) {
+      // Score the instant the game is decided (guarded server-side too).
+      if (!scored && view.winnerSeat != null) {
+        widget.service.recordScore(widget.code, view.winnerSeat!);
+      }
+      // Once everyone present wants a rematch, clear the board.
+      if (view.presentCount >= kMinSeats &&
+          view.rematchCount >= view.presentCount &&
+          !_resetting) {
+        _resetting = true;
+        widget.service.resetBoard(widget.code);
+      }
     }
     if (view.phase != OnlinePhase.over) _resetting = false;
   }
@@ -282,6 +357,7 @@ class _OnlineGameScreenState extends State<OnlineGameScreen> {
             hit: sv.hitThisTurn && reveal,
             lastMove: sv.lastMove,
             fired: sv.fired,
+            superFired: sv.superFired,
             firedTarget: sv.firedTarget,
           ),
       ];
@@ -291,7 +367,9 @@ class _OnlineGameScreenState extends State<OnlineGameScreen> {
     final choosing =
         view.phase == OnlinePhase.choosing && view.seated && !_revealing;
     if (choosing) _resetPendingFor(view.turn);
-    final targetMode = choosing && _selKind == ActKind.shoot;
+    final targetMode = choosing &&
+        (_selKind == ActKind.shoot || _selKind == ActKind.superShoot);
+    final canReact = view.seated && view.phase != OnlinePhase.over;
     return Column(
       children: [
         const SizedBox(height: 6),
@@ -299,14 +377,30 @@ class _OnlineGameScreenState extends State<OnlineGameScreen> {
         Expanded(
           child: Padding(
             padding: const EdgeInsets.all(8),
-            child: CircularTable(
-              seats: _seatsOf(view, reveal),
-              mySeat: view.mySeat < 0 ? 0 : view.mySeat,
-              reveal: reveal,
-              targetMode: targetMode,
-              selectedTarget: _selTarget,
-              onSeatTap: (s) => setState(() => _selTarget = s),
-              center: _centerBanner(view.banner),
+            child: Stack(
+              children: [
+                CircularTable(
+                  seats: _seatsOf(view, reveal),
+                  mySeat: view.mySeat < 0 ? 0 : view.mySeat,
+                  reveal: reveal,
+                  targetMode: targetMode,
+                  selectedTarget: _selTarget,
+                  onSeatTap: (s) => setState(() => _selTarget = s),
+                  center: _centerBanner(view.banner),
+                  reactions: _reactions,
+                ),
+                if (canReact)
+                  Positioned(
+                    right: 6,
+                    bottom: 6,
+                    child: EmojiBar(
+                      onPick: (e) {
+                        _react(view.mySeat, e);
+                        widget.service.sendReaction(widget.code, view.mySeat, e);
+                      },
+                    ),
+                  ),
+              ],
             ),
           ),
         ),
@@ -418,6 +512,7 @@ class _OnlineGameScreenState extends State<OnlineGameScreen> {
             ActKind.reload => const Move.reload(),
             ActKind.defend => const Move.defend(),
             ActKind.shoot => Move.shoot(_selTarget),
+            ActKind.superShoot => Move.superShoot(_selTarget),
           };
           widget.service.submitMove(widget.code, view.turn, view.mySeat, m);
         },

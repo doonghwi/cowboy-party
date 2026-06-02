@@ -9,6 +9,7 @@ import '../theme.dart';
 import '../widgets/action_bar.dart';
 import '../widgets/circular_table.dart';
 import '../widgets/desert_background.dart';
+import '../widgets/emoji_bar.dart';
 import '../widgets/reaction_panel.dart';
 
 enum _Phase { setup, choosing, reveal, over, showdown }
@@ -34,6 +35,7 @@ class _OfflineGameScreenState extends State<OfflineGameScreen> {
   late List<bool> _alive;
   late List<Move?> _last;
   late List<bool> _fired;
+  late List<bool> _superFired;
   late List<int> _firedTarget;
   late List<bool> _hit;
 
@@ -56,6 +58,9 @@ class _OfflineGameScreenState extends State<OfflineGameScreen> {
   Timer? _sdPrep;
   Timer? _sdGo;
 
+  final Map<int, String> _reactions = {};
+  final Map<int, Timer> _rxTimers = {};
+
   List<String> get _names =>
       ['나', for (var i = 0; i < _n - 1; i++) _botNames[i % _botNames.length]];
 
@@ -63,7 +68,18 @@ class _OfflineGameScreenState extends State<OfflineGameScreen> {
   void dispose() {
     _sdPrep?.cancel();
     _sdGo?.cancel();
+    for (final t in _rxTimers.values) {
+      t.cancel();
+    }
     super.dispose();
+  }
+
+  void _react(int seat, String emoji) {
+    setState(() => _reactions[seat] = emoji);
+    _rxTimers[seat]?.cancel();
+    _rxTimers[seat] = Timer(const Duration(milliseconds: 2200), () {
+      if (mounted) setState(() => _reactions.remove(seat));
+    });
   }
 
   void _start() {
@@ -73,6 +89,7 @@ class _OfflineGameScreenState extends State<OfflineGameScreen> {
       _alive = List<bool>.filled(_n, true);
       _last = List<Move?>.filled(_n, null);
       _fired = List<bool>.filled(_n, false);
+      _superFired = List<bool>.filled(_n, false);
       _firedTarget = List<int>.filled(_n, -1);
       _hit = List<bool>.filled(_n, false);
       _turn = 0;
@@ -91,6 +108,7 @@ class _OfflineGameScreenState extends State<OfflineGameScreen> {
       ActKind.reload => const Move.reload(),
       ActKind.defend => const Move.defend(),
       ActKind.shoot => Move.shoot(_selTarget),
+      ActKind.superShoot => Move.superShoot(_selTarget),
     };
     _resolve(mine);
   }
@@ -108,6 +126,7 @@ class _OfflineGameScreenState extends State<OfflineGameScreen> {
     setState(() {
       _last = List<Move?>.from(moves);
       _fired = out.fired;
+      _superFired = out.superFired;
       _firedTarget = out.firedTarget;
       _hit = out.hit;
       _ammo = out.ammoAfter;
@@ -131,6 +150,7 @@ class _OfflineGameScreenState extends State<OfflineGameScreen> {
       _hit = List<bool>.filled(_n, false);
       _last = List<Move?>.filled(_n, null);
       _fired = List<bool>.filled(_n, false);
+      _superFired = List<bool>.filled(_n, false);
       _firedTarget = List<int>.filled(_n, -1);
       _turn++;
       _phase = _Phase.choosing;
@@ -331,23 +351,36 @@ class _OfflineGameScreenState extends State<OfflineGameScreen> {
           hit: _hit[s],
           lastMove: _last[s],
           fired: _fired[s],
+          superFired: _superFired[s],
           firedTarget: _firedTarget[s],
         ),
     ];
-    final targetMode = _phase == _Phase.choosing && _selKind == ActKind.shoot;
+    final targetMode = _phase == _Phase.choosing &&
+        (_selKind == ActKind.shoot || _selKind == ActKind.superShoot);
     return Column(
       children: [
         Expanded(
           child: Padding(
             padding: const EdgeInsets.all(8),
-            child: CircularTable(
-              seats: seats,
-              mySeat: 0,
-              reveal: reveal,
-              targetMode: targetMode,
-              selectedTarget: _selTarget,
-              onSeatTap: (s) => setState(() => _selTarget = s),
-              center: _centerBanner(),
+            child: Stack(
+              children: [
+                CircularTable(
+                  seats: seats,
+                  mySeat: 0,
+                  reveal: reveal,
+                  targetMode: targetMode,
+                  selectedTarget: _selTarget,
+                  onSeatTap: (s) => setState(() => _selTarget = s),
+                  center: _centerBanner(),
+                  reactions: _reactions,
+                ),
+                if (_phase == _Phase.choosing || _phase == _Phase.reveal)
+                  Positioned(
+                    right: 6,
+                    bottom: 6,
+                    child: EmojiBar(onPick: (e) => _react(0, e)),
+                  ),
+              ],
             ),
           ),
         ),

@@ -16,6 +16,7 @@ class CD {
   static const danger = Color(0xFF9E2B25); // shoot / hit
   static const sage = Color(0xFF2E6E5A); // defend
   static const gold = Color(0xFFD9A441); // reload
+  static const nova = Color(0xFFF2A93B); // 슈퍼빵야 (gold-fire)
 
   // Dusk sky tones for the painted background.
   static const skyTop = Color(0xFF3A2A55);
@@ -33,6 +34,8 @@ class CD {
         return sage;
       case ActKind.shoot:
         return danger;
+      case ActKind.superShoot:
+        return nova;
     }
   }
 }
@@ -46,6 +49,8 @@ IconData actionIcon(ActKind a) {
       return Icons.shield;
     case ActKind.shoot:
       return Icons.local_fire_department;
+    case ActKind.superShoot:
+      return Icons.bolt;
   }
 }
 

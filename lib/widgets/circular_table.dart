@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 
 import '../game/party_logic.dart';
 import '../theme.dart';
+import 'emo.dart';
 import 'seat_card.dart';
 
 /// Neutral, render-ready seat data so both the offline and online screens can
@@ -18,6 +19,7 @@ class TableSeat {
   final bool hit;
   final Move? lastMove;
   final bool fired;
+  final bool superFired;
   final int firedTarget;
 
   const TableSeat({
@@ -30,6 +32,7 @@ class TableSeat {
     this.hit = false,
     this.lastMove,
     this.fired = false,
+    this.superFired = false,
     this.firedTarget = -1,
   });
 }
@@ -50,6 +53,9 @@ class CircularTable extends StatelessWidget {
   /// Show the tracer lines + revealed moves.
   final bool reveal;
 
+  /// Emoji reactions to float over seats (seat -> emoji asset name).
+  final Map<int, String> reactions;
+
   const CircularTable({
     super.key,
     required this.seats,
@@ -59,6 +65,7 @@ class CircularTable extends StatelessWidget {
     this.selectedTarget = -1,
     this.onSeatTap,
     this.reveal = false,
+    this.reactions = const {},
   });
 
   @override
@@ -119,7 +126,167 @@ class CircularTable extends StatelessWidget {
                       : null,
                 ),
               ),
+            // Per-action effects on the reveal: shield ring for defend, a gold
+            // "+1" for reload (shots already draw a tracer arrow).
+            if (reveal)
+              for (var s = 0; s < n; s++)
+                ..._effects(s, positions[s], cardW, cardH),
+            // Emoji reactions floating over seats.
+            for (final entry in reactions.entries)
+              if (entry.key >= 0 && entry.key < n)
+                Positioned(
+                  left: positions[entry.key].dx - 24,
+                  top: positions[entry.key].dy - cardH / 2 - 44,
+                  child: IgnorePointer(
+                    child: _ReactionBubble(
+                      key: ValueKey('rx-${entry.key}-${entry.value}'),
+                      emoji: entry.value,
+                    ),
+                  ),
+                ),
           ],
+        );
+      },
+    );
+  }
+
+  List<Widget> _effects(int s, Offset pos, double cardW, double cardH) {
+    final m = seats[s].lastMove;
+    if (m == null || !seats[s].alive) return const [];
+    switch (m.kind) {
+      case ActKind.defend:
+        final ring = cardW + 26;
+        return [
+          Positioned(
+            left: pos.dx - ring / 2,
+            top: pos.dy - ring / 2,
+            width: ring,
+            height: ring,
+            child: IgnorePointer(
+              child: TweenAnimationBuilder<double>(
+                key: ValueKey('def-$s-${m.encode()}'),
+                tween: Tween(begin: 0.7, end: 1.0),
+                duration: const Duration(milliseconds: 380),
+                curve: Curves.easeOutBack,
+                builder: (context, v, _) => Transform.scale(
+                  scale: v,
+                  child: Container(
+                    decoration: BoxDecoration(
+                      shape: BoxShape.circle,
+                      border: Border.all(color: CD.sage, width: 3.5),
+                      boxShadow: [
+                        BoxShadow(
+                            color: CD.sage.withValues(alpha: 0.45),
+                            blurRadius: 12)
+                      ],
+                    ),
+                    alignment: Alignment.topCenter,
+                    child: Transform.translate(
+                      offset: const Offset(0, -11),
+                      child: Container(
+                        padding: const EdgeInsets.all(3),
+                        decoration:
+                            const BoxDecoration(color: CD.sage, shape: BoxShape.circle),
+                        child: const Icon(Icons.shield,
+                            size: 15, color: Colors.white),
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          ),
+        ];
+      case ActKind.reload:
+        return [
+          Positioned(
+            left: pos.dx - 26,
+            top: pos.dy - cardH / 2 - 16,
+            child: IgnorePointer(
+              child: TweenAnimationBuilder<double>(
+                key: ValueKey('rl-$s-${m.encode()}'),
+                tween: Tween(begin: 0.0, end: 1.0),
+                duration: const Duration(milliseconds: 420),
+                curve: Curves.easeOutBack,
+                builder: (context, v, _) => Opacity(
+                  opacity: v.clamp(0.0, 1.0),
+                  child: Transform.scale(
+                    scale: v,
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 8, vertical: 3),
+                      decoration: BoxDecoration(
+                        color: CD.gold,
+                        borderRadius: BorderRadius.circular(10),
+                        boxShadow: [
+                          BoxShadow(
+                              color: CD.gold.withValues(alpha: 0.5),
+                              blurRadius: 8)
+                        ],
+                      ),
+                      child: const Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(Icons.add, size: 14, color: Colors.white),
+                          Text('1',
+                              style: TextStyle(
+                                  color: Colors.white,
+                                  fontWeight: FontWeight.w900,
+                                  fontSize: 13)),
+                          SizedBox(width: 2),
+                          Icon(Icons.cached, size: 13, color: Colors.white),
+                        ],
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          ),
+        ];
+      case ActKind.shoot:
+      case ActKind.superShoot:
+        return const [];
+    }
+  }
+}
+
+/// A reaction emoji that pops in, drifts up and fades out.
+class _ReactionBubble extends StatelessWidget {
+  final String emoji;
+  const _ReactionBubble({super.key, required this.emoji});
+
+  @override
+  Widget build(BuildContext context) {
+    return TweenAnimationBuilder<double>(
+      tween: Tween(begin: 0, end: 1),
+      duration: const Duration(milliseconds: 2200),
+      builder: (context, t, _) {
+        // Pop in over the first 12%, hold, then drift up + fade over the last 35%.
+        final scale = t < 0.12 ? (t / 0.12) : 1.0;
+        final fade = t > 0.65 ? (1 - (t - 0.65) / 0.35) : 1.0;
+        final rise = -18.0 * (t > 0.65 ? (t - 0.65) / 0.35 : 0);
+        return Transform.translate(
+          offset: Offset(0, rise),
+          child: Opacity(
+            opacity: fade.clamp(0.0, 1.0),
+            child: Transform.scale(
+              scale: scale.clamp(0.0, 1.0),
+              child: Container(
+                padding: const EdgeInsets.all(4),
+                decoration: BoxDecoration(
+                  color: CD.parchment.withValues(alpha: 0.95),
+                  shape: BoxShape.circle,
+                  boxShadow: [
+                    BoxShadow(
+                        color: Colors.black.withValues(alpha: 0.2),
+                        blurRadius: 5),
+                  ],
+                ),
+                child: Emo(emoji, size: 38),
+              ),
+            ),
+          ),
         );
       },
     );
@@ -133,30 +300,80 @@ class _TracerPainter extends CustomPainter {
 
   @override
   void paint(Canvas canvas, Size size) {
-    final line = Paint()
-      ..color = CD.danger.withValues(alpha: 0.85)
-      ..strokeWidth = 3
-      ..strokeCap = StrokeCap.round;
-    for (var s = 0; s < seats.length; s++) {
-      if (!seats[s].fired) continue;
-      final t = seats[s].firedTarget;
-      if (t < 0 || t >= positions.length) continue;
-      final a = positions[s];
-      final b = positions[t];
-      // Shorten both ends so the line sits between the cards, not under them.
-      final dir = (b - a);
-      final len = dir.distance;
-      if (len < 1) continue;
-      final unit = dir / len;
-      final start = a + unit * 52;
-      final end = b - unit * 52;
-      canvas.drawLine(start, end, line);
-      _arrow(canvas, end, unit, line);
+    // Draw normal shots first, super shots on top so they dominate.
+    for (final superPass in [false, true]) {
+      for (var s = 0; s < seats.length; s++) {
+        if (!seats[s].fired || seats[s].superFired != superPass) continue;
+        final t = seats[s].firedTarget;
+        if (t < 0 || t >= positions.length) continue;
+        final a = positions[s];
+        final b = positions[t];
+        final dir = (b - a);
+        final len = dir.distance;
+        if (len < 1) continue;
+        final unit = dir / len;
+        final start = a + unit * 52;
+        final end = b - unit * 52;
+        if (superPass) {
+          _superBolt(canvas, start, end, unit);
+        } else {
+          final line = Paint()
+            ..color = CD.danger.withValues(alpha: 0.85)
+            ..strokeWidth = 3
+            ..strokeCap = StrokeCap.round;
+          canvas.drawLine(start, end, line);
+          _arrow(canvas, end, unit, line, 11);
+        }
+      }
     }
   }
 
-  void _arrow(Canvas canvas, Offset tip, Offset unit, Paint paint) {
-    const head = 11.0;
+  /// A thick gold-fire bolt with an outer glow and a starburst at the target —
+  /// the unmistakable, screen-dominating 슈퍼빵야 hit.
+  void _superBolt(Canvas canvas, Offset start, Offset end, Offset unit) {
+    final glow = Paint()
+      ..color = CD.nova.withValues(alpha: 0.40)
+      ..strokeWidth = 13
+      ..strokeCap = StrokeCap.round
+      ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 6);
+    final core = Paint()
+      ..color = CD.nova
+      ..strokeWidth = 6
+      ..strokeCap = StrokeCap.round;
+    final inner = Paint()
+      ..color = Colors.white.withValues(alpha: 0.9)
+      ..strokeWidth = 2
+      ..strokeCap = StrokeCap.round;
+    canvas.drawLine(start, end, glow);
+    canvas.drawLine(start, end, core);
+    canvas.drawLine(start, end, inner);
+    _arrow(canvas, end, unit, Paint()..color = CD.nova, 18);
+    _burst(canvas, end);
+  }
+
+  void _burst(Canvas canvas, Offset c) {
+    final p = Paint()..color = CD.nova;
+    final glow = Paint()
+      ..color = CD.nova.withValues(alpha: 0.4)
+      ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 5);
+    canvas.drawCircle(c, 14, glow);
+    final path = Path();
+    for (var i = 0; i < 8; i++) {
+      final a = i * pi / 4;
+      final r = i.isEven ? 13.0 : 5.5;
+      final pt = c + Offset(cos(a), sin(a)) * r;
+      if (i == 0) {
+        path.moveTo(pt.dx, pt.dy);
+      } else {
+        path.lineTo(pt.dx, pt.dy);
+      }
+    }
+    path.close();
+    canvas.drawPath(path, p);
+    canvas.drawCircle(c, 3, Paint()..color = Colors.white);
+  }
+
+  void _arrow(Canvas canvas, Offset tip, Offset unit, Paint paint, double head) {
     final back = tip - unit * head;
     final normal = Offset(-unit.dy, unit.dx);
     final p1 = back + normal * (head * 0.6);

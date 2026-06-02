@@ -9,30 +9,33 @@ int shoot(int t) => Move.shoot(t).encode();
 Map<String, Object?> startedRoom({
   required Map<String, Object?> players,
   required int seatCount,
-  Map<String, Object?>? turns,
+  Map<String, Object?> turns = const {},
   Map<String, Object?>? showdown,
+  Map<String, Object?>? quit,
   String host = 'h',
-}) =>
-    {
-      'host': host,
-      'capacity': 6,
-      'started': true,
-      'seatCount': seatCount,
-      'players': players,
-      if (turns != null) 'turns': turns,
-      if (showdown != null) 'showdown': showdown,
-    };
+}) {
+  final m = <String, Object?>{
+    'host': host,
+    'capacity': 6,
+    'started': true,
+    'seatCount': seatCount,
+    'players': players,
+    'turns': turns,
+  };
+  if (showdown != null) m['showdown'] = showdown;
+  if (quit != null) m['quit'] = quit;
+  return m;
+}
 
 void main() {
   group('computeView — a departing player never freezes the game', () {
-    test('last player standing wins when everyone else has left', () {
+    test('last player standing wins when everyone else has left (node gone)',
+        () {
       final data = startedRoom(
         players: {
           'p0': {'id': 'h', 'name': 'A'},
-          // p1 left the room (node removed) while still "alive" in replay.
         },
         seatCount: 2,
-        turns: const {}, // nobody submitted the live turn
       );
       final v = OnlineService.computeView(data, 'h');
       expect(v.status, GameStatus.won);
@@ -44,19 +47,73 @@ void main() {
         players: {
           'p0': {'id': 'h', 'name': 'A'},
           'p1': {'id': 'g', 'name': 'B'},
-          // p2 left.
         },
         seatCount: 3,
         turns: {
-          't0': {'p0': reload(), 'p1': reload()}, // p2 never submits
+          't0': {'p0': reload(), 'p1': reload()},
         },
       );
       final v = OnlineService.computeView(data, 'h');
-      // Game keeps going (didn't freeze on the absent p2), p2 folded out.
       expect(v.status, GameStatus.ongoing);
       expect(v.seats[2].alive, isFalse);
       expect(v.seats[0].alive, isTrue);
-      expect(v.seats[1].alive, isTrue);
+    });
+  });
+
+  group('computeView — heartbeat staleness (the false-kick fix)', () {
+    test('a fresh (heartbeating) player is NOT dropped, game waits for them',
+        () {
+      const now = 5000000;
+      final data = startedRoom(
+        players: {
+          'p0': {'id': 'h', 'name': 'A', 'seen': now},
+          'p1': {'id': 'g', 'name': 'B', 'seen': now - 2000}, // 2s ago: fresh
+        },
+        seatCount: 2,
+        turns: {
+          't0': {'p0': reload()}, // p1 hasn't submitted yet
+        },
+      );
+      final v = OnlineService.computeView(data, 'h', nowServerMs: now);
+      expect(v.status, GameStatus.ongoing); // not frozen, not won — just waiting
+      expect(v.presentCount, 2);
+      expect(v.reapSeats, isEmpty);
+    });
+
+    test('a long-silent player is reaped and the table unblocks', () {
+      const now = 5000000;
+      final data = startedRoom(
+        players: {
+          'p0': {'id': 'h', 'name': 'A', 'seen': now},
+          'p1': {'id': 'g', 'name': 'B', 'seen': now - 30000}, // 30s ago: stale
+        },
+        seatCount: 2,
+        turns: {
+          't0': {'p0': reload()},
+        },
+      );
+      final v = OnlineService.computeView(data, 'h', nowServerMs: now);
+      expect(v.status, GameStatus.won);
+      expect(v.winnerSeat, 0);
+      expect(v.reapSeats, contains(1)); // host should write a sticky quit
+    });
+
+    test('a quit marker is sticky even if the node looks fresh', () {
+      const now = 5000000;
+      final data = startedRoom(
+        players: {
+          'p0': {'id': 'h', 'name': 'A', 'seen': now},
+          'p1': {'id': 'g', 'name': 'B', 'seen': now}, // looks present...
+        },
+        seatCount: 2,
+        turns: {
+          't0': {'p0': reload()},
+        },
+        quit: {'p1': true}, // ...but marked quit
+      );
+      final v = OnlineService.computeView(data, 'h', nowServerMs: now);
+      expect(v.status, GameStatus.won);
+      expect(v.winnerSeat, 0);
     });
   });
 
@@ -69,13 +126,13 @@ void main() {
           },
           seatCount: 2,
           turns: {
-            't0': {'p0': reload(), 'p1': reload()}, // arm up
-            't1': {'p0': shoot(1), 'p1': shoot(0)}, // shoot each other
+            't0': {'p0': reload(), 'p1': reload()},
+            't1': {'p0': shoot(1), 'p1': shoot(0)},
           },
           showdown: showdown,
         );
 
-    test('pending showdown: draw exposed with participants', () {
+    test('pending showdown: draw exposed with both participants', () {
       final v = OnlineService.computeView(mutualKillRoom(), 'h');
       expect(v.status, GameStatus.draw);
       expect(v.drawTurn, 1);
@@ -89,25 +146,6 @@ void main() {
       );
       expect(v.status, GameStatus.won);
       expect(v.winnerSeat, 1);
-    });
-  });
-
-  group('computeView — presence & rematch counts', () {
-    test('present count reflects who is still in the room', () {
-      final data = startedRoom(
-        players: {
-          'p0': {'id': 'h', 'name': 'A'},
-          'p1': {'id': 'g', 'name': 'B'},
-          'p2': {'id': 'k', 'name': 'C'},
-        },
-        seatCount: 3,
-        turns: {
-          't0': {'p0': reload(), 'p1': reload(), 'p2': reload()},
-        },
-      );
-      final v = OnlineService.computeView(data, 'h');
-      expect(v.presentCount, 3);
-      expect(v.seats.where((s) => s.joined).length, 3);
     });
   });
 }

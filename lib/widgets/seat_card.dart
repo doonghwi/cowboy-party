@@ -204,6 +204,9 @@ class SeatCard extends StatelessWidget {
       case ActKind.shoot:
         c = fired ? CD.danger : CD.muted;
         break;
+      case ActKind.superShoot:
+        c = fired ? CD.nova : CD.muted;
+        break;
     }
     return Row(
       mainAxisSize: MainAxisSize.min,

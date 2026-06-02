@@ -28,15 +28,19 @@ class ActionBar extends StatelessWidget {
   });
 
   bool get _canShoot => myAmmo > 0;
+  bool get _canSuper => myAmmo >= kMaxAmmo; // reload slot flips to 슈퍼빵야
 
   bool get _ready {
     if (selected == null) return false;
-    if (selected == ActKind.shoot) return selectedTarget >= 0;
+    if (selected == ActKind.shoot || selected == ActKind.superShoot) {
+      return selectedTarget >= 0;
+    }
     return true;
   }
 
   String get _hint {
     if (selected == null) {
+      if (_canSuper) return '총알 가득! 슈퍼빵야로 방어를 뚫을 수 있어요';
       return myAmmo > 0 ? '행동을 골라요' : '총알이 없어요 — 먼저 장전!';
     }
     switch (selected!) {
@@ -48,6 +52,10 @@ class ActionBar extends StatelessWidget {
         return selectedTarget < 0
             ? '빵야 — 위 원에서 쏠 상대를 탭하세요'
             : '빵야 → ${targetName ?? ""}';
+      case ActKind.superShoot:
+        return selectedTarget < 0
+            ? '⚡슈퍼빵야 — 처치할 상대를 탭! (방어 무시·5발 소비)'
+            : '⚡슈퍼빵야 → ${targetName ?? ""} 확정 처치!';
     }
   }
 
@@ -58,7 +66,10 @@ class ActionBar extends StatelessWidget {
       children: [
         Row(
           children: [
-            _opt(ActKind.reload, '장전', '+1 총알', true),
+            if (_canSuper)
+              _opt(ActKind.superShoot, '슈퍼빵야', '5발·확정', true)
+            else
+              _opt(ActKind.reload, '장전', '+1 총알', true),
             const SizedBox(width: 10),
             _opt(ActKind.defend, '방어', '다 막음', true),
             const SizedBox(width: 10),

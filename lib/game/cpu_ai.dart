@@ -30,6 +30,13 @@ class CpuAi {
     // Living rivals that could shoot me this turn.
     final threats = [for (final r in rivals) if (ammo[r] > 0) r];
 
+    // Full magazine → the reload slot is a 슈퍼빵야. Mostly use it (it pierces
+    // defence), preferring the most armed rival; sometimes hold for a normal play.
+    if (myAmmo >= kMaxAmmo && _r.nextDouble() < 0.8) {
+      final pool = threats.isNotEmpty ? threats : rivals;
+      return Move.superShoot(_pickTarget(pool, ammo));
+    }
+
     // Empty gun → can't shoot. Mostly reload, but raise a shield under heavy
     // threat so it isn't a sitting duck.
     if (myAmmo == 0) {

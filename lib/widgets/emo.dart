@@ -29,5 +29,7 @@ String actionEmoji(ActKind a) {
       return 'shield';
     case ActKind.shoot:
       return 'bang';
+    case ActKind.superShoot:
+      return 'bang';
   }
 }
