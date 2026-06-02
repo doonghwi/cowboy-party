@@ -70,8 +70,12 @@ class _OfflineGameScreenState extends State<OfflineGameScreen> {
       ActKind.defend => const Move.defend(),
       ActKind.shoot => Move.shoot(_selTarget),
     };
+    _resolve(mine);
+  }
+
+  void _resolve(Move mine) {
     final moves = <Move>[
-      mine,
+      _alive[0] ? mine : Move.empty,
       for (var s = 1; s < _n; s++)
         _alive[s]
             ? _cpu.chooseMove(seat: s, ammo: _ammo, alive: _alive)
@@ -268,6 +272,37 @@ class _OfflineGameScreenState extends State<OfflineGameScreen> {
       case _Phase.setup:
         return const SizedBox.shrink();
       case _Phase.choosing:
+        if (!_alive[0]) {
+          // I'm out — spectate the bots fighting it out.
+          return Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 24),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const Text('탈락! 관전 중...',
+                    style: TextStyle(
+                        color: CD.danger,
+                        fontSize: 15,
+                        fontWeight: FontWeight.bold)),
+                const SizedBox(height: 10),
+                SizedBox(
+                  width: double.infinity,
+                  child: FilledButton(
+                    onPressed: () => _resolve(Move.empty),
+                    style: FilledButton.styleFrom(
+                      backgroundColor: CD.leather,
+                      padding: const EdgeInsets.symmetric(vertical: 14),
+                      shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(14)),
+                    ),
+                    child: Text('다음 턴 보기',
+                        style: posterTitle(17, color: Colors.white)),
+                  ),
+                ),
+              ],
+            ),
+          );
+        }
         return Padding(
           padding: const EdgeInsets.symmetric(horizontal: 16),
           child: ActionBar(
