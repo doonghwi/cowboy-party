@@ -1,0 +1,25 @@
+{
+  "database": {
+    "rules": "database.rules.json"
+  },
+  "flutter": {
+    "platforms": {
+      "android": {
+        "default": {
+          "projectId": "cowboy-party-doonghwi",
+          "appId": "1:162098390378:android:e7ef5e5807d05854b27113",
+          "fileOutput": "android/app/google-services.json"
+        }
+      },
+      "dart": {
+        "lib/firebase_options.dart": {
+          "projectId": "cowboy-party-doonghwi",
+          "configurations": {
+            "android": "1:162098390378:android:e7ef5e5807d05854b27113",
+            "web": "1:162098390378:web:1f425e502f0ef268b27113"
+          }
+        }
+      }
+    }
+  }
+}

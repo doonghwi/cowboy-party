@@ -1,0 +1,60 @@
+name: cowboy_party
+description: "Cowboy Party — 2 to 6 cowboys in a circle, one action a turn, last one standing wins."
+publish_to: 'none'
+
+version: 1.0.0+1
+
+environment:
+  sdk: ^3.12.1
+
+dependencies:
+  flutter:
+    sdk: flutter
+
+  cupertino_icons: ^1.0.8
+
+  firebase_core: ^4.10.0
+  firebase_database: ^12.4.2
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+
+  flutter_lints: ^6.0.0
+  flutter_launcher_icons: ^0.14.1
+
+flutter:
+  uses-material-design: true
+
+  # Bundled colour emoji images (Twemoji) — pretty like emoji, but load
+  # instantly with the app so the web build never flashes tofu boxes.
+  assets:
+    - assets/emoji/
+
+  # Bundled fonts (no runtime fetch) so Korean text never flashes as tofu.
+  fonts:
+    - family: BlackHanSans
+      fonts:
+        - asset: assets/fonts/BlackHanSans-Regular.ttf
+    - family: GothicA1
+      fonts:
+        - asset: assets/fonts/GothicA1-Regular.ttf
+        - asset: assets/fonts/GothicA1-Bold.ttf
+          weight: 700
+        - asset: assets/fonts/GothicA1-Black.ttf
+          weight: 900
+    - family: Rye
+      fonts:
+        - asset: assets/fonts/Rye-Regular.ttf
+
+# App icon + web favicon generation (original cowboy-hat art, no copyright).
+flutter_launcher_icons:
+  image_path: "assets/icon/icon.png"
+  android: true
+  adaptive_icon_background: "#2E6E5A"
+  adaptive_icon_foreground: "assets/icon/icon_fg.png"
+  web:
+    generate: true
+    image_path: "assets/icon/icon.png"
+    background_color: "#2E6E5A"
+    theme_color: "#2E6E5A"

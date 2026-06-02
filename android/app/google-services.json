@@ -1,0 +1,30 @@
+{
+  "project_info": {
+    "project_number": "162098390378",
+    "firebase_url": "https://cowboy-party-doonghwi-default-rtdb.asia-southeast1.firebasedatabase.app",
+    "project_id": "cowboy-party-doonghwi",
+    "storage_bucket": "cowboy-party-doonghwi.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:162098390378:android:e7ef5e5807d05854b27113",
+        "android_client_info": {
+          "package_name": "com.doonghwi.cowboy_party"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyBsoE4vi-bxVzMKp3Oy8gY6xafRhTx8qT0"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

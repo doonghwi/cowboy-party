@@ -1,0 +1,360 @@
+import 'package:flutter/material.dart';
+
+import '../game/cpu_ai.dart';
+import '../game/party_logic.dart';
+import '../theme.dart';
+import '../widgets/action_bar.dart';
+import '../widgets/circular_table.dart';
+import '../widgets/desert_background.dart';
+
+enum _Phase { setup, choosing, reveal, over }
+
+class OfflineGameScreen extends StatefulWidget {
+  const OfflineGameScreen({super.key});
+
+  @override
+  State<OfflineGameScreen> createState() => _OfflineGameScreenState();
+}
+
+class _OfflineGameScreenState extends State<OfflineGameScreen> {
+  // Western flavour names; seat 0 is always "나".
+  static const _botNames = ['잭', '빌', '한스', '로사', '듀크'];
+  final _cpu = CpuAi();
+
+  int _botCount = 2; // me + 2 bots = 3 players by default
+  int _n = 3;
+
+  late List<int> _ammo;
+  late List<bool> _alive;
+  late List<Move?> _last;
+  late List<bool> _fired;
+  late List<int> _firedTarget;
+  late List<bool> _hit;
+
+  int _turn = 0;
+  _Phase _phase = _Phase.setup;
+  String _banner = '';
+  GameStatus _status = GameStatus.ongoing;
+  int? _winner;
+
+  // Pending selection for this turn.
+  ActKind? _selKind;
+  int _selTarget = -1;
+
+  List<String> get _names =>
+      ['나', for (var i = 0; i < _n - 1; i++) _botNames[i % _botNames.length]];
+
+  void _start() {
+    _n = 1 + _botCount;
+    setState(() {
+      _ammo = List<int>.filled(_n, 0);
+      _alive = List<bool>.filled(_n, true);
+      _last = List<Move?>.filled(_n, null);
+      _fired = List<bool>.filled(_n, false);
+      _firedTarget = List<int>.filled(_n, -1);
+      _hit = List<bool>.filled(_n, false);
+      _turn = 0;
+      _phase = _Phase.choosing;
+      _banner = '첫 턴! 아직 총알이 없어요 — 장전부터.';
+      _status = GameStatus.ongoing;
+      _winner = null;
+      _selKind = null;
+      _selTarget = -1;
+    });
+  }
+
+  void _confirm() {
+    if (_selKind == null) return;
+    final mine = switch (_selKind!) {
+      ActKind.reload => const Move.reload(),
+      ActKind.defend => const Move.defend(),
+      ActKind.shoot => Move.shoot(_selTarget),
+    };
+    final moves = <Move>[
+      mine,
+      for (var s = 1; s < _n; s++)
+        _alive[s]
+            ? _cpu.chooseMove(seat: s, ammo: _ammo, alive: _alive)
+            : Move.empty,
+    ];
+    final out = resolveTurn(moves, _ammo, _alive);
+    setState(() {
+      _last = List<Move?>.from(moves);
+      _fired = out.fired;
+      _firedTarget = out.firedTarget;
+      _hit = out.hit;
+      _ammo = out.ammoAfter;
+      _alive = out.aliveAfter;
+      _banner = _turnBanner(out);
+      _status = out.status;
+      _winner = out.winner;
+      _phase = out.status == GameStatus.ongoing ? _Phase.reveal : _Phase.over;
+      _selKind = null;
+      _selTarget = -1;
+    });
+  }
+
+  void _next() {
+    setState(() {
+      _hit = List<bool>.filled(_n, false);
+      _last = List<Move?>.filled(_n, null);
+      _fired = List<bool>.filled(_n, false);
+      _firedTarget = List<int>.filled(_n, -1);
+      _turn++;
+      _phase = _Phase.choosing;
+      _banner = '${_turn + 1}번째 턴 · 행동을 골라요';
+    });
+  }
+
+  String _turnBanner(TurnOutcome out) {
+    final downed = <String>[
+      for (var s = 0; s < _n; s++)
+        if (out.hit[s]) _names[s]
+    ];
+    if (downed.isNotEmpty) return '${downed.join(", ")} 명중!';
+    return out.fired.any((x) => x) ? '모두 막거나 빗나갔다!' : '장전과 방어... 다음 턴!';
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(title: Text('컴퓨터와 대결', style: posterTitle(20))),
+      body: DesertBackground(
+        child: SafeArea(
+          child: _phase == _Phase.setup ? _setup() : _game(),
+        ),
+      ),
+    );
+  }
+
+  // ---- Setup -------------------------------------------------------------
+
+  Widget _setup() {
+    return Center(
+      child: SingleChildScrollView(
+        padding: const EdgeInsets.all(24),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text('컴퓨터 봇 수', style: posterTitle(24, color: Colors.white)),
+            const SizedBox(height: 6),
+            const Text('나 + 봇으로 2~6명이 됩니다.',
+                style: TextStyle(color: CD.parchment, fontSize: 13)),
+            const SizedBox(height: 20),
+            Container(
+              padding: const EdgeInsets.all(18),
+              decoration: BoxDecoration(
+                color: CD.parchment.withValues(alpha: 0.95),
+                borderRadius: BorderRadius.circular(18),
+                border: Border.all(color: CD.leather.withValues(alpha: 0.25)),
+              ),
+              child: Column(
+                children: [
+                  Wrap(
+                    spacing: 10,
+                    runSpacing: 10,
+                    alignment: WrapAlignment.center,
+                    children: [
+                      for (var b = 1; b <= 5; b++)
+                        GestureDetector(
+                          onTap: () => setState(() => _botCount = b),
+                          child: Container(
+                            width: 56,
+                            height: 56,
+                            alignment: Alignment.center,
+                            decoration: BoxDecoration(
+                              color: _botCount == b ? CD.rust : CD.sand,
+                              borderRadius: BorderRadius.circular(14),
+                              border: Border.all(
+                                  color: CD.rust,
+                                  width: _botCount == b ? 2.5 : 1.5),
+                            ),
+                            child: Text('$b',
+                                style: posterTitle(24,
+                                    color: _botCount == b
+                                        ? Colors.white
+                                        : CD.leather)),
+                          ),
+                        ),
+                    ],
+                  ),
+                  const SizedBox(height: 14),
+                  Text('총 ${_botCount + 1}명이 원을 그려 앉습니다',
+                      style: const TextStyle(
+                          color: CD.muted, fontWeight: FontWeight.w700)),
+                ],
+              ),
+            ),
+            const SizedBox(height: 22),
+            SizedBox(
+              width: 240,
+              child: FilledButton.icon(
+                onPressed: _start,
+                style: FilledButton.styleFrom(
+                  backgroundColor: CD.sage,
+                  padding: const EdgeInsets.symmetric(vertical: 15),
+                  shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(14)),
+                ),
+                icon: const Icon(Icons.play_arrow),
+                label: Text('시작!', style: posterTitle(18, color: Colors.white)),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  // ---- Game --------------------------------------------------------------
+
+  Widget _game() {
+    final reveal = _phase == _Phase.reveal || _phase == _Phase.over;
+    final seats = [
+      for (var s = 0; s < _n; s++)
+        TableSeat(
+          name: _names[s],
+          ammo: _ammo[s],
+          alive: _alive[s],
+          isMe: s == 0,
+          hit: _hit[s],
+          lastMove: _last[s],
+          fired: _fired[s],
+          firedTarget: _firedTarget[s],
+        ),
+    ];
+    final targetMode = _phase == _Phase.choosing && _selKind == ActKind.shoot;
+    return Column(
+      children: [
+        Expanded(
+          child: Padding(
+            padding: const EdgeInsets.all(8),
+            child: CircularTable(
+              seats: seats,
+              mySeat: 0,
+              reveal: reveal,
+              targetMode: targetMode,
+              selectedTarget: _selTarget,
+              onSeatTap: (s) => setState(() => _selTarget = s),
+              center: _centerBanner(),
+            ),
+          ),
+        ),
+        _bottom(),
+        const SizedBox(height: 10),
+      ],
+    );
+  }
+
+  Widget _centerBanner() {
+    return Container(
+      margin: const EdgeInsets.symmetric(horizontal: 8),
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 9),
+      decoration: BoxDecoration(
+        color: CD.leather.withValues(alpha: 0.62),
+        borderRadius: BorderRadius.circular(13),
+      ),
+      child: Text(
+        _banner,
+        textAlign: TextAlign.center,
+        style: const TextStyle(
+            color: Colors.white, fontSize: 13.5, fontWeight: FontWeight.w700),
+      ),
+    );
+  }
+
+  Widget _bottom() {
+    switch (_phase) {
+      case _Phase.setup:
+        return const SizedBox.shrink();
+      case _Phase.choosing:
+        return Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 16),
+          child: ActionBar(
+            myAmmo: _ammo[0],
+            selected: _selKind,
+            selectedTarget: _selTarget,
+            targetName: _selTarget >= 0 ? _names[_selTarget] : null,
+            onSelect: (k) => setState(() {
+              _selKind = k;
+              if (k != ActKind.shoot) _selTarget = -1;
+            }),
+            onConfirm: _confirm,
+          ),
+        );
+      case _Phase.reveal:
+        return Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 24),
+          child: SizedBox(
+            width: double.infinity,
+            child: FilledButton(
+              onPressed: _next,
+              style: FilledButton.styleFrom(
+                backgroundColor: CD.sage,
+                padding: const EdgeInsets.symmetric(vertical: 15),
+                shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(14)),
+              ),
+              child: Text('계속하기', style: posterTitle(18, color: Colors.white)),
+            ),
+          ),
+        );
+      case _Phase.over:
+        return _resultCard();
+    }
+  }
+
+  Widget _resultCard() {
+    final iWon = _status == GameStatus.won && _winner == 0;
+    final draw = _status == GameStatus.draw;
+    final title = draw
+        ? '무승부!'
+        : (iWon ? '승리! 최후의 1인' : '${_names[_winner!]} 승리');
+    return Container(
+      margin: const EdgeInsets.symmetric(horizontal: 20),
+      padding: const EdgeInsets.all(18),
+      decoration: BoxDecoration(
+        color: CD.parchment,
+        borderRadius: BorderRadius.circular(18),
+        border: Border.all(
+            color: draw ? CD.muted : (iWon ? CD.gold : CD.danger), width: 3),
+      ),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Text(title,
+              textAlign: TextAlign.center,
+              style: posterTitle(28,
+                  color: draw ? CD.leather : (iWon ? CD.rust : CD.danger))),
+          const SizedBox(height: 14),
+          Row(
+            children: [
+              Expanded(
+                child: OutlinedButton(
+                  onPressed: () => Navigator.pop(context),
+                  style: OutlinedButton.styleFrom(
+                    foregroundColor: CD.leather,
+                    side: const BorderSide(color: CD.leather),
+                    padding: const EdgeInsets.symmetric(vertical: 13),
+                  ),
+                  child: const Text('홈으로'),
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: FilledButton(
+                  onPressed: () => setState(() => _phase = _Phase.setup),
+                  style: FilledButton.styleFrom(
+                    backgroundColor: CD.rust,
+                    padding: const EdgeInsets.symmetric(vertical: 13),
+                  ),
+                  child: const Text('다시하기'),
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+}
