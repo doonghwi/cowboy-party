@@ -5,6 +5,7 @@ import '../theme.dart';
 import '../widgets/desert_background.dart';
 import '../widgets/emo.dart';
 import 'how_to_play_screen.dart';
+import 'leaderboard_screen.dart';
 import 'offline_game_screen.dart';
 import 'online_lobby_screen.dart';
 
@@ -77,6 +78,18 @@ class HomeScreen extends StatelessWidget {
                       context,
                       MaterialPageRoute(
                           builder: (_) => const OnlineLobbyScreen()),
+                    ),
+                  ),
+                  const SizedBox(height: 14),
+                  _MenuButton(
+                    icon: Icons.leaderboard,
+                    label: '랭킹',
+                    sub: '온라인 ELO 순위',
+                    color: CD.danger,
+                    onTap: () => Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                          builder: (_) => const LeaderboardScreen()),
                     ),
                   ),
                   const SizedBox(height: 14),

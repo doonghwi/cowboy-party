@@ -5,7 +5,9 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
 import '../game/party_logic.dart';
+import '../online/auth_service.dart';
 import '../online/online_service.dart';
+import '../online/ranking_service.dart';
 import '../theme.dart';
 import '../widgets/action_bar.dart';
 import '../widgets/circular_table.dart';
@@ -33,6 +35,11 @@ class _OnlineGameScreenState extends State<OnlineGameScreen> {
   int _presenceSeat = -1;
   bool _startedNow = false;
   String _myName = '';
+
+  // Ranking: record my own ELO result once per finished game (signed-in only).
+  final _auth = AuthService();
+  final _ranking = RankingService();
+  bool _rankRecorded = false;
 
   // 슈퍼빵야 skill flash (one-shot overlay when a super shot fires).
   bool _superFlash = false;
@@ -235,6 +242,7 @@ class _OnlineGameScreenState extends State<OnlineGameScreen> {
                 _handleReveal(view);
                 _handleReactions(data);
                 _maybeReset(view, data['scored'] == true);
+                _maybeRecordRank(view);
                 if (view.phase == OnlinePhase.waiting) {
                   if (view.mySeat < 0) {
                     return _info('방에서 나왔어요.', back: true);
@@ -281,6 +289,24 @@ class _OnlineGameScreenState extends State<OnlineGameScreen> {
       }
     }
     if (view.phase != OnlinePhase.over) _resetting = false;
+  }
+
+  /// On game-over, a signed-in participant records their own win/loss to the
+  /// global ELO board exactly once (reset for the next game). Guests don't rank.
+  void _maybeRecordRank(RoomView view) {
+    if (view.phase != OnlinePhase.over) {
+      _rankRecorded = false;
+      return;
+    }
+    if (_rankRecorded || view.status != GameStatus.won || !view.seated) return;
+    final user = _auth.current;
+    if (user == null) return;
+    _rankRecorded = true;
+    _ranking.recordResult(
+      user: user,
+      won: view.iWon,
+      opponents: (view.seatCount - 1).clamp(0, 5),
+    );
   }
 
   // ---- Reaction showdown -------------------------------------------------

@@ -13,6 +13,11 @@
     "stats": {
       ".read": true,
       ".write": true
+    },
+    "ranking": {
+      ".read": true,
+      ".write": true,
+      ".indexOn": ["elo"]
     }
   }
 }
