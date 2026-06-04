@@ -115,7 +115,23 @@ class RoomView {
   bool get iWon => status == GameStatus.won && winnerSeat == mySeat;
 }
 
-enum JoinResult { joined, notFound, full, alreadyStarted }
+enum JoinResult { joined, notFound, full, alreadyStarted, wrongPassword }
+
+/// A lightweight summary of an open public room, for the lobby browser.
+class RoomSummary {
+  final String code;
+  final String hostName;
+  final int count;
+  final int capacity;
+  final bool hasPassword;
+  const RoomSummary({
+    required this.code,
+    required this.hostName,
+    required this.count,
+    required this.capacity,
+    required this.hasPassword,
+  });
+}
 
 class OnlineService {
   OnlineService() : clientId = _genClientId() {
@@ -171,11 +187,28 @@ class OnlineService {
   DatabaseReference room(String code) => _root.child('rooms/$code');
   Stream<DatabaseEvent> watch(String code) => room(code).onValue;
 
-  Future<void> createRoom(String code, String name, int capacity) async {
+  /// A small, stable, cross-client hash so a room password isn't stored in
+  /// plain text. Not real security (the DB is world-readable) — just enough to
+  /// keep a casual password from being shoulder-surfed straight out of the DB.
+  static int pwHash(String pw) {
+    var h = 0x811c9dc5;
+    for (final c in pw.codeUnits) {
+      h = (h ^ c) * 0x01000193;
+      h &= 0x7fffffff;
+    }
+    return h;
+  }
+
+  Future<void> createRoom(String code, String name, int capacity,
+      {bool isPublic = true, String? password}) async {
+    final pw = (password ?? '').trim();
     await room(code).set({
       'host': clientId,
       'capacity': capacity.clamp(kMinSeats, kMaxSeats),
       'started': false,
+      'public': isPublic,
+      if (pw.isNotEmpty) 'pwHash': pwHash(pw),
+      'hostName': name,
       'players': {
         'p0': {'id': clientId, 'name': name, 'seen': _now},
       },
@@ -187,16 +220,57 @@ class OnlineService {
     });
   }
 
+  /// Live list of open (public, not-yet-started) rooms for the lobby browser.
+  Stream<List<RoomSummary>> watchPublicRooms() {
+    return _root
+        .child('rooms')
+        .orderByChild('public')
+        .equalTo(true)
+        .onValue
+        .map((e) {
+      final rooms = _asMap(e.snapshot.value) ?? const {};
+      final out = <RoomSummary>[];
+      rooms.forEach((code, value) {
+        final data = _asMap(value);
+        if (data == null || data['started'] == true) return;
+        final players = _asMap(data['players']) ?? const {};
+        final capacity =
+            (_asInt(data['capacity']) ?? kMaxSeats).clamp(kMinSeats, kMaxSeats);
+        // Count seats that still look present (best-effort; lobby is approximate).
+        final staleBefore = _now - kPresenceGraceMs;
+        var count = 0;
+        for (final pv in players.values) {
+          final pm = _asMap(pv);
+          if (pm == null) continue;
+          final seen = _asInt(pm['seen']);
+          final fresh = pm['bot'] == true || seen == null || seen >= staleBefore;
+          if (fresh) count++;
+        }
+        if (count <= 0) return;
+        out.add(RoomSummary(
+          code: code.toString(),
+          hostName: (data['hostName'] as String?) ?? '카우보이',
+          count: count,
+          capacity: capacity,
+          hasPassword: data['pwHash'] != null,
+        ));
+      });
+      out.sort((a, b) => a.code.compareTo(b.code));
+      return out;
+    });
+  }
+
   /// Claim a seat. Re-joining with the same id reclaims the held seat; an empty
   /// or long-silent (stale) seat can be taken. No hard onDisconnect removal —
   /// the heartbeat + grace decides presence, so a brief blip never kicks you.
-  Future<JoinResult> joinRoom(String code, String name) async {
+  Future<JoinResult> joinRoom(String code, String name,
+      {String? password}) async {
     final snap = await room(code).get();
     if (!snap.exists) return JoinResult.notFound;
     final data = _asMap(snap.value) ?? const {};
     final players = _asMap(data['players']) ?? const {};
 
-    // Already hold a seat? Reclaim it (refresh heartbeat).
+    // Already hold a seat? Reclaim it (refresh heartbeat) — no password needed.
     for (final e in players.entries) {
       final v = _asMap(e.value);
       if (v != null && v['id'] == clientId) {
@@ -206,6 +280,12 @@ class OnlineService {
       }
     }
     if (data['started'] == true) return JoinResult.alreadyStarted;
+
+    // Password-protected room: the supplied password must match.
+    final pw = _asInt(data['pwHash']);
+    if (pw != null && pwHash((password ?? '').trim()) != pw) {
+      return JoinResult.wrongPassword;
+    }
 
     final capacity = _asInt(data['capacity']) ?? kMaxSeats;
     final staleBefore = _now - kPresenceGraceMs;
@@ -267,6 +347,7 @@ class OnlineService {
       'players': compact,
       'seatCount': entries.length,
       'started': true,
+      'public': false, // drop off the public lobby list once playing
       'turns': null,
       'rematch': null,
       'showdown': null,

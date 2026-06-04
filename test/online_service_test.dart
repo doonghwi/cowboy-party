@@ -161,6 +161,16 @@ void main() {
     });
   });
 
+  group('room password hashing', () {
+    test('pwHash is deterministic and differs by input', () {
+      expect(OnlineService.pwHash('hunter2'), OnlineService.pwHash('hunter2'));
+      expect(OnlineService.pwHash('a'), isNot(OnlineService.pwHash('b')));
+      expect(OnlineService.pwHash(''), isNot(OnlineService.pwHash('x')));
+      // Stays within the non-negative 31-bit range we store in RTDB.
+      expect(OnlineService.pwHash('카우보이'), greaterThanOrEqualTo(0));
+    });
+  });
+
   group('computeView — final wipe becomes a reaction showdown, not a draw', () {
     Map<String, Object?> mutualKillRoom({Map<String, Object?>? showdown}) =>
         startedRoom(
