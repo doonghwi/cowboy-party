@@ -46,8 +46,10 @@ class _OnlineShowdownState extends State<OnlineShowdown> {
   String? _roundKey;
   bool _signal = false;
   bool _false = false;
+  bool _tapped = false;
   bool _creating = false;
   Timer? _flip;
+  Timer? _arb;
 
   bool get _amIn =>
       widget.mySeat >= 0 && widget.participants.contains(widget.mySeat);
@@ -72,6 +74,7 @@ class _OnlineShowdownState extends State<OnlineShowdown> {
   @override
   void dispose() {
     _flip?.cancel();
+    _arb?.cancel();
     super.dispose();
   }
 
@@ -103,7 +106,9 @@ class _OnlineShowdownState extends State<OnlineShowdown> {
     if (key != _roundKey) {
       _roundKey = key;
       _flip?.cancel();
+      _arb?.cancel();
       _signal = false;
+      _tapped = false;
       _false = iFalseServer;
       final fireLocal = goAt - widget.serverOffset;
       final delay = fireLocal - DateTime.now().millisecondsSinceEpoch;
@@ -118,19 +123,63 @@ class _OnlineShowdownState extends State<OnlineShowdown> {
       _false = true;
     }
 
-    // If everyone jumped the gun, the host re-runs with a fresh signal.
     if (widget.isHost && sd['winner'] == null) {
-      final allFalse = widget.participants.isNotEmpty &&
-          widget.participants.every((s) {
-            final m = sd['falseStart'];
-            return m is Map && m['p$s'] == true;
-          });
-      if (allFalse && !_creating) {
-        _creating = true;
-        widget.service
-            .newShowdownRound(widget.code, round + 1, _newGoAt())
-            .whenComplete(() => _creating = false);
-      }
+      _hostArbitrate(sd, goAt, round);
+    }
+  }
+
+  /// Host decides the round: the earliest valid tap wins. If everyone jumped
+  /// the gun, re-run. A short settle timer covers the case where one player
+  /// tapped and another simply hasn't yet.
+  void _hostArbitrate(Map sd, int goAt, int round) {
+    final fsMap = sd['falseStart'];
+    final tapsMap = sd['taps'];
+    bool isFalse(int s) => fsMap is Map && fsMap['p$s'] == true;
+    int? tapOf(int s) =>
+        tapsMap is Map ? _i(tapsMap['p$s']) : null;
+
+    final valid = <int, int>{}; // seat -> tap time (>= goAt)
+    for (final s in widget.participants) {
+      final t = tapOf(s);
+      if (t != null && t >= goAt && !isFalse(s)) valid[s] = t;
+    }
+    final accounted = widget.participants.every((s) {
+      final t = tapOf(s);
+      return isFalse(s) || (t != null && t >= goAt);
+    });
+
+    void award() {
+      if (valid.isEmpty || _creating) return;
+      var best = valid.keys.first;
+      valid.forEach((s, t) {
+        if (t < valid[best]!) best = s;
+      });
+      _creating = true;
+      widget.service
+          .setShowdownWinner(widget.code, best)
+          .whenComplete(() => _creating = false);
+    }
+
+    if (valid.isNotEmpty && accounted) {
+      award();
+      return;
+    }
+    if (valid.isNotEmpty) {
+      // Someone reacted; give stragglers a brief window then award.
+      _arb ??= Timer(const Duration(milliseconds: 700), () {
+        _arb = null;
+        if (mounted) award();
+      });
+      return;
+    }
+    // Nobody valid yet. If everyone already false-started, re-run.
+    final allFalse = widget.participants.isNotEmpty &&
+        widget.participants.every(isFalse);
+    if (allFalse && !_creating) {
+      _creating = true;
+      widget.service
+          .newShowdownRound(widget.code, round + 1, _newGoAt())
+          .whenComplete(() => _creating = false);
     }
   }
 
@@ -139,8 +188,9 @@ class _OnlineShowdownState extends State<OnlineShowdown> {
     if (!_signal) {
       setState(() => _false = true);
       widget.service.recordFalseStart(widget.code, widget.mySeat);
-    } else {
-      widget.service.tryWinShowdown(widget.code, widget.mySeat);
+    } else if (!_tapped) {
+      _tapped = true;
+      widget.service.recordTap(widget.code, widget.mySeat, _serverNow);
     }
   }
 

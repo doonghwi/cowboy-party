@@ -360,6 +360,7 @@ class OnlineService {
       'goAt': goAtServerMs,
       'winner': null,
       'falseStart': null,
+      'taps': null,
     });
   }
 
@@ -367,7 +368,14 @@ class OnlineService {
     return room(code).child('showdown/falseStart/${slotKey(seat)}').set(true);
   }
 
-  Future<void> tryWinShowdown(String code, int seat) {
+  /// Record my reaction tap time (server clock). The host then awards the win
+  /// to the *earliest* valid tap — fair by reaction speed, not network luck.
+  Future<void> recordTap(String code, int seat, int tapMs) {
+    return room(code).child('showdown/taps/${slotKey(seat)}').set(tapMs);
+  }
+
+  /// Host commits the showdown winner (once).
+  Future<void> setShowdownWinner(String code, int seat) {
     return room(code).child('showdown/winner').runTransaction((cur) {
       if (cur == null) return Transaction.success(seat);
       return Transaction.abort();

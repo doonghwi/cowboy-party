@@ -505,7 +505,15 @@ class _OnlineGameScreenState extends State<OnlineGameScreen> {
             : null,
         onSelect: (k) => setState(() {
           _selKind = k;
-          if (k != ActKind.shoot) _selTarget = -1;
+          if (k == ActKind.shoot || k == ActKind.superShoot) {
+            final opp = [
+              for (final s in view.seats)
+                if (s.alive && !s.isMe) s.seat
+            ];
+            _selTarget = opp.length == 1 ? opp.first : -1;
+          } else {
+            _selTarget = -1;
+          }
         }),
         onConfirm: () {
           final m = switch (_selKind!) {

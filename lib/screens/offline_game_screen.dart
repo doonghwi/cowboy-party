@@ -452,7 +452,12 @@ class _OfflineGameScreenState extends State<OfflineGameScreen> {
             targetName: _selTarget >= 0 ? _names[_selTarget] : null,
             onSelect: (k) => setState(() {
               _selKind = k;
-              if (k != ActKind.shoot) _selTarget = -1;
+              if (k == ActKind.shoot || k == ActKind.superShoot) {
+                final opp = [for (var s = 1; s < _n; s++) if (_alive[s]) s];
+                _selTarget = opp.length == 1 ? opp.first : -1;
+              } else {
+                _selTarget = -1;
+              }
             }),
             onConfirm: _confirm,
           ),

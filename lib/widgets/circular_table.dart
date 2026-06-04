@@ -100,8 +100,6 @@ class CircularTable extends StatelessWidget {
                   painter: _TracerPainter(seats: seats, positions: positions),
                 ),
               ),
-            // Center banner.
-            Align(alignment: Alignment.center, child: center),
             // Seat cards.
             for (var s = 0; s < n; s++)
               Positioned(
@@ -144,6 +142,14 @@ class CircularTable extends StatelessWidget {
                     ),
                   ),
                 ),
+            // Center banner — drawn last (on top) and width-limited so a seat
+            // card never hides it, even in the 4-player side-by-side layout.
+            Center(
+              child: ConstrainedBox(
+                constraints: BoxConstraints(maxWidth: w * 0.52),
+                child: center,
+              ),
+            ),
           ],
         );
       },
