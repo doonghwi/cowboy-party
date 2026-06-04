@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../theme.dart';
+import '../widgets/ad_banner_slot.dart';
 import '../widgets/desert_background.dart';
 import '../widgets/emo.dart';
 import 'how_to_play_screen.dart';
@@ -15,7 +16,10 @@ class HomeScreen extends StatelessWidget {
     return Scaffold(
       body: DesertBackground(
         child: SafeArea(
-          child: Center(
+          child: Column(
+            children: [
+              Expanded(
+                child: Center(
             child: SingleChildScrollView(
               padding: const EdgeInsets.symmetric(horizontal: 28, vertical: 24),
               child: Column(
@@ -88,6 +92,10 @@ class HomeScreen extends StatelessWidget {
                 ],
               ),
             ),
+                ),
+              ),
+              const AdBannerSlot(),
+            ],
           ),
         ),
       ),
