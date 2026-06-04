@@ -129,12 +129,16 @@ class CircularTable extends StatelessWidget {
             if (reveal)
               for (var s = 0; s < n; s++)
                 ..._effects(s, positions[s], cardW, cardH),
-            // Emoji reactions floating over seats.
+            // Emoji reactions floating over seats. Normally above the card, but
+            // flipped below it for top-row seats so it never clips off-screen
+            // (the bug at 2 players: the opponent's bubble went above the top).
             for (final entry in reactions.entries)
               if (entry.key >= 0 && entry.key < n)
                 Positioned(
                   left: positions[entry.key].dx - 24,
-                  top: positions[entry.key].dy - cardH / 2 - 44,
+                  top: positions[entry.key].dy - cardH / 2 - 44 < 4
+                      ? positions[entry.key].dy + cardH / 2 + 4
+                      : positions[entry.key].dy - cardH / 2 - 44,
                   child: IgnorePointer(
                     child: _ReactionBubble(
                       key: ValueKey('rx-${entry.key}-${entry.value}'),

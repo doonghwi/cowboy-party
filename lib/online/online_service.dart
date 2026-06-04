@@ -205,11 +205,16 @@ class OnlineService {
         return JoinResult.joined;
       }
     }
-    if (data['started'] == true) return JoinResult.alreadyStarted;
-
+    // A started room is still re-enterable: take any empty or long-silent seat
+    // (a finished/abandoned spot), not just in the lobby. Mid-game the rejoiner
+    // simply spectates until the next round; after the game they're in for the
+    // rematch. Only seats 1..seatCount stay claimable (the host keeps seat 0).
+    final started = data['started'] == true;
     final capacity = _asInt(data['capacity']) ?? kMaxSeats;
+    final seatLimit =
+        started ? (_asInt(data['seatCount']) ?? capacity) : capacity;
     final staleBefore = _now - kPresenceGraceMs;
-    for (var s = 1; s < capacity; s++) {
+    for (var s = 1; s < seatLimit; s++) {
       final res =
           await room(code).child('players/${slotKey(s)}').runTransaction(
         (current) {
@@ -232,7 +237,15 @@ class OnlineService {
       );
       if (res.committed) {
         final v = _asMap(res.snapshot.value);
-        if (v != null && v['id'] == clientId) return JoinResult.joined;
+        if (v != null && v['id'] == clientId) {
+          // Clear any sticky quit on this seat so the rejoiner reads as present.
+          if (started) {
+            try {
+              await room(code).child('quit/${slotKey(s)}').remove();
+            } catch (_) {}
+          }
+          return JoinResult.joined;
+        }
       }
     }
     return JoinResult.full;

@@ -174,13 +174,13 @@ class _OnlineGameScreenState extends State<OnlineGameScreen> {
           view.seats.any((s) => s.fired) || view.seats.any((s) => s.hitThisTurn);
       final hadSuper = view.seats.any((s) => s.superFired);
       _shownTurn = view.turn;
-      if (hadAction) {
-        _revealing = true;
-        _revealTimer?.cancel();
-        _revealTimer = Timer(const Duration(milliseconds: 2600), () {
-          if (mounted) setState(() => _revealing = false);
-        });
-      }
+      // Always reveal so the 장전(+1)·방어(방패) effects show even on a quiet
+      // turn with no shots; a quiet turn just gets a shorter window.
+      _revealing = true;
+      _revealTimer?.cancel();
+      _revealTimer = Timer(Duration(milliseconds: hadAction ? 2600 : 1500), () {
+        if (mounted) setState(() => _revealing = false);
+      });
       if (hadSuper) _fireSuperFlash();
     }
   }
