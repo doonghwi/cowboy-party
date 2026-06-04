@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../online/auth_service.dart';
 import '../theme.dart';
 import '../widgets/desert_background.dart';
 import '../widgets/emo.dart';
@@ -21,7 +22,12 @@ class HomeScreen extends StatelessWidget {
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  const SizedBox(height: 12),
+                  const SizedBox(height: 8),
+                  const Align(
+                    alignment: Alignment.centerRight,
+                    child: _AuthChip(),
+                  ),
+                  const SizedBox(height: 6),
                   Row(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: const [
@@ -91,6 +97,109 @@ class HomeScreen extends StatelessWidget {
           ),
         ),
       ),
+    );
+  }
+}
+
+/// Sign-in pill at the top of the home screen. Shows a "Google로 로그인" button
+/// when signed out, and the account avatar/name + sign-out when signed in.
+class _AuthChip extends StatefulWidget {
+  const _AuthChip();
+  @override
+  State<_AuthChip> createState() => _AuthChipState();
+}
+
+class _AuthChipState extends State<_AuthChip> {
+  final _auth = AuthService();
+  bool _busy = false;
+
+  Future<void> _signIn() async {
+    setState(() => _busy = true);
+    try {
+      await _auth.signInWithGoogle();
+    } catch (_) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+            content: Text('구글 로그인을 아직 사용할 수 없어요 (설정 준비 중).')));
+      }
+    } finally {
+      if (mounted) setState(() => _busy = false);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final pill = BoxDecoration(
+      color: CD.leather.withValues(alpha: 0.45),
+      borderRadius: BorderRadius.circular(20),
+    );
+    return StreamBuilder<AppUser?>(
+      stream: _auth.userChanges(),
+      builder: (context, snap) {
+        if (_busy) {
+          return const SizedBox(
+              height: 34,
+              width: 34,
+              child: Center(
+                  child: SizedBox(
+                      width: 18,
+                      height: 18,
+                      child: CircularProgressIndicator(
+                          strokeWidth: 2.5, color: Colors.white))));
+        }
+        final user = snap.data;
+        if (user == null) {
+          return Material(
+            color: Colors.transparent,
+            child: InkWell(
+              borderRadius: BorderRadius.circular(20),
+              onTap: _signIn,
+              child: Container(
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 14, vertical: 7),
+                decoration: pill,
+                child: const Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(Icons.login, size: 16, color: Colors.white),
+                    SizedBox(width: 6),
+                    Text('Google로 로그인',
+                        style: TextStyle(
+                            color: Colors.white,
+                            fontSize: 12.5,
+                            fontWeight: FontWeight.w700)),
+                  ],
+                ),
+              ),
+            ),
+          );
+        }
+        return Container(
+          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+          decoration: pill,
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              if (user.photoUrl != null)
+                CircleAvatar(
+                    radius: 11, backgroundImage: NetworkImage(user.photoUrl!))
+              else
+                const Icon(Icons.account_circle, color: Colors.white, size: 22),
+              const SizedBox(width: 7),
+              Text(user.displayName,
+                  style: const TextStyle(
+                      color: Colors.white,
+                      fontSize: 12.5,
+                      fontWeight: FontWeight.w700)),
+              const SizedBox(width: 8),
+              GestureDetector(
+                onTap: _auth.signOut,
+                child: const Icon(Icons.logout, color: Colors.white70, size: 16),
+              ),
+            ],
+          ),
+        );
+      },
     );
   }
 }

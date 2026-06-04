@@ -1,7 +1,10 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
 import '../game/party_logic.dart';
+import '../online/auth_service.dart';
 import '../online/online_service.dart';
 import '../theme.dart';
 import '../widgets/desert_background.dart';
@@ -16,20 +19,36 @@ class OnlineLobbyScreen extends StatefulWidget {
 
 class _OnlineLobbyScreenState extends State<OnlineLobbyScreen> {
   final _service = OnlineService();
+  final _auth = AuthService();
   final _nameCtl = TextEditingController();
   final _codeCtl = TextEditingController();
   int _capacity = 4;
   bool _busy = false;
   String? _error;
+  AppUser? _user;
+  StreamSubscription<AppUser?>? _authSub;
+
+  @override
+  void initState() {
+    super.initState();
+    _user = _auth.current;
+    _authSub = _auth.userChanges().listen((u) {
+      if (mounted) setState(() => _user = u);
+    });
+  }
 
   @override
   void dispose() {
+    _authSub?.cancel();
     _nameCtl.dispose();
     _codeCtl.dispose();
     super.dispose();
   }
 
+  /// Signed-in players play under their Google name; guests type one (or get a
+  /// random one).
   String get _name {
+    if (_user != null) return _user!.displayName;
     final n = _nameCtl.text.trim();
     return n.isEmpty ? OnlineService.randomNickname() : n;
   }
@@ -100,20 +119,49 @@ class _OnlineLobbyScreenState extends State<OnlineLobbyScreen> {
             padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 20),
             child: Column(
               children: [
-                _card(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text('닉네임', style: posterTitle(18)),
-                      const SizedBox(height: 8),
-                      TextField(
-                        controller: _nameCtl,
-                        maxLength: 8,
-                        decoration: _dec('비워두면 랜덤 이름'),
+                _user != null
+                    ? _card(
+                        child: Row(
+                          children: [
+                            if (_user!.photoUrl != null)
+                              CircleAvatar(
+                                  radius: 16,
+                                  backgroundImage:
+                                      NetworkImage(_user!.photoUrl!))
+                            else
+                              const Icon(Icons.account_circle,
+                                  color: CD.sage, size: 32),
+                            const SizedBox(width: 12),
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(_user!.displayName,
+                                      style: posterTitle(18)),
+                                  const Text('로 입장합니다',
+                                      style: TextStyle(
+                                          color: CD.muted, fontSize: 12)),
+                                ],
+                              ),
+                            ),
+                            const Icon(Icons.verified_user, color: CD.sage),
+                          ],
+                        ),
+                      )
+                    : _card(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text('닉네임', style: posterTitle(18)),
+                            const SizedBox(height: 8),
+                            TextField(
+                              controller: _nameCtl,
+                              maxLength: 8,
+                              decoration: _dec('비워두면 랜덤 이름'),
+                            ),
+                          ],
+                        ),
                       ),
-                    ],
-                  ),
-                ),
                 const SizedBox(height: 16),
                 _card(
                   child: Column(
