@@ -31,6 +31,9 @@ class SeatView {
   final bool submittedThisTurn;
   final int score;
 
+  /// A CPU bot seat (host/driver submits its moves), not a human player.
+  final bool isBot;
+
   const SeatView({
     required this.seat,
     required this.joined,
@@ -45,6 +48,7 @@ class SeatView {
     required this.hitThisTurn,
     required this.submittedThisTurn,
     required this.score,
+    this.isBot = false,
   });
 }
 
@@ -82,6 +86,10 @@ class RoomView {
   final int drawTurn;
   final List<int> drawParticipants;
 
+  /// The seat responsible for submitting bot moves this game (lowest present
+  /// human). The client sitting here drives every CPU bot. -1 if none.
+  final int botDriverSeat;
+
   const RoomView({
     required this.capacity,
     required this.seatCount,
@@ -108,6 +116,7 @@ class RoomView {
     this.iAmOut = false,
     this.drawTurn = -1,
     this.drawParticipants = const [],
+    this.botDriverSeat = -1,
   });
 
   bool get seated => mySeat >= 0;
@@ -238,6 +247,45 @@ class OnlineService {
     return JoinResult.full;
   }
 
+  static const _botNames = ['잭', '빌', '한스', '로사', '듀크', '머독'];
+
+  /// Host adds a CPU bot to the first empty seat of a not-yet-started room.
+  /// Bots have a synthetic id, a `bot:true` flag, and don't heartbeat — the
+  /// driver client submits their moves and they're exempt from staleness.
+  Future<void> addBot(String code) async {
+    final snap = await room(code).get();
+    if (!snap.exists) return;
+    final data = _asMap(snap.value) ?? const {};
+    if (data['started'] == true) return;
+    final players = _asMap(data['players']) ?? const {};
+    final capacity = _asInt(data['capacity']) ?? kMaxSeats;
+    final taken = <int>{
+      for (final e in players.entries) seatOf(e.key.toString())
+    };
+    var botCount = 0;
+    for (final v in players.values) {
+      if (_asMap(v)?['bot'] == true) botCount++;
+    }
+    for (var s = 1; s < capacity; s++) {
+      if (taken.contains(s)) continue;
+      final name = '봇 ${_botNames[botCount % _botNames.length]}';
+      final res =
+          await room(code).child('players/${slotKey(s)}').runTransaction((cur) {
+        if (cur != null) return Transaction.abort();
+        return Transaction.success(
+            {'id': 'bot_$s', 'name': name, 'bot': true, 'seen': _now});
+      });
+      if (res.committed) return;
+    }
+  }
+
+  /// Host removes a bot from a waiting room (no-op on a human seat).
+  Future<void> removeBot(String code, int seat) async {
+    final ref = room(code).child('players/${slotKey(seat)}');
+    final snap = await ref.get();
+    if (_asMap(snap.value)?['bot'] == true) await ref.remove();
+  }
+
   /// Keep my seat alive. Called on a timer while I'm in the room.
   Future<void> heartbeat(String code, int seat) async {
     try {
@@ -261,6 +309,7 @@ class OnlineService {
         'id': entries[i].value['id'],
         'name': entries[i].value['name'],
         'seen': _now,
+        if (entries[i].value['bot'] == true) 'bot': true,
       };
     }
     await room(code).update({
@@ -425,16 +474,19 @@ class OnlineService {
     final names = <int, String>{};
     final nodeExists = <int, bool>{};
     final stale = <int, bool>{};
+    final isBotMap = <int, bool>{};
     for (final e in players.entries) {
       final v = _asMap(e.value);
       if (v == null) continue;
       final s = seatOf(e.key.toString());
       names[s] = (v['name'] as String?) ?? '카우보이';
       nodeExists[s] = true;
+      isBotMap[s] = v['bot'] == true;
       final seen = _asInt(v['seen']);
       stale[s] = staleBefore > 0 && seen != null && seen < staleBefore;
       if (v['id'] == myClientId) mySeat = s;
     }
+    bool isBot(int s) => isBotMap[s] == true;
     // A quit marker is either `true` (host-reaped silent seat) or the leaver's
     // name (written by leave()), kept sticky so departures stay consistent.
     bool quit(int s) {
@@ -450,9 +502,13 @@ class OnlineService {
     // Best-effort display name for a seat even after its player node is gone.
     String? leftName(int s) => names[s] ?? quitName(s);
 
-    // "present" = here, not timed out, not quit.
-    bool present(int s) =>
-        nodeExists[s] == true && !quit(s) && stale[s] != true;
+    // "present" = here, not timed out, not quit. Bots never heartbeat, so they
+    // count as present until the game removes them or the host quits them.
+    bool present(int s) {
+      if (nodeExists[s] != true || quit(s)) return false;
+      if (isBot(s)) return true;
+      return stale[s] != true;
+    }
 
     final joinedCount = [
       for (var s = 0; s < capacity; s++)
@@ -479,6 +535,7 @@ class OnlineService {
             hitThisTurn: false,
             submittedThisTurn: false,
             score: scoreFor(s),
+            isBot: present(s) && isBot(s),
           ),
       ];
       return RoomView(
@@ -601,6 +658,7 @@ class OnlineService {
               winner: survivors.length == 1 ? survivors.first : null,
               rematchMap: rematchMap,
               quitFn: quit,
+              isBotFn: isBot,
               reap: reap.toList()..sort(),
             );
           }
@@ -650,6 +708,7 @@ class OnlineService {
           winner: null,
           rematchMap: const {},
           quitFn: quit,
+          isBotFn: isBot,
           reap: reap.toList()..sort(),
         );
       }
@@ -730,6 +789,7 @@ class OnlineService {
           winner: winner,
           rematchMap: rematchMap,
           quitFn: quit,
+          isBotFn: isBot,
           reap: reap.toList()..sort(),
           drawTurn: drawTurn,
           drawParticipants: drawParticipants,
@@ -767,6 +827,7 @@ class OnlineService {
     required int? winner,
     required Map rematchMap,
     required bool Function(int) quitFn,
+    required bool Function(int) isBotFn,
     List<int> reap = const [],
     int drawTurn = -1,
     List<int> drawParticipants = const [],
@@ -787,12 +848,21 @@ class OnlineService {
           hitThisTurn: hit[s],
           submittedThisTurn: submitted[s],
           score: scoreFor(s),
+          isBot: isBotFn(s),
         ),
     ];
     final presentCount = [
       for (var s = 0; s < seatCount; s++)
         if (presentFn(s)) s
     ].length;
+    // The lowest present human drives every bot's moves (survives host leaving).
+    var botDriverSeat = -1;
+    for (var s = 0; s < seatCount; s++) {
+      if (presentFn(s) && !isBotFn(s)) {
+        botDriverSeat = s;
+        break;
+      }
+    }
     var rematchCount = 0;
     var iRematch = false;
     for (var s = 0; s < seatCount; s++) {
@@ -828,6 +898,7 @@ class OnlineService {
       iAmOut: iAmOut,
       drawTurn: drawTurn,
       drawParticipants: drawParticipants,
+      botDriverSeat: botDriverSeat,
     );
   }
 

@@ -161,6 +161,48 @@ void main() {
     });
   });
 
+  group('computeView — CPU bots', () {
+    test('a bot seat is present without heartbeat, drives nothing, not reaped',
+        () {
+      const now = 5000000;
+      final data = startedRoom(
+        players: {
+          'p0': {'id': 'h', 'name': '나', 'seen': now},
+          'p1': {'id': 'bot_1', 'name': '봇 잭', 'bot': true}, // no heartbeat
+        },
+        seatCount: 2,
+        turns: {
+          't0': {'p0': reload()}, // bot hasn't submitted yet
+        },
+      );
+      final v = OnlineService.computeView(data, 'h', nowServerMs: now);
+      expect(v.seats[1].isBot, isTrue);
+      // The table waits for the bot's move instead of dropping it or ending.
+      expect(v.status, GameStatus.ongoing);
+      expect(v.reapSeats, isEmpty);
+      // Lowest present human drives the bots.
+      expect(v.botDriverSeat, 0);
+    });
+
+    test('the bot move resolves the turn like any other player', () {
+      const now = 5000000;
+      final data = startedRoom(
+        players: {
+          'p0': {'id': 'h', 'name': '나', 'seen': now},
+          'p1': {'id': 'bot_1', 'name': '봇 잭', 'bot': true},
+        },
+        seatCount: 2,
+        turns: {
+          't0': {'p0': reload(), 'p1': reload()},
+        },
+      );
+      final v = OnlineService.computeView(data, 'h', nowServerMs: now);
+      expect(v.status, GameStatus.ongoing);
+      expect(v.seats[0].ammo, 1);
+      expect(v.seats[1].ammo, 1);
+    });
+  });
+
   group('computeView — final wipe becomes a reaction showdown, not a draw', () {
     Map<String, Object?> mutualKillRoom({Map<String, Object?>? showdown}) =>
         startedRoom(

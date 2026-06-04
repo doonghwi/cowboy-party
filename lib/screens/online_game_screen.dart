@@ -1,9 +1,11 @@
 import 'dart:async';
+import 'dart:math';
 
 import 'package:firebase_database/firebase_database.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
+import '../game/cpu_ai.dart';
 import '../game/party_logic.dart';
 import '../online/online_service.dart';
 import '../theme.dart';
@@ -33,6 +35,12 @@ class _OnlineGameScreenState extends State<OnlineGameScreen> {
   int _presenceSeat = -1;
   bool _startedNow = false;
   String _myName = '';
+
+  // Bot driving: the lowest-seat present human submits every bot's moves.
+  final _cpu = CpuAi();
+  final _rand = Random();
+  final Set<String> _botMoved = {}; // "t{turn}-p{seat}" guards one submit each
+  bool _addingBot = false;
 
   // 슈퍼빵야 skill flash (one-shot overlay when a super shot fires).
   bool _superFlash = false;
@@ -165,10 +173,14 @@ class _OnlineGameScreenState extends State<OnlineGameScreen> {
     _superFlashedOver = false; // re-arm for the next game's finale
     if (view.phase == OnlinePhase.waiting) {
       _shownTurn = 0;
+      _botMoved.clear();
       return;
     }
     // A rematch resets the turn counter — re-sync so reveals work next game.
-    if (view.turn < _shownTurn) _shownTurn = view.turn;
+    if (view.turn < _shownTurn) {
+      _shownTurn = view.turn;
+      _botMoved.clear(); // fresh game: let bots move on turn 0 again
+    }
     if (view.turn > _shownTurn) {
       final hadAction =
           view.seats.any((s) => s.fired) || view.seats.any((s) => s.hitThisTurn);
@@ -235,6 +247,7 @@ class _OnlineGameScreenState extends State<OnlineGameScreen> {
                 _handleReveal(view);
                 _handleReactions(data);
                 _maybeReset(view, data['scored'] == true);
+                _driveBots(view);
                 if (view.phase == OnlinePhase.waiting) {
                   if (view.mySeat < 0) {
                     return _info('방에서 나왔어요.', back: true);
@@ -272,9 +285,13 @@ class _OnlineGameScreenState extends State<OnlineGameScreen> {
       if (!scored && view.winnerSeat != null) {
         widget.service.recordScore(widget.code, view.winnerSeat!);
       }
-      // Once everyone present wants a rematch, clear the board.
+      // Once every present human wants a rematch, clear the board. Bots never
+      // tap "다시하기", so they're excluded from the threshold.
+      final presentHumans =
+          view.seats.where((s) => s.joined && !s.isBot).length;
       if (view.presentCount >= kMinSeats &&
-          view.rematchCount >= view.presentCount &&
+          presentHumans >= 1 &&
+          view.rematchCount >= presentHumans &&
           !_resetting) {
         _resetting = true;
         widget.service.resetBoard(widget.code);
@@ -283,10 +300,34 @@ class _OnlineGameScreenState extends State<OnlineGameScreen> {
     if (view.phase != OnlinePhase.over) _resetting = false;
   }
 
+  /// The lowest-seat present human drives every bot: it submits a CPU move for
+  /// each living bot that hasn't acted this turn (guarded so it fires once).
+  void _driveBots(RoomView view) {
+    if (view.phase != OnlinePhase.choosing) return;
+    if (view.mySeat < 0 || view.mySeat != view.botDriverSeat) return;
+    final ammo = [for (final s in view.seats) s.ammo];
+    final alive = [for (final s in view.seats) s.alive];
+    for (final s in view.seats) {
+      if (!s.isBot || !s.alive || s.submittedThisTurn) continue;
+      final key = 't${view.turn}-p${s.seat}';
+      if (_botMoved.contains(key)) continue;
+      _botMoved.add(key);
+      final move = _cpu.chooseMove(seat: s.seat, ammo: ammo, alive: alive);
+      final delay = 350 + _rand.nextInt(550); // feels deliberate, not instant
+      Timer(Duration(milliseconds: delay), () {
+        widget.service.submitMove(widget.code, view.turn, s.seat, move);
+      });
+    }
+  }
+
   // ---- Reaction showdown -------------------------------------------------
 
   Widget _showdownBody(RoomView view, Object? sdRaw) {
     final seatNames = {for (final s in view.seats) s.seat: s.name};
+    final botSeats = {
+      for (final s in view.seats)
+        if (s.isBot) s.seat
+    };
     return OnlineShowdown(
       service: widget.service,
       code: widget.code,
@@ -297,10 +338,30 @@ class _OnlineGameScreenState extends State<OnlineGameScreen> {
       sdRaw: sdRaw is Map ? sdRaw : null,
       serverOffset: _serverOffset,
       isHost: view.isHost,
+      botSeats: botSeats,
     );
   }
 
   // ---- Waiting room ------------------------------------------------------
+
+  int _botCountOf(RoomView view) =>
+      view.seats.where((s) => s.isBot).length;
+
+  Future<void> _addBot() async {
+    if (_addingBot) return;
+    setState(() => _addingBot = true);
+    try {
+      await widget.service.addBot(widget.code);
+    } finally {
+      if (mounted) setState(() => _addingBot = false);
+    }
+  }
+
+  Future<void> _removeLastBot(RoomView view) async {
+    final botSeats = [for (final s in view.seats) if (s.isBot) s.seat];
+    if (botSeats.isEmpty) return;
+    await widget.service.removeBot(widget.code, botSeats.reduce(max));
+  }
 
   Widget _waiting(RoomView view) {
     return Column(
@@ -343,6 +404,48 @@ class _OnlineGameScreenState extends State<OnlineGameScreen> {
             ),
           ),
         ),
+        if (view.isHost) ...[
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 24),
+            child: Row(
+              children: [
+                Expanded(
+                  child: OutlinedButton.icon(
+                    onPressed:
+                        (view.joinedCount < view.capacity && !_addingBot)
+                            ? _addBot
+                            : null,
+                    style: OutlinedButton.styleFrom(
+                      foregroundColor: CD.leather,
+                      side: BorderSide(color: CD.leather.withValues(alpha: 0.5)),
+                      padding: const EdgeInsets.symmetric(vertical: 11),
+                    ),
+                    icon: const Icon(Icons.smart_toy, size: 18),
+                    label: const Text('봇 추가'),
+                  ),
+                ),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: OutlinedButton.icon(
+                    onPressed: _botCountOf(view) > 0
+                        ? () => _removeLastBot(view)
+                        : null,
+                    style: OutlinedButton.styleFrom(
+                      foregroundColor: CD.danger,
+                      side: BorderSide(color: CD.danger.withValues(alpha: 0.4)),
+                      padding: const EdgeInsets.symmetric(vertical: 11),
+                    ),
+                    icon: const Icon(Icons.remove, size: 18),
+                    label: Text(_botCountOf(view) > 0
+                        ? '봇 빼기 (${_botCountOf(view)})'
+                        : '봇 빼기'),
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 10),
+        ],
         Padding(
           padding: const EdgeInsets.symmetric(horizontal: 24),
           child: view.isHost

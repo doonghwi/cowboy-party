@@ -24,6 +24,10 @@ class OnlineShowdown extends StatefulWidget {
   final int serverOffset; // ms (server = local + offset)
   final bool isHost;
 
+  /// Bot participants — the host records a randomised reaction tap for each so a
+  /// bot-inclusive duel never deadlocks waiting on a tap that can't come.
+  final Set<int> botSeats;
+
   const OnlineShowdown({
     super.key,
     required this.service,
@@ -35,6 +39,7 @@ class OnlineShowdown extends StatefulWidget {
     required this.sdRaw,
     required this.serverOffset,
     required this.isHost,
+    this.botSeats = const {},
   });
 
   @override
@@ -44,12 +49,14 @@ class OnlineShowdown extends StatefulWidget {
 class _OnlineShowdownState extends State<OnlineShowdown> {
   final _rand = Random();
   String? _roundKey;
+  String? _botTapRound;
   bool _signal = false;
   bool _false = false;
   bool _tapped = false;
   bool _creating = false;
   Timer? _flip;
   Timer? _arb;
+  final List<Timer> _botTimers = [];
 
   bool get _amIn =>
       widget.mySeat >= 0 && widget.participants.contains(widget.mySeat);
@@ -75,6 +82,9 @@ class _OnlineShowdownState extends State<OnlineShowdown> {
   void dispose() {
     _flip?.cancel();
     _arb?.cancel();
+    for (final t in _botTimers) {
+      t.cancel();
+    }
     super.dispose();
   }
 
@@ -123,8 +133,27 @@ class _OnlineShowdownState extends State<OnlineShowdown> {
       _false = true;
     }
 
-    if (widget.isHost && sd['winner'] == null) {
-      _hostArbitrate(sd, goAt, round);
+    if (widget.isHost) {
+      _scheduleBotTaps(goAt, round);
+      if (sd['winner'] == null) _hostArbitrate(sd, goAt, round);
+    }
+  }
+
+  /// Host only: once per round, queue a randomised reaction tap for every bot
+  /// participant so the duel resolves even with no human (or a faster human can
+  /// still beat them).
+  void _scheduleBotTaps(int goAt, int round) {
+    final rkey = '${widget.drawTurn}-$round';
+    if (_botTapRound == rkey) return;
+    _botTapRound = rkey;
+    for (final s in widget.participants) {
+      if (!widget.botSeats.contains(s)) continue;
+      final tapServer = goAt + 320 + _rand.nextInt(620); // 0.32~0.94s reaction
+      final fireLocal = tapServer - widget.serverOffset;
+      final delay = fireLocal - DateTime.now().millisecondsSinceEpoch;
+      _botTimers.add(Timer(Duration(milliseconds: delay < 0 ? 0 : delay), () {
+        widget.service.recordTap(widget.code, s, tapServer);
+      }));
     }
   }
 
