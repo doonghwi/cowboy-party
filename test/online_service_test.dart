@@ -4,6 +4,7 @@ import 'package:flutter_test/flutter_test.dart';
 
 // Move encodings: reload=0, defend=1, shoot at seat t = 2 + t.
 int reload() => const Move.reload().encode();
+int defend() => const Move.defend().encode();
 int shoot(int t) => Move.shoot(t).encode();
 
 Map<String, Object?> startedRoom({
@@ -182,13 +183,52 @@ void main() {
       expect(v.drawParticipants, [0, 1]);
     });
 
-    test('resolved showdown winner overrides the draw', () {
+    test('resolved showdown winner overrides the draw and stands alive', () {
       final v = OnlineService.computeView(
         mutualKillRoom(showdown: {'turn': 1, 'winner': 1}),
         'h',
       );
       expect(v.status, GameStatus.won);
       expect(v.winnerSeat, 1);
+      // The duel victor must be shown standing, not as a skull next to "승리!".
+      expect(v.seats[1].alive, isTrue);
+      expect(v.seats[1].hitThisTurn, isFalse);
+      expect(v.seats[0].alive, isFalse);
+    });
+  });
+
+  group('computeView — a quiet turn names what everyone did', () {
+    RoomView quiet(int a, int b) => OnlineService.computeView(
+          startedRoom(
+            players: {
+              'p0': {'id': 'h', 'name': 'A'},
+              'p1': {'id': 'g', 'name': 'B'},
+            },
+            seatCount: 2,
+            turns: {
+              't0': {'p0': a, 'p1': b},
+            },
+          ),
+          'h',
+        );
+
+    test('both defending reads "둘 다 방어", not "장전과 방어"', () {
+      final v = quiet(defend(), defend());
+      expect(v.banner, contains('둘 다'));
+      expect(v.banner, contains('방어'));
+      expect(v.banner, isNot(contains('장전과')));
+    });
+
+    test('both reloading reads "둘 다 장전"', () {
+      final v = quiet(reload(), reload());
+      expect(v.banner, contains('둘 다'));
+      expect(v.banner, contains('장전'));
+      expect(v.banner, isNot(contains('방어')));
+    });
+
+    test('a real mix still reads "장전과 방어"', () {
+      final v = quiet(reload(), defend());
+      expect(v.banner, contains('장전과 방어'));
     });
   });
 }

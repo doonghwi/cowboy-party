@@ -663,7 +663,7 @@ class OnlineService {
       firedTarget = out.firedTarget;
       hit = out.hit;
       alive = out.aliveAfter;
-      banner = _turnBanner(out, names);
+      banner = _turnBanner(out, names, moves, aliveBefore);
 
       if (out.status != GameStatus.ongoing) {
         var status = out.status;
@@ -683,6 +683,12 @@ class OnlineService {
           if (sdWinner != null) {
             status = GameStatus.won;
             winner = sdWinner;
+            // They won the reaction duel — bring them back to life so the table
+            // shows the victor standing, not a skull next to "승리!".
+            if (sdWinner >= 0 && sdWinner < n) {
+              alive[sdWinner] = true;
+              hit[sdWinner] = false;
+            }
           } else {
             drawTurn = t;
             drawParticipants = parts;
@@ -825,13 +831,31 @@ class OnlineService {
     );
   }
 
-  static String _turnBanner(TurnOutcome out, Map<int, String> names) {
+  static String _turnBanner(TurnOutcome out, Map<int, String> names,
+      List<Move> moves, List<bool> aliveBefore) {
     final downed = <String>[
       for (var s = 0; s < out.hit.length; s++)
         if (out.hit[s]) names[s] ?? '카우보이'
     ];
     if (downed.isNotEmpty) return '${downed.join(", ")} 명중!';
     if (out.fired.any((x) => x)) return '모두 막거나 빗나갔다!';
+    return _quietBanner(moves, aliveBefore);
+  }
+
+  /// Nobody fired this turn — describe what the living cowboys actually did so
+  /// "둘 다 방어" / "둘 다 장전" read true instead of a generic mixed message.
+  static String _quietBanner(List<Move> moves, List<bool> aliveBefore) {
+    final kinds = <ActKind>[
+      for (var s = 0; s < moves.length; s++)
+        if (s < aliveBefore.length && aliveBefore[s]) moves[s].kind
+    ];
+    final all = kinds.length <= 2 ? '둘 다' : '모두';
+    if (kinds.isNotEmpty && kinds.every((k) => k == ActKind.defend)) {
+      return '$all 방어! 다음 턴';
+    }
+    if (kinds.isNotEmpty && kinds.every((k) => k == ActKind.reload)) {
+      return '$all 장전! 다음 턴';
+    }
     return '장전과 방어... 다음 턴!';
   }
 }

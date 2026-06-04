@@ -148,7 +148,7 @@ class _OfflineGameScreenState extends State<OfflineGameScreen> {
       _hit = out.hit;
       _ammo = out.ammoAfter;
       _alive = out.aliveAfter;
-      _banner = _turnBanner(out);
+      _banner = _turnBanner(out, moves, aliveBefore);
       if (out.status == GameStatus.draw) {
         // Final simultaneous wipe → reaction showdown instead of a draw.
         _beginShowdown(aliveBefore);
@@ -175,13 +175,26 @@ class _OfflineGameScreenState extends State<OfflineGameScreen> {
     });
   }
 
-  String _turnBanner(TurnOutcome out) {
+  String _turnBanner(TurnOutcome out, List<Move> moves, List<bool> aliveBefore) {
     final downed = <String>[
       for (var s = 0; s < _n; s++)
         if (out.hit[s]) _names[s]
     ];
     if (downed.isNotEmpty) return '${downed.join(", ")} 명중!';
-    return out.fired.any((x) => x) ? '모두 막거나 빗나갔다!' : '장전과 방어... 다음 턴!';
+    if (out.fired.any((x) => x)) return '모두 막거나 빗나갔다!';
+    // Nobody fired — name what the living cowboys actually did.
+    final kinds = <ActKind>[
+      for (var s = 0; s < moves.length; s++)
+        if (s < aliveBefore.length && aliveBefore[s]) moves[s].kind
+    ];
+    final all = kinds.length <= 2 ? '둘 다' : '모두';
+    if (kinds.isNotEmpty && kinds.every((k) => k == ActKind.defend)) {
+      return '$all 방어! 다음 턴';
+    }
+    if (kinds.isNotEmpty && kinds.every((k) => k == ActKind.reload)) {
+      return '$all 장전! 다음 턴';
+    }
+    return '장전과 방어... 다음 턴!';
   }
 
   // ---- Reaction showdown -------------------------------------------------
