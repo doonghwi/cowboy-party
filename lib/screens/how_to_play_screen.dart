@@ -76,13 +76,6 @@ class HowToPlayScreen extends StatelessWidget {
                     '"준비…"가 "카우보이! 지금 탭!"으로 바뀌는 순간 가장 먼저 누른 사람이 승리해요. '
                     '신호 전에 미리 누르면 부정출발로 패배합니다.',
               ),
-              _Rule(
-                icon: Icons.add_reaction,
-                color: CD.rust,
-                title: '이모티콘',
-                body: '게임 중 오른쪽 아래 버튼으로 😂 😎 😡 😭 감정을 표현할 수 있어요. '
-                    '온라인에서는 상대에게도 내 좌석 위로 떠서 보여요.',
-              ),
             ],
           ),
         ),

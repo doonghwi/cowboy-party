@@ -142,11 +142,14 @@ class CircularTable extends StatelessWidget {
                     ),
                   ),
                 ),
-            // Center banner — drawn last (on top) and width-limited so a seat
-            // card never hides it, even in the 4-player side-by-side layout.
+            // Center banner — drawn last (on top). Only the 4-seat layout puts
+            // cards at the exact vertical centre (left & right), so the banner
+            // must stay narrow there to not hide them; every other layout
+            // leaves the middle band clear and can show the banner on one
+            // comfortable line.
             Center(
               child: ConstrainedBox(
-                constraints: BoxConstraints(maxWidth: w * 0.52),
+                constraints: BoxConstraints(maxWidth: w * (n == 4 ? 0.52 : 0.86)),
                 child: center,
               ),
             ),
