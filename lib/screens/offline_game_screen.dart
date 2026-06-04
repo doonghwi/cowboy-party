@@ -11,6 +11,7 @@ import '../widgets/circular_table.dart';
 import '../widgets/desert_background.dart';
 import '../widgets/emoji_bar.dart';
 import '../widgets/reaction_panel.dart';
+import '../widgets/super_flash.dart';
 
 enum _Phase { setup, choosing, reveal, over, showdown }
 
@@ -61,6 +62,11 @@ class _OfflineGameScreenState extends State<OfflineGameScreen> {
   final Map<int, String> _reactions = {};
   final Map<int, Timer> _rxTimers = {};
 
+  // 슈퍼빵야 skill flash (one-shot overlay when a super shot fires).
+  bool _superFlash = false;
+  int _superFlashKey = 0;
+  Timer? _superTimer;
+
   List<String> get _names =>
       ['나', for (var i = 0; i < _n - 1; i++) _botNames[i % _botNames.length]];
 
@@ -68,6 +74,7 @@ class _OfflineGameScreenState extends State<OfflineGameScreen> {
   void dispose() {
     _sdPrep?.cancel();
     _sdGo?.cancel();
+    _superTimer?.cancel();
     for (final t in _rxTimers.values) {
       t.cancel();
     }
@@ -79,6 +86,15 @@ class _OfflineGameScreenState extends State<OfflineGameScreen> {
     _rxTimers[seat]?.cancel();
     _rxTimers[seat] = Timer(const Duration(milliseconds: 2200), () {
       if (mounted) setState(() => _reactions.remove(seat));
+    });
+  }
+
+  void _fireSuperFlash() {
+    _superFlash = true;
+    _superFlashKey++;
+    _superTimer?.cancel();
+    _superTimer = Timer(const Duration(milliseconds: 1400), () {
+      if (mounted) setState(() => _superFlash = false);
     });
   }
 
@@ -123,6 +139,7 @@ class _OfflineGameScreenState extends State<OfflineGameScreen> {
     ];
     final aliveBefore = List<bool>.from(_alive);
     final out = resolveTurn(moves, _ammo, _alive);
+    if (out.superFired.any((x) => x)) _fireSuperFlash();
     setState(() {
       _last = List<Move?>.from(moves);
       _fired = out.fired;
@@ -379,6 +396,11 @@ class _OfflineGameScreenState extends State<OfflineGameScreen> {
                     right: 6,
                     bottom: 6,
                     child: EmojiBar(onPick: (e) => _react(0, e)),
+                  ),
+                if (_superFlash)
+                  Positioned.fill(
+                    child: SuperBbangyaFlash(
+                        key: ValueKey('sf-$_superFlashKey')),
                   ),
               ],
             ),

@@ -12,6 +12,7 @@ import '../widgets/circular_table.dart';
 import '../widgets/desert_background.dart';
 import '../widgets/emoji_bar.dart';
 import '../widgets/online_showdown.dart';
+import '../widgets/super_flash.dart';
 
 class OnlineGameScreen extends StatefulWidget {
   final OnlineService service;
@@ -31,6 +32,13 @@ class _OnlineGameScreenState extends State<OnlineGameScreen> {
   bool _resetting = false;
   int _presenceSeat = -1;
   bool _startedNow = false;
+  String _myName = '';
+
+  // 슈퍼빵야 skill flash (one-shot overlay when a super shot fires).
+  bool _superFlash = false;
+  int _superFlashKey = 0;
+  bool _superFlashedOver = false;
+  Timer? _superTimer;
 
   // Pending action for the current turn.
   int _pendingTurn = -1;
@@ -79,11 +87,13 @@ class _OnlineGameScreenState extends State<OnlineGameScreen> {
     _offsetSub?.cancel();
     _heartbeat?.cancel();
     _staleTick?.cancel();
+    _superTimer?.cancel();
     for (final t in _rxTimers.values) {
       t.cancel();
     }
     if (_presenceSeat >= 0) {
-      widget.service.leave(widget.code, _presenceSeat, started: _startedNow);
+      widget.service.leave(widget.code, _presenceSeat,
+          started: _startedNow, name: _myName);
     }
     super.dispose();
   }
@@ -123,13 +133,19 @@ class _OnlineGameScreenState extends State<OnlineGameScreen> {
     final seat = _presenceSeat;
     final started = _startedNow;
     _presenceSeat = -1;
-    if (seat >= 0) await widget.service.leave(widget.code, seat, started: started);
+    if (seat >= 0) {
+      await widget.service
+          .leave(widget.code, seat, started: started, name: _myName);
+    }
     if (mounted) Navigator.of(context).pop();
   }
 
   void _track(RoomView view) {
     _presenceSeat = view.mySeat;
     _startedNow = view.started;
+    // Remember my name so a sticky quit can show it after my node is gone.
+    final myName = view.me?.name;
+    if (myName != null && myName.isNotEmpty) _myName = myName;
     // Host makes silent players' departures sticky so all clients agree.
     if (view.isHost && view.reapSeats.isNotEmpty) {
       widget.service.markQuit(widget.code, view.reapSeats);
@@ -137,16 +153,26 @@ class _OnlineGameScreenState extends State<OnlineGameScreen> {
   }
 
   void _handleReveal(RoomView view) {
+    if (view.phase == OnlinePhase.over) {
+      // A game-ending 슈퍼빵야 jumps straight to "over" with no live reveal
+      // window — fire the flash here, once, before the result card lands.
+      if (!_superFlashedOver && view.seats.any((s) => s.superFired)) {
+        _superFlashedOver = true;
+        _fireSuperFlash();
+      }
+      return;
+    }
+    _superFlashedOver = false; // re-arm for the next game's finale
     if (view.phase == OnlinePhase.waiting) {
       _shownTurn = 0;
       return;
     }
-    if (view.phase == OnlinePhase.over) return;
     // A rematch resets the turn counter — re-sync so reveals work next game.
     if (view.turn < _shownTurn) _shownTurn = view.turn;
     if (view.turn > _shownTurn) {
       final hadAction =
           view.seats.any((s) => s.fired) || view.seats.any((s) => s.hitThisTurn);
+      final hadSuper = view.seats.any((s) => s.superFired);
       _shownTurn = view.turn;
       if (hadAction) {
         _revealing = true;
@@ -155,7 +181,17 @@ class _OnlineGameScreenState extends State<OnlineGameScreen> {
           if (mounted) setState(() => _revealing = false);
         });
       }
+      if (hadSuper) _fireSuperFlash();
     }
+  }
+
+  void _fireSuperFlash() {
+    _superFlash = true;
+    _superFlashKey++;
+    _superTimer?.cancel();
+    _superTimer = Timer(const Duration(milliseconds: 1400), () {
+      if (mounted) setState(() => _superFlash = false);
+    });
   }
 
   @override
@@ -399,6 +435,11 @@ class _OnlineGameScreenState extends State<OnlineGameScreen> {
                         widget.service.sendReaction(widget.code, view.mySeat, e);
                       },
                     ),
+                  ),
+                if (_superFlash)
+                  Positioned.fill(
+                    child: SuperBbangyaFlash(
+                        key: ValueKey('sf-$_superFlashKey')),
                   ),
               ],
             ),

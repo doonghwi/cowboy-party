@@ -332,10 +332,16 @@ class OnlineService {
   }
 
   /// Leave for good. In a started game this also writes a sticky quit so the
-  /// seat is reaped immediately; in the lobby it just frees the seat.
-  Future<void> leave(String code, int seat, {bool started = false}) async {
+  /// seat is reaped immediately; in the lobby it just frees the seat. The
+  /// leaver's [name] is stored in the quit marker so other clients can still
+  /// say "OOO 님이 나갔어요" after the player node is removed.
+  Future<void> leave(String code, int seat,
+      {bool started = false, String? name}) async {
     try {
-      if (started) await room(code).child('quit/${slotKey(seat)}').set(true);
+      if (started) {
+        await room(code).child('quit/${slotKey(seat)}').set(
+            (name != null && name.isNotEmpty) ? name : true);
+      }
       await room(code).child('players/${slotKey(seat)}').remove();
     } catch (_) {}
   }
@@ -429,7 +435,21 @@ class OnlineService {
       stale[s] = staleBefore > 0 && seen != null && seen < staleBefore;
       if (v['id'] == myClientId) mySeat = s;
     }
-    bool quit(int s) => quitMap[slotKey(s)] == true;
+    // A quit marker is either `true` (host-reaped silent seat) or the leaver's
+    // name (written by leave()), kept sticky so departures stay consistent.
+    bool quit(int s) {
+      final v = quitMap[slotKey(s)];
+      return v == true || v is String;
+    }
+
+    String? quitName(int s) {
+      final v = quitMap[slotKey(s)];
+      return v is String && v.isNotEmpty ? v : null;
+    }
+
+    // Best-effort display name for a seat even after its player node is gone.
+    String? leftName(int s) => names[s] ?? quitName(s);
+
     // "present" = here, not timed out, not quit.
     bool present(int s) =>
         nodeExists[s] == true && !quit(s) && stale[s] != true;
@@ -529,21 +549,29 @@ class OnlineService {
       // Stuck waiting? Drop anyone who has gone (left/timed out) so the table
       // never freezes. Only at the live frontier — history is never rewritten.
       if (!allAliveSubmitted) {
-        var dropped = false;
+        final justLeft = <int>[];
         for (var s = 0; s < n; s++) {
           if (alive[s] && !present(s)) {
             alive[s] = false;
-            dropped = true;
+            justLeft.add(s);
             // A silent-but-still-present node should be made a sticky quit.
             if (nodeExists[s] == true && !quit(s)) reap.add(s);
           }
         }
-        if (dropped) {
+        if (justLeft.isNotEmpty) {
           final survivors = [
             for (var s = 0; s < n; s++)
               if (alive[s]) s
           ];
           if (survivors.length <= 1) {
+            // The game didn't end by a real shot — someone left. Say so plainly
+            // instead of crowning whoever happened to remain.
+            final leftNames = [for (final s in justLeft) leftName(s) ?? '상대'];
+            final banner = survivors.length == 1
+                ? (leftNames.length == 1
+                    ? '${leftNames.first} 님이 나갔어요'
+                    : '상대가 모두 나갔어요')
+                : '모두 떠났어요';
             return _buildView(
               phase: OnlinePhase.over,
               capacity: capacity,
@@ -567,11 +595,7 @@ class OnlineService {
               iSubmitted: true,
               submittedAlive: 0,
               aliveCount: survivors.length,
-              banner: survivors.length == 1
-                  ? (survivors.first == mySeat
-                      ? '상대가 모두 나갔다 — 승리!'
-                      : '${names[survivors.first] ?? "카우보이"} 승리!')
-                  : '모두 떠났다!',
+              banner: banner,
               status:
                   survivors.length == 1 ? GameStatus.won : GameStatus.draw,
               winner: survivors.length == 1 ? survivors.first : null,
@@ -688,7 +712,13 @@ class OnlineService {
           submittedAlive: 0,
           aliveCount: alive.where((a) => a).length,
           banner: status == GameStatus.won
-              ? (winner == mySeat ? '최후의 1인! 승리!' : '${names[winner] ?? "카우보이"} 승리!')
+              ? (winner == mySeat
+                  ? '최후의 1인! 승리!'
+                  : (winner != null && !present(winner)
+                      // The winner already left the room — don't degrade their
+                      // banner to the default "카우보이 승리!"; show they're gone.
+                      ? '${leftName(winner) ?? "상대"} 님이 나갔어요'
+                      : '${names[winner] ?? "카우보이"} 승리!'))
               : '모두 쓰러졌다!',
           status: status,
           winner: winner,

@@ -117,6 +117,49 @@ void main() {
     });
   });
 
+  group('computeView — a departing player is named, not crowned over', () {
+    test('winner who then left shows "<name> 나갔어요", not "카우보이 승리!"', () {
+      // p1 legitimately won (shot p0 on t1) and then left: their node is gone
+      // but the quit marker keeps their name so we don't fall back to 카우보이.
+      final data = startedRoom(
+        players: {
+          'p0': {'id': 'h', 'name': '나'},
+        },
+        seatCount: 2,
+        turns: {
+          't0': {'p0': reload(), 'p1': reload()},
+          't1': {'p0': reload(), 'p1': shoot(0)},
+        },
+        quit: {'p1': '무법자42'},
+      );
+      final v = OnlineService.computeView(data, 'h');
+      expect(v.status, GameStatus.won);
+      expect(v.winnerSeat, 1);
+      expect(v.banner, contains('무법자42'));
+      expect(v.banner, contains('나갔어요'));
+      expect(v.banner, isNot(contains('승리')));
+    });
+
+    test('opponent leaving mid-game ends with their name, not a fake win', () {
+      // I'm waiting on p1's move; p1 has left (sticky quit holds the name).
+      final data = startedRoom(
+        players: {
+          'p0': {'id': 'h', 'name': '나'},
+        },
+        seatCount: 2,
+        turns: {
+          't0': {'p0': reload()}, // p1 never submitted — they're gone
+        },
+        quit: {'p1': '보안관7'},
+      );
+      final v = OnlineService.computeView(data, 'h');
+      expect(v.status, GameStatus.won);
+      expect(v.winnerSeat, 0);
+      expect(v.banner, contains('보안관7'));
+      expect(v.banner, contains('나갔어요'));
+    });
+  });
+
   group('computeView — final wipe becomes a reaction showdown, not a draw', () {
     Map<String, Object?> mutualKillRoom({Map<String, Object?>? showdown}) =>
         startedRoom(
