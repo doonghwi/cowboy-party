@@ -6,6 +6,12 @@
 앱은 **빌드·검증·배포 완료**되어 라이브로 동작 중. 사용자 피드백 **4건 수정도 2026-06-04 배포 완료(LIVE)**.
 → 남은 할 일 없음. 새 피드백이 오면 아래 "배포 절차" 그대로 반복.
 
+## 2026-06-04 (2차) 피드백 3건 배포 완료
+- **① 상대 퇴장 표시**: 상대가 나가면 닉이 사라져(`names[s]→null`) "카우보이 승리!"로 깨지던 문제 → `leave(name:)`가 `quit/pX`에 닉을 저장(보존), `computeView`의 `quit/quitName/leftName` 헬퍼로 퇴장 두 경로(드롭 중도퇴장·정상승리후 승자퇴장) 모두 **"OOO 님이 나갔어요"** 표시. 단위테스트 2건 추가(`online_service_test.dart`).
+- **② 슈퍼빵야 이펙트**: `lib/widgets/super_flash.dart`(SuperBbangyaFlash) — 노란 "슈 퍼 빵 야" 외곽선/글로우/팝&셰이크 1회 오버레이. 오프라인은 `_resolve`에서 `out.superFired.any()`, 온라인은 `_handleReveal`(라이브 턴 + 게임종료 over 케이스 `_superFlashedOver` 가드)에서 트리거. 위젯 스모크 테스트 추가.
+- **③ 게임 방법 보강**: `how_to_play_screen.dart` 슈퍼빵야 규칙 명확화 + 이펙트 안내.
+- 검증: analyze 0 · 테스트 20개 통과 · 게임방법 화면 에뮬 시각확인. 웹(462b972)·APK v1.0.0·대시보드·ntfy 배포. **단 인게임 슈퍼빵야 플래시/온라인 퇴장 배너는 adb 캔버스탭 한계로 실제 게임 시각검증 못함 → 다음 세션 눈으로 확인 권장**(슈퍼빵야: 봇전 6발 모아 발동 / 퇴장배너: 온라인 2클라 후 한쪽 나가기).
+
 ## 2026-06-04 배포 완료 기록
 - analyze 0 · 테스트 17개 통과 · 웹 재빌드(PowerShell `--base-href=/cowboy-party/`) → gh-pages 푸시(6897aad).
 - APK v1.0.0 재업로드(clobber, 51MB). 대시보드 `cowboy-party.html`에 4건 수정행+작업로그 추가 후 푸시(513df9d). ntfy 알림 전송.
