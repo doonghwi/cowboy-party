@@ -51,3 +51,7 @@ app.*.map.json
 shots/
 
 dist/
+
+# Firebase 플랫폼 설정파일 — 키가 스캐너에 걸림. Dart options(firebase_options.dart)만 커밋.
+**/GoogleService-Info.plist
+**/google-services.json
