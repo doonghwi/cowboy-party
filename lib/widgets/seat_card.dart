@@ -33,6 +33,9 @@ class SeatCard extends StatelessWidget {
   final CharId char;
   final bool late;
 
+  /// 리빌 중 능력 발동 라벨 ('자힐!' 등). null이면 표시 안 함.
+  final String? abilityFx;
+
   const SeatCard({
     super.key,
     required this.name,
@@ -50,6 +53,7 @@ class SeatCard extends StatelessWidget {
     this.onTap,
     this.char = CharId.none,
     this.late = false,
+    this.abilityFx,
   });
 
   @override
@@ -154,6 +158,30 @@ class SeatCard extends StatelessWidget {
             ),
           ),
           SizedBox(height: mini ? 2 : 4),
+          if (abilityFx != null) ...[
+            const SizedBox(height: 2),
+            TweenAnimationBuilder<double>(
+              key: ValueKey('fx-$name-$abilityFx'),
+              tween: Tween(begin: 0.6, end: 1.0),
+              duration: const Duration(milliseconds: 320),
+              curve: Curves.easeOutBack,
+              builder: (context, v, child) =>
+                  Transform.scale(scale: v, child: child),
+              child: Container(
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
+                decoration: BoxDecoration(
+                  color: charDef(char).color,
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Text(abilityFx!,
+                    style: const TextStyle(
+                        color: Colors.white,
+                        fontSize: 10,
+                        fontWeight: FontWeight.w900)),
+              ),
+            ),
+          ],
           if (late && !alive)
             const Text('다음 판 참여',
                 style: TextStyle(

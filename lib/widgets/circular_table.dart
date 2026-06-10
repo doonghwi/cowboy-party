@@ -24,6 +24,12 @@ class TableSeat {
   final CharId char;
   final bool late; // 게임 중 난입 — 다음 판부터 참여
 
+  /// 이 턴 능력 발동 표시 (리빌 중 좌석 배지).
+  final bool healedFx;
+  final bool evadedFx;
+  final bool reflectedFx;
+  final bool doubleLoadFx;
+
   const TableSeat({
     required this.name,
     required this.ammo,
@@ -38,6 +44,10 @@ class TableSeat {
     this.firedTarget = -1,
     this.char = CharId.none,
     this.late = false,
+    this.healedFx = false,
+    this.evadedFx = false,
+    this.reflectedFx = false,
+    this.doubleLoadFx = false,
   });
 }
 
@@ -122,6 +132,7 @@ class CircularTable extends StatelessWidget {
                   fired: seats[s].fired,
                   char: seats[s].char,
                   late: seats[s].late,
+                  abilityFx: reveal ? _fxLabel(seats[s]) : null,
                   scale: 0,
                   targetable: targetMode && !seats[s].isMe && seats[s].alive,
                   targeted: targetMode && selectedTarget == s,
@@ -167,6 +178,15 @@ class CircularTable extends StatelessWidget {
         );
       },
     );
+  }
+
+  /// 이 턴 발동한 능력의 좌석 배지 라벨 (우선순위 1개만).
+  static String? _fxLabel(TableSeat s) {
+    if (s.reflectedFx) return '덫 반사!';
+    if (s.healedFx) return '자힐!';
+    if (s.evadedFx) return '회피!';
+    if (s.doubleLoadFx) return '+2 장전!';
+    return null;
   }
 
   List<Widget> _effects(int s, Offset pos, double cardW, double cardH) {

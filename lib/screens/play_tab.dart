@@ -6,6 +6,7 @@ import '../meta/meta_service.dart';
 import '../online/online_service.dart';
 import '../theme.dart';
 import '../widgets/emo.dart';
+import 'how_to_play_screen.dart';
 import 'offline_game_screen.dart';
 import 'online_game_screen.dart';
 import 'online_lobby_screen.dart';
@@ -28,7 +29,7 @@ class _PlayTabState extends State<PlayTab> {
   void initState() {
     super.initState();
     _refresh();
-    _auto = Timer.periodic(const Duration(seconds: 8), (_) => _refresh());
+    _auto = Timer.periodic(const Duration(seconds: 15), (_) => _refresh());
   }
 
   @override
@@ -39,6 +40,9 @@ class _PlayTabState extends State<PlayTab> {
 
   Future<void> _refresh() async {
     if (_loading) return;
+    // 다른 화면(게임 등)이 위에 떠 있으면 폴링하지 않는다 — 트래픽 절약.
+    final route = ModalRoute.of(context);
+    if (route != null && !route.isCurrent) return;
     _loading = true;
     try {
       final rooms = await _service.fetchPublicRooms();
@@ -117,7 +121,22 @@ class _PlayTabState extends State<PlayTab> {
               ),
             ],
           ),
-          const SizedBox(height: 16),
+          const SizedBox(height: 10),
+          Center(
+            child: TextButton.icon(
+              onPressed: () => Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                      builder: (_) => const HowToPlayScreen())),
+              icon: const Icon(Icons.menu_book, size: 18, color: CD.gold),
+              label: const Text('게임 방법 · 캐릭터 능력 보기',
+                  style: TextStyle(
+                      color: CD.gold,
+                      fontWeight: FontWeight.w800,
+                      fontSize: 13)),
+            ),
+          ),
+          const SizedBox(height: 6),
           Row(
             children: [
               Text('공개 방', style: posterTitle(20, color: Colors.white)),

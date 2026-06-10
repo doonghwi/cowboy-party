@@ -3,8 +3,10 @@ import 'dart:math';
 
 import 'package:flutter/material.dart';
 
+import '../audio/sfx.dart';
 import '../game/cpu_ai.dart';
 import '../game/party_logic.dart';
+import '../meta/meta_service.dart';
 import '../theme.dart';
 import '../widgets/action_bar.dart';
 import '../widgets/circular_table.dart';
@@ -39,6 +41,14 @@ class _OfflineGameScreenState extends State<OfflineGameScreen> {
   late List<bool> _superFired;
   late List<int> _firedTarget;
   late List<bool> _hit;
+
+  // 캐릭터 (좌석 0 = 내 장착 캐릭터, 봇은 랜덤).
+  late List<CharId> _chars;
+  late PartyState _pstate;
+  late TurnOutcome? _lastOut;
+  String _gameSeed = '';
+  bool _smokeOn = false;
+  String? _specialWin;
 
   int _turn = 0;
   _Phase _phase = _Phase.setup;
@@ -101,7 +111,17 @@ class _OfflineGameScreenState extends State<OfflineGameScreen> {
   void _start() {
     _n = 1 + _botCount;
     setState(() {
-      _ammo = List<int>.filled(_n, 0);
+      _chars = [
+        Meta.I.equipped,
+        for (var i = 1; i < _n; i++)
+          kCharacters[_rand.nextInt(kCharacters.length)].id,
+      ];
+      _pstate = PartyState.initial(_chars);
+      _gameSeed = 'OFF${_rand.nextInt(1 << 30)}';
+      _lastOut = null;
+      _specialWin = null;
+      _smokeOn = false;
+      _ammo = [for (var s = 0; s < _n; s++) startAmmoFor(_chars[s])];
       _alive = List<bool>.filled(_n, true);
       _last = List<Move?>.filled(_n, null);
       _fired = List<bool>.filled(_n, false);
@@ -110,7 +130,9 @@ class _OfflineGameScreenState extends State<OfflineGameScreen> {
       _hit = List<bool>.filled(_n, false);
       _turn = 0;
       _phase = _Phase.choosing;
-      _banner = '첫 턴! 아직 총알이 없어요 — 장전부터.';
+      _banner = _chars[0] == CharId.prepper
+          ? '준비자 — 총알 1발 장전된 채 시작!'
+          : '첫 턴! 아직 총알이 없어요 — 장전부터.';
       _status = GameStatus.ongoing;
       _winner = null;
       _selKind = null;
@@ -120,13 +142,20 @@ class _OfflineGameScreenState extends State<OfflineGameScreen> {
 
   void _confirm() {
     if (_selKind == null) return;
-    final mine = switch (_selKind!) {
+    Sfx.confirm();
+    var mine = switch (_selKind!) {
       ActKind.reload => const Move.reload(),
       ActKind.defend => const Move.defend(),
       ActKind.shoot => Move.shoot(_selTarget),
       ActKind.superShoot => Move.superShoot(_selTarget),
       ActKind.trap => const Move.trap(),
     };
+    if (_smokeOn &&
+        _chars[0] == CharId.smoker &&
+        _pstate.smokeLeft[0] > 0 &&
+        mine.kind != ActKind.trap) {
+      mine = mine.withSmoke(true);
+    }
     _resolve(mine);
   }
 
@@ -135,13 +164,29 @@ class _OfflineGameScreenState extends State<OfflineGameScreen> {
       _alive[0] ? mine : Move.empty,
       for (var s = 1; s < _n; s++)
         _alive[s]
-            ? _cpu.chooseMove(seat: s, ammo: _ammo, alive: _alive)
+            ? _cpu.chooseMove(
+                seat: s,
+                ammo: _ammo,
+                alive: _alive,
+                chars: _chars,
+                state: _pstate)
             : Move.empty,
     ];
     final aliveBefore = List<bool>.from(_alive);
-    final out = resolveTurn(moves, _ammo, _alive);
+    final out = resolvePartyTurn(
+      moves: moves,
+      ammoBefore: _ammo,
+      aliveBefore: _alive,
+      chars: _chars,
+      state: _pstate,
+      seed: _gameSeed,
+      turn: _turn,
+    );
+    _pstate = out.stateAfter!;
     if (out.superFired.any((x) => x)) _fireSuperFlash();
+    _playRevealSound(out);
     setState(() {
+      _lastOut = out;
       _last = List<Move?>.from(moves);
       _fired = out.fired;
       _superFired = out.superFired;
@@ -150,6 +195,7 @@ class _OfflineGameScreenState extends State<OfflineGameScreen> {
       _ammo = out.ammoAfter;
       _alive = out.aliveAfter;
       _banner = _turnBanner(out, moves, aliveBefore);
+      _specialWin = out.specialWin;
       if (out.status == GameStatus.draw) {
         // Final simultaneous wipe → reaction showdown instead of a draw.
         _beginShowdown(aliveBefore);
@@ -157,14 +203,40 @@ class _OfflineGameScreenState extends State<OfflineGameScreen> {
         _status = out.status;
         _winner = out.winner;
         _phase = out.status == GameStatus.ongoing ? _Phase.reveal : _Phase.over;
+        if (_phase == _Phase.over) {
+          _winner == 0 ? Sfx.win() : Sfx.lose();
+        }
       }
       _selKind = null;
       _selTarget = -1;
+      _smokeOn = false;
     });
+  }
+
+  void _playRevealSound(TurnOutcome out) {
+    if (out.superFired.any((x) => x)) {
+      Sfx.play('super');
+    } else if (out.reflectKill.any((x) => x)) {
+      Sfx.play('trap');
+    } else if (out.fired.any((x) => x)) {
+      Sfx.play('shot');
+      if (out.hit.any((x) => x)) {
+        Timer(const Duration(milliseconds: 130), () => Sfx.play('hit'));
+      } else if (out.evaded.any((x) => x)) {
+        Timer(const Duration(milliseconds: 130), () => Sfx.play('smoke'));
+      } else {
+        Timer(const Duration(milliseconds: 130), () => Sfx.play('shield'));
+      }
+    } else if (out.healed.any((x) => x)) {
+      Sfx.play('shield');
+    } else {
+      Sfx.play('reload', volume: 0.7);
+    }
   }
 
   void _next() {
     setState(() {
+      _lastOut = null;
       _hit = List<bool>.filled(_n, false);
       _last = List<Move?>.filled(_n, null);
       _fired = List<bool>.filled(_n, false);
@@ -177,11 +249,28 @@ class _OfflineGameScreenState extends State<OfflineGameScreen> {
   }
 
   String _turnBanner(TurnOutcome out, List<Move> moves, List<bool> aliveBefore) {
+    final reflected = <String>[
+      for (var s = 0; s < out.reflectKill.length; s++)
+        if (out.reflectKill[s]) _names[s]
+    ];
+    if (reflected.isNotEmpty) return '덫 발동! ${reflected.join(", ")} 반사 명중!';
+    final healed = <String>[
+      for (var s = 0; s < out.healed.length; s++)
+        if (out.healed[s]) _names[s]
+    ];
     final downed = <String>[
       for (var s = 0; s < _n; s++)
         if (out.hit[s]) _names[s]
     ];
+    if (healed.isNotEmpty && downed.isEmpty) {
+      return '${healed.join(", ")}, 의사의 자힐로 버텼다!';
+    }
     if (downed.isNotEmpty) return '${downed.join(", ")} 명중!';
+    final evaded = <String>[
+      for (var s = 0; s < out.evaded.length; s++)
+        if (out.evaded[s]) _names[s]
+    ];
+    if (evaded.isNotEmpty) return '${evaded.join(", ")}, 연막으로 회피!';
     if (out.fired.any((x) => x)) return '모두 막거나 빗나갔다!';
     // Nobody fired — name what the living cowboys actually did.
     final kinds = <ActKind>[
@@ -285,7 +374,31 @@ class _OfflineGameScreenState extends State<OfflineGameScreen> {
             const SizedBox(height: 6),
             const Text('나 + 봇으로 2~6명이 됩니다.',
                 style: TextStyle(color: CD.parchment, fontSize: 13)),
-            const SizedBox(height: 20),
+            const SizedBox(height: 10),
+            Container(
+              padding:
+                  const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
+              decoration: BoxDecoration(
+                color: CD.leather.withValues(alpha: 0.45),
+                borderRadius: BorderRadius.circular(20),
+              ),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(charDef(Meta.I.equipped).icon,
+                      size: 16, color: charDef(Meta.I.equipped).color),
+                  const SizedBox(width: 6),
+                  Text(
+                    '내 캐릭터: ${charDef(Meta.I.equipped).name} · 봇들도 랜덤 캐릭터를 써요',
+                    style: const TextStyle(
+                        color: Colors.white,
+                        fontSize: 12,
+                        fontWeight: FontWeight.w700),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 16),
             Container(
               padding: const EdgeInsets.all(18),
               decoration: BoxDecoration(
@@ -372,6 +485,7 @@ class _OfflineGameScreenState extends State<OfflineGameScreen> {
 
   Widget _game() {
     final reveal = _phase == _Phase.reveal || _phase == _Phase.over;
+    bool fx(List<bool>? l, int s) => l != null && s < l.length && l[s];
     final seats = [
       for (var s = 0; s < _n; s++)
         TableSeat(
@@ -384,6 +498,11 @@ class _OfflineGameScreenState extends State<OfflineGameScreen> {
           fired: _fired[s],
           superFired: _superFired[s],
           firedTarget: _firedTarget[s],
+          char: _chars[s],
+          healedFx: fx(_lastOut?.healed, s),
+          evadedFx: fx(_lastOut?.evaded, s),
+          reflectedFx: fx(_lastOut?.reflectKill, s),
+          doubleLoadFx: fx(_lastOut?.doubleLoad, s),
         ),
     ];
     final targetMode = _phase == _Phase.choosing &&
@@ -486,7 +605,13 @@ class _OfflineGameScreenState extends State<OfflineGameScreen> {
             selected: _selKind,
             selectedTarget: _selTarget,
             targetName: _selTarget >= 0 ? _names[_selTarget] : null,
+            myChar: _chars[0],
+            trapAvailable: _chars[0] == CharId.hunter && !_pstate.trapUsed[0],
+            smokeLeft: _pstate.smokeLeft[0],
+            smokeOn: _smokeOn,
+            onSmokeToggle: (v) => setState(() => _smokeOn = v),
             onSelect: (k) => setState(() {
+              Sfx.click();
               _selKind = k;
               if (k == ActKind.shoot || k == ActKind.superShoot) {
                 final opp = [for (var s = 1; s < _n; s++) if (_alive[s]) s];
@@ -527,6 +652,14 @@ class _OfflineGameScreenState extends State<OfflineGameScreen> {
       title = _sdIFalse
           ? '부정출발! 패배'
           : (iWon ? '반응 승리! 최후의 1인' : '${_names[_winner!]} 반응 승리');
+    } else if (_specialWin == 'pacifist') {
+      title = iWon
+          ? '장전 6회 — 평화의 승리!'
+          : '${_names[_winner!]}, 평화의 승리! (장전 6회)';
+    } else if (_specialWin == 'duelist') {
+      title = iWon
+          ? '1:1 결투 — 결투가의 즉시 승리!'
+          : '${_names[_winner!]}, 결투가의 즉시 승리!';
     } else {
       title = iWon ? '승리! 최후의 1인' : '${_names[_winner!]} 승리';
     }

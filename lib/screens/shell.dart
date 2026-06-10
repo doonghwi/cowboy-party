@@ -55,7 +55,11 @@ class _ShellScreenState extends State<ShellScreen> {
       body: DesertBackground(
         child: SafeArea(
           bottom: false,
-          child: Column(
+          // 웹/태블릿 와이드에서 콘텐츠가 풀폭으로 퍼지지 않게 (UX_UI §1).
+          child: Center(
+            child: ConstrainedBox(
+              constraints: const BoxConstraints(maxWidth: 560),
+              child: Column(
             children: [
               _topBar(),
               Expanded(
@@ -81,6 +85,8 @@ class _ShellScreenState extends State<ShellScreen> {
               ),
               if (kShowAdPlaceholder) _adPlaceholder(),
             ],
+              ),
+            ),
           ),
         ),
       ),
@@ -179,6 +185,8 @@ class _ShellScreenState extends State<ShellScreen> {
               Text('설정', style: posterTitle(22)),
               const SizedBox(height: 12),
               _AccountRow(onChanged: () => setState(() {})),
+              const SizedBox(height: 8),
+              _NicknameRow(),
               const Divider(height: 24),
               StatefulBuilder(
                 builder: (ctx2, setSheet) => SwitchListTile(
@@ -270,6 +278,41 @@ class CoinChip extends StatelessWidget {
           ),
         ],
       ),
+    );
+  }
+}
+
+/// 설정에서 바로 닉네임 변경 (로비 안 가도 됨).
+class _NicknameRow extends StatelessWidget {
+  @override
+  Widget build(BuildContext context) {
+    final ctl = TextEditingController(text: Meta.I.nickname);
+    return Row(
+      children: [
+        const Icon(Icons.badge, color: CD.rust, size: 22),
+        const SizedBox(width: 10),
+        Expanded(
+          child: TextField(
+            controller: ctl,
+            maxLength: 8,
+            decoration: const InputDecoration(
+              isDense: true,
+              counterText: '',
+              hintText: '닉네임 (비우면 랜덤)',
+              border: UnderlineInputBorder(),
+            ),
+            onSubmitted: (v) => Meta.I.setNickname(v),
+          ),
+        ),
+        TextButton(
+          onPressed: () {
+            Meta.I.setNickname(ctl.text);
+            ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(content: Text('닉네임 저장됨')));
+          },
+          child: const Text('저장'),
+        ),
+      ],
     );
   }
 }

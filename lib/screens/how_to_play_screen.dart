@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../game/characters.dart';
 import '../theme.dart';
 import '../widgets/desert_background.dart';
 
@@ -15,7 +16,7 @@ class HowToPlayScreen extends StatelessWidget {
         child: SafeArea(
           child: ListView(
             padding: const EdgeInsets.all(20),
-            children: const [
+            children: [
               _Rule(
                 icon: Icons.groups,
                 color: CD.rust,
@@ -68,13 +69,46 @@ class HowToPlayScreen extends StatelessWidget {
                 body: '막지 못하고 한 발이라도 맞으면 즉시 탈락! 같은 턴에 여러 명이 함께 탈락할 수도 있어요. '
                     '마지막 1인이 승자가 됩니다.',
               ),
-              _Rule(
+              const _Rule(
                 icon: Icons.bolt_outlined,
                 color: CD.danger,
                 title: '반응속도 결투 (마지막 동시 탈락)',
                 body: '마지막에 남은 모두가 같은 턴에 함께 쓰러지면, 무승부 대신 결투! '
                     '"준비…"가 "카우보이! 지금 탭!"으로 바뀌는 순간 가장 먼저 누른 사람이 승리해요. '
                     '신호 전에 미리 누르면 부정출발로 패배합니다.',
+              ),
+              const SizedBox(height: 8),
+              Text('캐릭터 (총잡이 8종)', style: posterTitle(22, color: CD.leather)),
+              const SizedBox(height: 4),
+              const Text(
+                '캐릭터 탭에서 장착하면 능력이 적용돼요 — 온라인과 컴퓨터전 모두! '
+                '확률 능력은 모두에게 공평한 같은 주사위를 씁니다.',
+                style: TextStyle(color: CD.muted, fontSize: 12.5),
+              ),
+              const SizedBox(height: 12),
+              for (final c in kCharacters)
+                _Rule(
+                  icon: c.icon,
+                  color: c.color,
+                  title: c.cost == 0 ? '${c.name} (기본)' : '${c.name} (${c.cost}코인)',
+                  body: c.ability,
+                ),
+              const _Rule(
+                icon: Icons.crisis_alert,
+                color: Color(0xFF7A3E18),
+                title: '덫 · 연막은 이렇게',
+                body: '사냥꾼의 "덫"은 행동 칸에 새 버튼으로 떠요 — 그 턴은 다른 행동을 못 하지만 '
+                    '나를 쏜 일반탄이 전부 쏜 사람에게 되돌아갑니다(슈퍼빵야는 관통). '
+                    '스모커의 "연막"은 행동 위 토글이라 장전/방어/빵야와 함께 쓸 수 있어요 — '
+                    '그 턴 들어오는 공격을 발당 50% 확률로 피합니다.',
+              ),
+              const _Rule(
+                icon: Icons.monetization_on,
+                color: CD.gold,
+                title: '코인 · 랭킹',
+                body: '온라인 승리(+30~62)와 완주(+5), 매일 출석(보상 탭)으로 코인을 모아 '
+                    '캐릭터를 해금해요. 온라인 승리는 시즌 랭킹 포인트(+10×(인원-1))도 줍니다 — '
+                    '랭킹 등록은 Google 로그인 후!',
               ),
             ],
           ),
