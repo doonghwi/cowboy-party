@@ -4,7 +4,10 @@ import 'package:firebase_database/firebase_database.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
+import '../audio/sfx.dart';
 import '../game/party_logic.dart';
+import '../meta/meta_service.dart';
+import '../meta/season_service.dart';
 import '../online/online_service.dart';
 import '../theme.dart';
 import '../widgets/action_bar.dart';
@@ -44,6 +47,10 @@ class _OnlineGameScreenState extends State<OnlineGameScreen> {
   int _pendingTurn = -1;
   ActKind? _selKind;
   int _selTarget = -1;
+  bool _smokeOn = false; // 스모커 연막 토글 (턴마다 리셋)
+
+  // 코인/포인트는 게임(판)당 한 번만 지급.
+  bool _rewarded = false;
 
   // Mid-game reveal: briefly show who shot whom before the next turn's picker.
   int _shownTurn = 0;
@@ -152,6 +159,8 @@ class _OnlineGameScreenState extends State<OnlineGameScreen> {
     }
   }
 
+  bool _endSoundPlayed = false;
+
   void _handleReveal(RoomView view) {
     if (view.phase == OnlinePhase.over) {
       // A game-ending 슈퍼빵야 jumps straight to "over" with no live reveal
@@ -159,10 +168,18 @@ class _OnlineGameScreenState extends State<OnlineGameScreen> {
       if (!_superFlashedOver && view.seats.any((s) => s.superFired)) {
         _superFlashedOver = true;
         _fireSuperFlash();
+        Sfx.play('super');
+      }
+      if (!_endSoundPlayed) {
+        _endSoundPlayed = true;
+        if (view.status == GameStatus.won) {
+          view.iWon ? Sfx.win() : Sfx.lose();
+        }
       }
       return;
     }
     _superFlashedOver = false; // re-arm for the next game's finale
+    _endSoundPlayed = false;
     if (view.phase == OnlinePhase.waiting) {
       _shownTurn = 0;
       return;
@@ -174,6 +191,7 @@ class _OnlineGameScreenState extends State<OnlineGameScreen> {
           view.seats.any((s) => s.fired) || view.seats.any((s) => s.hitThisTurn);
       final hadSuper = view.seats.any((s) => s.superFired);
       _shownTurn = view.turn;
+      _playRevealSound(view, hadSuper);
       // Always reveal so the 장전(+1)·방어(방패) effects show even on a quiet
       // turn with no shots; a quiet turn just gets a shorter window.
       _revealing = true;
@@ -182,6 +200,29 @@ class _OnlineGameScreenState extends State<OnlineGameScreen> {
         if (mounted) setState(() => _revealing = false);
       });
       if (hadSuper) _fireSuperFlash();
+    }
+  }
+
+  /// 턴 결과에 맞는 효과음 — 드라마(덫/연막/자힐)가 우선, 그다음 총성.
+  void _playRevealSound(RoomView view, bool hadSuper) {
+    final seats = view.seats;
+    if (hadSuper) {
+      Sfx.play('super');
+    } else if (seats.any((s) => s.reflectedFx)) {
+      Sfx.play('trap');
+    } else if (seats.any((s) => s.fired)) {
+      Sfx.play('shot');
+      if (seats.any((s) => s.hitThisTurn)) {
+        Timer(const Duration(milliseconds: 130), () => Sfx.play('hit'));
+      } else if (seats.any((s) => s.evadedFx)) {
+        Timer(const Duration(milliseconds: 130), () => Sfx.play('smoke'));
+      } else {
+        Timer(const Duration(milliseconds: 130), () => Sfx.play('shield'));
+      }
+    } else if (seats.any((s) => s.healedFx)) {
+      Sfx.play('shield');
+    } else {
+      Sfx.play('reload', volume: 0.7);
     }
   }
 
@@ -230,11 +271,12 @@ class _OnlineGameScreenState extends State<OnlineGameScreen> {
                 final data = Map.from(raw);
                 final view = OnlineService.computeView(
                     data, widget.service.clientId,
-                    nowServerMs: _nowServer);
+                    nowServerMs: _nowServer, seedKey: widget.code);
                 _track(view);
                 _handleReveal(view);
                 _handleReactions(data);
                 _maybeReset(view, data['scored'] == true);
+                _maybeReward(view);
                 if (view.phase == OnlinePhase.waiting) {
                   if (view.mySeat < 0) {
                     return _info('방에서 나왔어요.', back: true);
@@ -281,6 +323,34 @@ class _OnlineGameScreenState extends State<OnlineGameScreen> {
       }
     }
     if (view.phase != OnlinePhase.over) _resetting = false;
+  }
+
+  /// 게임이 결판나면 코인·시즌 포인트를 1회 지급 (관전자 제외).
+  void _maybeReward(RoomView view) {
+    if (view.phase != OnlinePhase.over || view.status != GameStatus.won) {
+      if (view.phase != OnlinePhase.over) _rewarded = false;
+      return;
+    }
+    if (_rewarded || !view.seated || view.iAmLate || view.iAmOut) return;
+    _rewarded = true;
+    final players = view.seatCount;
+    final iWon = view.winnerSeat == view.mySeat;
+    final coins = iWon ? Meta.I.grantWin(players) : Meta.I.grantPlay();
+    if (iWon) SeasonService.I.recordWin(players);
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+        duration: const Duration(seconds: 2),
+        behavior: SnackBarBehavior.floating,
+        backgroundColor: CD.leather,
+        content: Row(children: [
+          const Icon(Icons.monetization_on, color: CD.gold, size: 20),
+          const SizedBox(width: 8),
+          Text(iWon ? '승리 보상 +$coins 코인!' : '참가 보상 +$coins 코인',
+              style: const TextStyle(fontWeight: FontWeight.w800)),
+        ]),
+      ));
+    });
   }
 
   // ---- Reaction showdown -------------------------------------------------
@@ -395,6 +465,8 @@ class _OnlineGameScreenState extends State<OnlineGameScreen> {
             fired: sv.fired,
             superFired: sv.superFired,
             firedTarget: sv.firedTarget,
+            char: sv.char,
+            late: sv.late,
           ),
       ];
 
@@ -456,6 +528,7 @@ class _OnlineGameScreenState extends State<OnlineGameScreen> {
       _pendingTurn = turn;
       _selKind = null;
       _selTarget = -1;
+      _smokeOn = false;
     }
   }
 
@@ -511,6 +584,15 @@ class _OnlineGameScreenState extends State<OnlineGameScreen> {
       );
     }
 
+    if (view.iAmLate) {
+      return const Padding(
+        padding: EdgeInsets.all(16),
+        child: Text('게임 진행 중 — 다음 판부터 참여해요! 관전 중...',
+            style: TextStyle(
+                color: CD.sage, fontSize: 15, fontWeight: FontWeight.bold)),
+      );
+    }
+
     if (!view.seated || (view.me != null && !view.me!.alive)) {
       return const Padding(
         padding: EdgeInsets.all(16),
@@ -535,6 +617,7 @@ class _OnlineGameScreenState extends State<OnlineGameScreen> {
     }
 
     final myAmmo = view.me?.ammo ?? 0;
+    final myChar = view.me?.char ?? CharId.none;
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 16),
       child: ActionBar(
@@ -544,7 +627,13 @@ class _OnlineGameScreenState extends State<OnlineGameScreen> {
         targetName: _selTarget >= 0 && _selTarget < view.seats.length
             ? view.seats[_selTarget].name
             : null,
+        myChar: myChar,
+        trapAvailable: view.myTrapAvailable,
+        smokeLeft: view.mySmokeLeft,
+        smokeOn: _smokeOn,
+        onSmokeToggle: (v) => setState(() => _smokeOn = v),
         onSelect: (k) => setState(() {
+          Sfx.click();
           _selKind = k;
           if (k == ActKind.shoot || k == ActKind.superShoot) {
             final opp = [
@@ -557,12 +646,20 @@ class _OnlineGameScreenState extends State<OnlineGameScreen> {
           }
         }),
         onConfirm: () {
-          final m = switch (_selKind!) {
+          Sfx.confirm();
+          var m = switch (_selKind!) {
             ActKind.reload => const Move.reload(),
             ActKind.defend => const Move.defend(),
             ActKind.shoot => Move.shoot(_selTarget),
             ActKind.superShoot => Move.superShoot(_selTarget),
+            ActKind.trap => const Move.trap(),
           };
+          if (_smokeOn &&
+              myChar == CharId.smoker &&
+              view.mySmokeLeft > 0 &&
+              m.kind != ActKind.trap) {
+            m = m.withSmoke(true);
+          }
           widget.service.submitMove(widget.code, view.turn, view.mySeat, m);
         },
       ),

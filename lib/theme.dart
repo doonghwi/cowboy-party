@@ -36,6 +36,8 @@ class CD {
         return danger;
       case ActKind.superShoot:
         return nova;
+      case ActKind.trap:
+        return Color(0xFF7A3E18);
     }
   }
 }
@@ -51,6 +53,8 @@ IconData actionIcon(ActKind a) {
       return Icons.local_fire_department;
     case ActKind.superShoot:
       return Icons.bolt;
+    case ActKind.trap:
+      return Icons.crisis_alert;
   }
 }
 

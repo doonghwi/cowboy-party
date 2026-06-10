@@ -2,13 +2,17 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
 import '../game/party_logic.dart';
+import '../meta/meta_service.dart';
 import '../online/online_service.dart';
 import '../theme.dart';
 import '../widgets/desert_background.dart';
 import 'online_game_screen.dart';
 
 class OnlineLobbyScreen extends StatefulWidget {
-  const OnlineLobbyScreen({super.key});
+  /// true면 "코드로 입장" 카드를 맨 위로 (플레이 탭의 코드 입장 버튼용).
+  final bool startOnJoinCard;
+
+  const OnlineLobbyScreen({super.key, this.startOnJoinCard = false});
 
   @override
   State<OnlineLobbyScreen> createState() => _OnlineLobbyScreenState();
@@ -18,20 +22,31 @@ class _OnlineLobbyScreenState extends State<OnlineLobbyScreen> {
   final _service = OnlineService();
   final _nameCtl = TextEditingController();
   final _codeCtl = TextEditingController();
+  final _titleCtl = TextEditingController();
   int _capacity = 4;
+  bool _public = true;
   bool _busy = false;
   String? _error;
+
+  @override
+  void initState() {
+    super.initState();
+    _nameCtl.text = Meta.I.nickname; // 마지막 닉네임 기억
+  }
 
   @override
   void dispose() {
     _nameCtl.dispose();
     _codeCtl.dispose();
+    _titleCtl.dispose();
     super.dispose();
   }
 
   String get _name {
     final n = _nameCtl.text.trim();
-    return n.isEmpty ? OnlineService.randomNickname() : n;
+    final picked = n.isEmpty ? OnlineService.randomNickname() : n;
+    if (n.isNotEmpty && n != Meta.I.nickname) Meta.I.setNickname(n);
+    return picked;
   }
 
   Future<void> _create() async {
@@ -41,7 +56,10 @@ class _OnlineLobbyScreenState extends State<OnlineLobbyScreen> {
     });
     try {
       final code = OnlineService.generateRoomCode();
-      await _service.createRoom(code, _name, _capacity);
+      await _service.createRoom(code, _name, _capacity,
+          charIndex: Meta.I.equippedIndex,
+          title: _titleCtl.text,
+          public: _public);
       if (!mounted) return;
       _open(code);
     } catch (e) {
@@ -62,7 +80,8 @@ class _OnlineLobbyScreenState extends State<OnlineLobbyScreen> {
       _error = null;
     });
     try {
-      final res = await _service.joinRoom(code, _name);
+      final res = await _service.joinRoom(code, _name,
+          charIndex: Meta.I.equippedIndex);
       if (!mounted) return;
       switch (res) {
         case JoinResult.joined:
@@ -115,6 +134,10 @@ class _OnlineLobbyScreenState extends State<OnlineLobbyScreen> {
                   ),
                 ),
                 const SizedBox(height: 16),
+                if (widget.startOnJoinCard) ...[
+                  _joinCard(),
+                  const SizedBox(height: 16),
+                ],
                 _card(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -124,6 +147,30 @@ class _OnlineLobbyScreenState extends State<OnlineLobbyScreen> {
                       const Text('최대 인원을 고르고, 2명 이상 모이면 시작해요.',
                           style: TextStyle(color: CD.muted, fontSize: 12.5)),
                       const SizedBox(height: 12),
+                      TextField(
+                        controller: _titleCtl,
+                        maxLength: 16,
+                        decoration: _dec('방 제목 (비워두면 자동)'),
+                      ),
+                      const SizedBox(height: 6),
+                      SwitchListTile(
+                        contentPadding: EdgeInsets.zero,
+                        dense: true,
+                        activeTrackColor: CD.sage,
+                        value: _public,
+                        onChanged: (v) => setState(() => _public = v),
+                        title: const Text('공개 방',
+                            style: TextStyle(
+                                fontWeight: FontWeight.w800, fontSize: 14)),
+                        subtitle: Text(
+                          _public
+                              ? '방 목록에 노출 — 아무나 들어올 수 있어요'
+                              : '비공개 — 코드를 아는 사람만 입장',
+                          style:
+                              const TextStyle(fontSize: 11.5, color: CD.muted),
+                        ),
+                      ),
+                      const SizedBox(height: 6),
                       const Text('최대 인원',
                           style: TextStyle(
                               color: CD.leather, fontWeight: FontWeight.w700)),
@@ -168,40 +215,10 @@ class _OnlineLobbyScreenState extends State<OnlineLobbyScreen> {
                     ],
                   ),
                 ),
-                const SizedBox(height: 16),
-                _card(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.stretch,
-                    children: [
-                      Text('방 코드로 입장', style: posterTitle(18)),
-                      const SizedBox(height: 10),
-                      TextField(
-                        controller: _codeCtl,
-                        textCapitalization: TextCapitalization.characters,
-                        maxLength: 4,
-                        textAlign: TextAlign.center,
-                        style: westernLatin(28, color: CD.leather, spacing: 8),
-                        inputFormatters: [
-                          FilteringTextInputFormatter.allow(
-                              RegExp('[A-Za-z0-9]')),
-                          UpperCaseFormatter(),
-                        ],
-                        decoration: _dec('ABCD'),
-                      ),
-                      const SizedBox(height: 6),
-                      FilledButton.icon(
-                        onPressed: _busy ? null : _join,
-                        style: FilledButton.styleFrom(
-                          backgroundColor: CD.sage,
-                          padding: const EdgeInsets.symmetric(vertical: 14),
-                        ),
-                        icon: const Icon(Icons.login),
-                        label: Text('입장하기',
-                            style: posterTitle(17, color: Colors.white)),
-                      ),
-                    ],
-                  ),
-                ),
+                if (!widget.startOnJoinCard) ...[
+                  const SizedBox(height: 16),
+                  _joinCard(),
+                ],
                 if (_error != null) ...[
                   const SizedBox(height: 16),
                   Text(_error!,
@@ -219,6 +236,39 @@ class _OnlineLobbyScreenState extends State<OnlineLobbyScreen> {
       ),
     );
   }
+
+  Widget _joinCard() => _card(
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Text('방 코드로 입장', style: posterTitle(18)),
+            const SizedBox(height: 10),
+            TextField(
+              controller: _codeCtl,
+              textCapitalization: TextCapitalization.characters,
+              maxLength: 4,
+              textAlign: TextAlign.center,
+              style: westernLatin(28, color: CD.leather, spacing: 8),
+              inputFormatters: [
+                FilteringTextInputFormatter.allow(RegExp('[A-Za-z0-9]')),
+                UpperCaseFormatter(),
+              ],
+              decoration: _dec('ABCD'),
+            ),
+            const SizedBox(height: 6),
+            FilledButton.icon(
+              onPressed: _busy ? null : _join,
+              style: FilledButton.styleFrom(
+                backgroundColor: CD.sage,
+                padding: const EdgeInsets.symmetric(vertical: 14),
+              ),
+              icon: const Icon(Icons.login),
+              label:
+                  Text('입장하기', style: posterTitle(17, color: Colors.white)),
+            ),
+          ],
+        ),
+      );
 
   InputDecoration _dec(String hint) => InputDecoration(
         hintText: hint,

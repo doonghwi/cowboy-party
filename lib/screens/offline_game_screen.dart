@@ -125,6 +125,7 @@ class _OfflineGameScreenState extends State<OfflineGameScreen> {
       ActKind.defend => const Move.defend(),
       ActKind.shoot => Move.shoot(_selTarget),
       ActKind.superShoot => Move.superShoot(_selTarget),
+      ActKind.trap => const Move.trap(),
     };
     _resolve(mine);
   }

@@ -3,9 +3,12 @@ import 'package:firebase_database/firebase_database.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 
+import 'audio/sfx.dart';
 import 'firebase_options.dart';
+import 'meta/auth_service.dart';
+import 'meta/meta_service.dart';
 import 'online/online_service.dart';
-import 'screens/home_screen.dart';
+import 'screens/shell.dart';
 import 'theme.dart';
 
 Future<void> main() async {
@@ -28,6 +31,12 @@ Future<void> main() async {
   } catch (_) {
     // Firebase is optional — the offline vs-CPU game works without it.
   }
+  // 메타(코인·캐릭터·출석)는 로컬 우선이라 Firebase 실패와 무관하게 항상 초기화.
+  await Meta.I.init();
+  await AuthService.I.init();
+  await Sfx.init();
+  // 익명 로그인이 콘솔에서 켜져 있으면 게스트도 랭킹에 오를 수 있다(베스트에포트).
+  AuthService.I.tryAnonymous();
   runApp(const CowboyPartyApp());
 }
 
@@ -78,7 +87,7 @@ class CowboyPartyApp extends StatelessWidget {
       title: '카우보이 파티',
       debugShowCheckedModeBanner: false,
       theme: buildCowboyTheme(),
-      home: const HomeScreen(),
+      home: const ShellScreen(),
     );
   }
 }

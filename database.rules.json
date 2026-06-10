@@ -1,18 +1,47 @@
 {
   "rules": {
+    ".read": false,
+    ".write": false,
+
     "rooms": {
+      ".read": true,
       "$code": {
-        ".read": true,
-        ".write": true
+        ".write": true,
+        "title": { ".validate": "newData.isString() && newData.val().length <= 24" },
+        "hostName": { ".validate": "newData.isString() && newData.val().length <= 16" },
+        "capacity": { ".validate": "newData.isNumber() && newData.val() >= 2 && newData.val() <= 6" },
+        "players": {
+          "$slot": {
+            "name": { ".validate": "newData.isString() && newData.val().length <= 16" }
+          }
+        }
       }
     },
-    "build": {
-      ".read": true,
-      ".write": true
+
+    "users": {
+      "$uid": {
+        ".read": true,
+        ".write": "auth != null && auth.uid == $uid",
+        "name": { ".validate": "newData.isString() && newData.val().length <= 24" },
+        "coins": { ".validate": "newData.isNumber() && newData.val() >= 0" },
+        "equipped": { ".validate": "newData.isNumber()" },
+        "dailyStreak": { ".validate": "newData.isNumber()" }
+      }
     },
-    "stats": {
+
+    "seasons": {
       ".read": true,
-      ".write": true
-    }
+      "$sid": {
+        "$uid": {
+          ".write": "newData.exists() && auth != null && auth.uid == $uid",
+          "name": { ".validate": "newData.isString() && newData.val().length <= 24" },
+          "pts": { ".validate": "newData.isNumber() && newData.val() >= 0 && (!data.exists() || newData.val() >= data.val())" },
+          "$other": { ".validate": false }
+        }
+      }
+    },
+
+    "build": { ".read": true, ".write": true },
+    "stats": { ".read": true, ".write": true }
   }
 }

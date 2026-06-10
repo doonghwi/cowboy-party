@@ -29,6 +29,10 @@ class SeatCard extends StatelessWidget {
   final bool targeted;
   final VoidCallback? onTap;
 
+  /// 캐릭터 배지 + 난입 대기 표시.
+  final CharId char;
+  final bool late;
+
   const SeatCard({
     super.key,
     required this.name,
@@ -44,6 +48,8 @@ class SeatCard extends StatelessWidget {
     this.targetable = false,
     this.targeted = false,
     this.onTap,
+    this.char = CharId.none,
+    this.late = false,
   });
 
   @override
@@ -119,6 +125,21 @@ class SeatCard extends StatelessWidget {
                         size: 13, color: Colors.white),
                   ),
                 ),
+              if (char != CharId.none && joined)
+                Positioned(
+                  left: -8,
+                  top: -4,
+                  child: Container(
+                    padding: const EdgeInsets.all(3),
+                    decoration: BoxDecoration(
+                      color: charDef(char).color,
+                      shape: BoxShape.circle,
+                      border: Border.all(color: Colors.white, width: 1.2),
+                    ),
+                    child: Icon(charDef(char).icon,
+                        size: 11, color: Colors.white),
+                  ),
+                ),
             ],
           ),
           SizedBox(height: mini ? 2 : 4),
@@ -133,7 +154,13 @@ class SeatCard extends StatelessWidget {
             ),
           ),
           SizedBox(height: mini ? 2 : 4),
-          if (alive)
+          if (late && !alive)
+            const Text('다음 판 참여',
+                style: TextStyle(
+                    color: CD.sage,
+                    fontSize: 11,
+                    fontWeight: FontWeight.bold))
+          else if (alive)
             _ammoRow(mini)
           else
             const Text('탈락',
@@ -206,6 +233,9 @@ class SeatCard extends StatelessWidget {
         break;
       case ActKind.superShoot:
         c = fired ? CD.nova : CD.muted;
+        break;
+      case ActKind.trap:
+        c = const Color(0xFF7A3E18);
         break;
     }
     return Row(

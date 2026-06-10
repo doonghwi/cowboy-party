@@ -14,9 +14,7 @@ class DefaultFirebaseOptions {
       case TargetPlatform.android:
         return android;
       case TargetPlatform.iOS:
-        throw UnsupportedError(
-          'DefaultFirebaseOptions have not been configured for ios.',
-        );
+        return ios;
       case TargetPlatform.macOS:
         throw UnsupportedError(
           'DefaultFirebaseOptions have not been configured for macos.',
@@ -45,6 +43,17 @@ class DefaultFirebaseOptions {
     databaseURL:
         'https://cowboy-party-doonghwi-default-rtdb.asia-southeast1.firebasedatabase.app',
     storageBucket: 'cowboy-party-doonghwi.firebasestorage.app',
+  );
+
+  static const FirebaseOptions ios = FirebaseOptions(
+    apiKey: 'AIzaSyDObdDx6E4zeq8CO7yrw1i80A03eUa8OT4',
+    appId: '1:162098390378:ios:b61dc2b6d9d4335db27113',
+    messagingSenderId: '162098390378',
+    projectId: 'cowboy-party-doonghwi',
+    databaseURL:
+        'https://cowboy-party-doonghwi-default-rtdb.asia-southeast1.firebasedatabase.app',
+    storageBucket: 'cowboy-party-doonghwi.firebasestorage.app',
+    iosBundleId: 'com.doonghwi.cowboyParty',
   );
 
   static const FirebaseOptions android = FirebaseOptions(

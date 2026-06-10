@@ -21,6 +21,8 @@ class TableSeat {
   final bool fired;
   final bool superFired;
   final int firedTarget;
+  final CharId char;
+  final bool late; // 게임 중 난입 — 다음 판부터 참여
 
   const TableSeat({
     required this.name,
@@ -34,6 +36,8 @@ class TableSeat {
     this.fired = false,
     this.superFired = false,
     this.firedTarget = -1,
+    this.char = CharId.none,
+    this.late = false,
   });
 }
 
@@ -116,6 +120,8 @@ class CircularTable extends StatelessWidget {
                   hit: seats[s].hit,
                   lastMove: reveal ? seats[s].lastMove : null,
                   fired: seats[s].fired,
+                  char: seats[s].char,
+                  late: seats[s].late,
                   scale: 0,
                   targetable: targetMode && !seats[s].isMe && seats[s].alive,
                   targeted: targetMode && selectedTarget == s,
@@ -201,6 +207,52 @@ class CircularTable extends StatelessWidget {
                         decoration:
                             const BoxDecoration(color: CD.sage, shape: BoxShape.circle),
                         child: const Icon(Icons.shield,
+                            size: 15, color: Colors.white),
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          ),
+        ];
+      case ActKind.trap:
+        final tring = cardW + 26;
+        return [
+          Positioned(
+            left: pos.dx - tring / 2,
+            top: pos.dy - tring / 2,
+            width: tring,
+            height: tring,
+            child: IgnorePointer(
+              child: TweenAnimationBuilder<double>(
+                key: ValueKey('trap-$s-${m.encode()}'),
+                tween: Tween(begin: 0.7, end: 1.0),
+                duration: const Duration(milliseconds: 380),
+                curve: Curves.easeOutBack,
+                builder: (context, v, _) => Transform.scale(
+                  scale: v,
+                  child: Container(
+                    decoration: BoxDecoration(
+                      shape: BoxShape.circle,
+                      border: Border.all(
+                          color: const Color(0xFF7A3E18), width: 3.5),
+                      boxShadow: [
+                        BoxShadow(
+                            color: const Color(0xFF7A3E18)
+                                .withValues(alpha: 0.45),
+                            blurRadius: 12)
+                      ],
+                    ),
+                    alignment: Alignment.topCenter,
+                    child: Transform.translate(
+                      offset: const Offset(0, -11),
+                      child: Container(
+                        padding: const EdgeInsets.all(3),
+                        decoration: const BoxDecoration(
+                            color: Color(0xFF7A3E18),
+                            shape: BoxShape.circle),
+                        child: const Icon(Icons.crisis_alert,
                             size: 15, color: Colors.white),
                       ),
                     ),
