@@ -16,6 +16,7 @@ import '../widgets/desert_background.dart';
 import '../widgets/emoji_bar.dart';
 import '../widgets/online_showdown.dart';
 import '../widgets/super_flash.dart';
+import '../widgets/top_toast.dart';
 
 class OnlineGameScreen extends StatefulWidget {
   final OnlineService service;
@@ -339,17 +340,10 @@ class _OnlineGameScreenState extends State<OnlineGameScreen> {
     if (iWon) SeasonService.I.recordWin(players);
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-        duration: const Duration(seconds: 2),
-        behavior: SnackBarBehavior.floating,
-        backgroundColor: CD.leather,
-        content: Row(children: [
-          const Icon(Icons.monetization_on, color: CD.gold, size: 20),
-          const SizedBox(width: 8),
-          Text(iWon ? '승리 보상 +$coins 코인!' : '참가 보상 +$coins 코인',
-              style: const TextStyle(fontWeight: FontWeight.w800)),
-        ]),
-      ));
+      TopToast.show(
+        context,
+        message: iWon ? '승리 보상 +$coins 코인!' : '참가 보상 +$coins 코인',
+      );
     });
   }
 

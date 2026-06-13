@@ -4,6 +4,7 @@ import 'package:flutter/services.dart';
 import '../audio/sfx.dart';
 import '../meta/meta_service.dart';
 import '../theme.dart';
+import '../widgets/top_toast.dart';
 
 /// 보상 탭: 7일 출석 그리드 + 코인 얻는 법.
 class RewardsTab extends StatefulWidget {
@@ -35,16 +36,10 @@ class _RewardsTabState extends State<RewardsTab> {
     if (got > 0) {
       HapticFeedback.mediumImpact();
       Sfx.coin();
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-        behavior: SnackBarBehavior.floating,
-        backgroundColor: CD.leather,
-        content: Row(children: [
-          const Icon(Icons.monetization_on, color: CD.gold, size: 20),
-          const SizedBox(width: 8),
-          Text('출석 보상 +$got 코인! (연속 ${Meta.I.dailyStreak}일)',
-              style: const TextStyle(fontWeight: FontWeight.w800)),
-        ]),
-      ));
+      TopToast.show(
+        context,
+        message: '출석 보상 +$got 코인! (연속 ${Meta.I.dailyStreak}일)',
+      );
     }
   }
 
