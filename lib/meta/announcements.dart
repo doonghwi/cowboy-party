@@ -1,0 +1,26 @@
+/// 사용자용 공지 (H1). 'AD 광고 자리'를 공지로 사용한다.
+///
+/// **개발/디버깅용 내용은 절대 넣지 않는다** (예: 선물 코드는 이벤트로만 표기).
+/// 매 업데이트마다 사용자 친화적으로 "무엇이/왜 좋아졌나"를 한두 줄로 추가
+/// (루트 CLAUDE.md 작업 종료 루틴 §4 참고). 최신 항목을 **맨 위**에 둔다.
+library;
+
+class Announcement {
+  final String date; // YYYY-MM-DD
+  final String title;
+  final String body;
+  const Announcement(this.date, this.title, this.body);
+}
+
+/// 최신이 맨 위. 배너는 [kAnnouncements].first 를 보여준다.
+const List<Announcement> kAnnouncements = [
+  Announcement(
+    '2026-06-15',
+    '🤠 대규모 업데이트 — 카우보이',
+    '• 새 캐릭터 2종: 일반인(무료 기본)·리셋터(무효로 그 턴 모두의 행동을 지워요)\n'
+        '• 스나이퍼 관통 20%로 강화, 결투가는 반응속도 결투에서 확실히 승리\n'
+        '• 운명의 방아쇠도 연막으로 피할 수 있어요\n'
+        '• 저주 남은 턴이 모두에게 보이고, ???는 능력을 쓰기 전엔 정체가 숨겨져요\n'
+        '• 상점에서 바로 튜토리얼 연습 가능, 닉네임 변경권 추가',
+  ),
+];

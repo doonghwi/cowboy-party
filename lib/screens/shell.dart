@@ -2,7 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import '../audio/sfx.dart';
+import '../meta/announcements.dart';
 import '../meta/auth_service.dart';
+import '../meta/feedback_service.dart';
 import '../meta/meta_service.dart';
 import '../theme.dart';
 import '../widgets/desert_background.dart';
@@ -147,25 +149,85 @@ class _ShellScreenState extends State<ShellScreen> {
     );
   }
 
+  // H1: 'AD 광고 자리'를 사용자 공지로 사용. 최신 공지를 보여주고, 탭하면 전체.
   Widget _adPlaceholder() {
-    return Container(
-      height: 56,
-      margin: const EdgeInsets.fromLTRB(16, 4, 16, 8),
-      decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(10),
-        color: CD.leather.withValues(alpha: 0.25),
-        border: Border.all(
-            color: CD.sand.withValues(alpha: 0.5),
-            width: 1.5,
-            strokeAlign: BorderSide.strokeAlignInside),
+    final latest = kAnnouncements.isNotEmpty ? kAnnouncements.first : null;
+    return GestureDetector(
+      onTap: latest == null ? null : _openAnnouncements,
+      child: Container(
+        margin: const EdgeInsets.fromLTRB(16, 4, 16, 8),
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(10),
+          color: CD.leather.withValues(alpha: 0.3),
+          border: Border.all(color: CD.gold.withValues(alpha: 0.6), width: 1.5),
+        ),
+        child: Row(
+          children: [
+            const Icon(Icons.campaign, color: CD.gold, size: 20),
+            const SizedBox(width: 8),
+            Expanded(
+              child: Text(
+                latest == null ? '공지가 없어요' : latest.title,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: const TextStyle(
+                    color: Colors.white,
+                    fontSize: 12.5,
+                    fontWeight: FontWeight.w800),
+              ),
+            ),
+            if (latest != null)
+              Text('자세히',
+                  style: TextStyle(
+                      color: CD.sand.withValues(alpha: 0.9),
+                      fontSize: 11,
+                      fontWeight: FontWeight.w700)),
+          ],
+        ),
       ),
-      alignment: Alignment.center,
-      child: Text('AD — 광고 자리',
-          style: TextStyle(
-              color: CD.sand.withValues(alpha: 0.8),
-              fontSize: 12,
-              fontWeight: FontWeight.w700,
-              letterSpacing: 2)),
+    );
+  }
+
+  void _openAnnouncements() {
+    Sfx.click();
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: CD.parchment,
+      isScrollControlled: true,
+      shape: const RoundedRectangleBorder(
+          borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
+      builder: (ctx) => DraggableScrollableSheet(
+        expand: false,
+        initialChildSize: 0.6,
+        maxChildSize: 0.9,
+        builder: (ctx, scroll) => ListView(
+          controller: scroll,
+          padding: const EdgeInsets.fromLTRB(20, 16, 20, 28),
+          children: [
+            Row(
+              children: [
+                const Icon(Icons.campaign, color: CD.rust),
+                const SizedBox(width: 8),
+                Text('공지', style: posterTitle(22)),
+              ],
+            ),
+            const SizedBox(height: 12),
+            for (final a in kAnnouncements) ...[
+              Text(a.title,
+                  style: const TextStyle(
+                      fontWeight: FontWeight.w900, fontSize: 15)),
+              const SizedBox(height: 2),
+              Text(a.date,
+                  style: const TextStyle(fontSize: 11, color: CD.muted)),
+              const SizedBox(height: 6),
+              Text(a.body,
+                  style: const TextStyle(fontSize: 13, height: 1.5)),
+              const Divider(height: 28),
+            ],
+          ],
+        ),
+      ),
     );
   }
 
@@ -239,8 +301,75 @@ class _ShellScreenState extends State<ShellScreen> {
                     : () => launchUrl(Uri.parse(kDiscordUrl),
                         mode: LaunchMode.externalApplication),
               ),
+              ListTile(
+                dense: true,
+                contentPadding: EdgeInsets.zero,
+                leading: const Icon(Icons.mail_outline, color: CD.rust),
+                title: const Text('관리자에게 제보·문의',
+                    style: TextStyle(fontWeight: FontWeight.w800)),
+                subtitle: const Text('버그·건의를 보내요 (개인정보는 보내지 않아요)',
+                    style: TextStyle(fontSize: 12)),
+                onTap: () => _openFeedback(context),
+              ),
             ],
           ),
+        ),
+      ),
+    );
+  }
+
+  // H2: 관리자 연락 — ntfy 채널로 익명 전송.
+  void _openFeedback(BuildContext sheetContext) {
+    final ctl = TextEditingController();
+    bool sending = false;
+    showDialog(
+      context: context,
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, setLocal) => AlertDialog(
+          backgroundColor: CD.parchment,
+          title: Text('제보·문의', style: posterTitle(20)),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              TextField(
+                controller: ctl,
+                maxLength: 500,
+                maxLines: 4,
+                autofocus: true,
+                decoration: const InputDecoration(
+                  hintText: '버그·건의 내용을 적어주세요',
+                  border: OutlineInputBorder(),
+                ),
+              ),
+              const Text('익명 식별자만 함께 전송돼요. 개인정보는 적지 마세요.',
+                  style: TextStyle(fontSize: 11, color: CD.muted)),
+            ],
+          ),
+          actions: [
+            TextButton(
+                onPressed: sending ? null : () => Navigator.pop(ctx),
+                child: const Text('취소')),
+            FilledButton(
+              style: FilledButton.styleFrom(backgroundColor: CD.rust),
+              onPressed: sending
+                  ? null
+                  : () async {
+                      setLocal(() => sending = true);
+                      final ok = await FeedbackService.I.send(ctl.text);
+                      if (ctx.mounted) Navigator.pop(ctx);
+                      if (mounted) {
+                        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+                          content: Text(ok
+                              ? '제보를 보냈어요. 고마워요!'
+                              : '전송 실패 — 잠시 후 다시 시도해 주세요'),
+                          behavior: SnackBarBehavior.floating,
+                        ));
+                      }
+                    },
+              child: Text(sending ? '보내는 중…' : '보내기',
+                  style: const TextStyle(fontWeight: FontWeight.w900)),
+            ),
+          ],
         ),
       ),
     );
