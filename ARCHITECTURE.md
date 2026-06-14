@@ -26,23 +26,34 @@
 
 ## 2. 캐릭터 (CharId, characters.dart)
 > enum 값은 **append만** (RTDB에 정수 index로 저장됨). 능력 확률은 전부 `seededRoll`(결정적).
+> v3에서 가격 ×10, **일반인(commoner)만 무료 기본**, 리셋터 신규.
 
-| 직업 | 능력 | 사용 | 코인 |
+| 직업 | 능력 | 배치(slot) | 코인 |
 |---|---|---|---|
-| 준비자 prepper | 총알 1발 장전 상태로 시작 | 패시브 | 0 |
-| 스나이퍼 sniper | 빵야가 10% 확률로 방어 무시 | 패시브 | 0 |
-| 스피드로더 speedloader | 장전 시 50%로 +2발 | 패시브 | 200 |
-| 의사 doctor | 게임당 1회 치명타 버팀 → **버틴 즉시 총알 0** | 패시브 | 250 |
-| 스모커 smoker | 연막(게임당 2회, 행동과 병행): 그 턴 공격 발당 50% 회피 | 토글 | 300 |
-| 사냥꾼 hunter | 덫(게임당 1회, 단독 행동): 나를 쏜 일반탄 전부 반사 | 액션 | 350 |
-| 결투가 duelist | 둘만 남으면 즉시 승리(결투가끼리면 무효) | 패시브 | 450 |
-| 평화주의자 pacifist | 빵야 불가, 장전 6회 시 즉시 승리 | 패시브 | 500 |
-| 그림자 shadow | 장전·방어·**탄약수가 상대에게 안 보임**(빵야·피격 시 방어는 드러남) | 패시브(표시) | 550 |
-| 러시안룰렛 roulette | **운명의 방아쇠**(상시): 총알 0 소모 즉시 발사 — 50:50로 나/상대 사망, 상대 방어 시 반사돼 내가 죽음 | 액션 | 600 |
-| 쌍권총 dualgun | **더블 빵야**(상시): 총알 2발로 두 명 동시 저격 | 액션 | 650 |
-| 파파라치 paparazzi | **엿보기**(게임당 1회): 1명 행동 미리보고 내 행동 결정 (온라인은 10초 대기 페이즈) | 액션 | 700 |
-| 부두술사 voodoo | **저주**(상시): 대상을 10턴(kCurseFuse) 뒤 사망. 부두술사 죽으면 해제. 동시 1개 | 액션 | 750 |
-| ??? mystery | 미공개 시작, 능력 발동 시 정체 공개. 직업은 매 게임 랜덤(resolveMystery). 전 캐릭터 보유 시 구매 | 메타 | 1000 |
+| **일반인 commoner** | 능력 없음 — 장전/방어/빵야 정공법. **유일한 무료 기본** | none | 0 |
+| 준비자 prepper | 총알 1발 장전 상태로 시작 | none | 1000 |
+| 스나이퍼 sniper | 빵야가 **20%** 확률로 방어 무시(B1) | none | 1500 |
+| 스피드로더 speedloader | 장전 시 50%로 +2발 | none | 2000 |
+| 의사 doctor | 게임당 1회 치명타 버팀 → **버틴 즉시 총알 0**(B7) | none | 2500 |
+| 스모커 smoker | 연막(게임당 2회, 행동과 병행): 그 턴 공격 발당 50% 회피 | parallel | 3000 |
+| 사냥꾼 hunter | 덫(게임당 1회, 한 턴 소모): 나를 쏜 일반탄 전부 반사 | turnSlot | 3500 |
+| **리셋터 resetter** | **무효**(게임당 1회, 한 턴 소모): 그 턴 다른 모두의 행동 결과 무효(총알·자원은 소모)(B6) | turnSlot | 4000 |
+| 결투가 duelist | **반응속도 결투(showdown)에 가면 반드시 승리**. 평소 효과 없음(B2, 결투가끼리면 무효) | none | 4500 |
+| 평화주의자 pacifist | 빵야 불가, 장전 6회 시 즉시 승리 | none | 5000 |
+| 그림자 shadow | 장전·방어·**탄약수가 상대에게 안 보임**(빵야·피격 시 방어는 드러남) | none(표시) | 5500 |
+| 러시안룰렛 roulette | **운명의 방아쇠**(상시): 50:50로 나/상대 사망, 상대 방어 시 내가 죽음. **연막 회피 적용(C1)** | alwaysRow | 6000 |
+| 쌍권총 dualgun | **더블 빵야**(상시): 총알 2발로 두 명 동시 저격 | alwaysRow | 6500 |
+| 파파라치 paparazzi | **엿보기**(게임당 1회): 1명 행동 미리보고 내 행동 결정 (온라인은 대기 페이즈) | turnSlot | 7000 |
+| 부두술사 voodoo | **저주**(게임당 1회): 대상을 10턴(kCurseFuse) 뒤 사망. 부두술사 죽으면 해제. 남은 턴 모두에게 표시(C2) | turnSlot | 7500 |
+| ??? mystery | 미공개 시작, **능력 발동 시 정체 공개(B8)**. 직업은 매 게임 랜덤(resolveMystery, 일반인 제외). 전 캐릭터 보유 시 구매 | 메타 | 10000 |
+
+### 특수행동 배치 규칙 (D3, SpecialSlot)
+캐릭터 전용 행동은 UI에서 **종류별로 정해진 자리**에 놓는다 (`SpecialSlot`, characters.dart):
+- **parallel** — 기본 행동과 *함께* 쓰는 토글. 행동 칸 **위 얇은 토글 바**. 예) 스모커 연막.
+- **turnSlot** — 한 턴을 *소모*하는 단독 행동. 기본 3칸(장전/방어/빵야) 옆 **4번째 칸**. 예) 사냥꾼 덫, 리셋터 무효, 파파라치 엿보기, 부두 저주.
+- **alwaysRow** — 상시 공격형. 기본 행동 줄 **아래 별도 줄**. 예) 운명의 방아쇠, 더블 빵야.
+- **none** — 특수행동 없음(패시브/표시형).
+action_bar.dart가 이 분류대로 렌더하고, party_logic이 판정한다.
 
 ---
 
@@ -128,6 +139,16 @@ dailyapp_stats/cowboy_party: 사용량(중앙 대시보드)
 
 ## 7. 유지보수 원칙
 - 규칙 바꿀 일은 **party_logic.dart 한 곳**. 바꾸면 characters_test.dart에 케이스 추가.
-- 캐릭터 추가: characters.dart(enum 끝에 append + CharDef) → party_logic 판정 → 테스트 → UI(action_bar/이펙트) → 이 문서 갱신.
 - 새 RTDB 정렬 쿼리 추가 시 `.indexOn` 규칙 동반.
 - 배포 전: `flutter analyze`(0) + `flutter test` + 에뮬 스모크 + 시크릿 스캔(pre-push 자동).
+
+### 캐릭터 추가/수정 루프 체크리스트 (I1) — 캐릭터를 건드릴 때 **전부** 점검
+1. **설명(ability)** — characters.dart `CharDef.ability` 수치 포함 한 문장. enum은 **append만**.
+2. **사운드** — 발동 시 Sfx 연출(필요 시 추가).
+3. **캐릭터 이펙트** — circular_table `_effects`/`_fxLabel` + seat 배지(발동 시각 표시).
+4. **특수행동 배치(D3)** — `SpecialSlot` 지정(parallel/turnSlot/alwaysRow/none) + action_bar 렌더.
+5. **밸런스/판정** — party_logic.dart `resolvePartyTurn` 한 곳. 랜덤은 `seededRoll`만(결정성).
+6. **단위테스트** — characters_test.dart(규칙) / online_service_test.dart(표시·은폐·정체).
+7. **게임방법/공지 반영** — how_to_play(자동 순회) 확인 + H1 공지(announcements.dart)에 한 줄.
+8. **??? 풀 영향** — `kMysteryPool`(mystery·commoner 제외)에 자동 포함되는지. 능력이 ???로 변신 가능한지.
+9. **온/오프라인 양쪽** — offline_game_screen + online computeView/SeatView 둘 다 배선.

@@ -36,7 +36,7 @@ class HowToPlayScreen extends StatelessWidget {
                 color: CD.gold,
                 title: '장전',
                 body: '총알을 한 발 채워요(최대 6발). 빵야는 이전 턴까지 모아둔 총알로만 쏠 수 있어요. '
-                    '이번 턴에 장전한 총알은 다음 턴부터 사용 — 그래서 첫 턴엔 못 쏴요.',
+                    '이번 턴에 장전한 총알은 다음 턴부터 사용 — 그래서 장전을 해야 쏠 수 있어요.',
               ),
               _Rule(
                 icon: Icons.local_fire_department,
