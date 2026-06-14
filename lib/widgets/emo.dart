@@ -39,6 +39,8 @@ String actionEmoji(ActKind a) {
       return 'bang';
     case ActKind.voodoo:
       return 'skull';
+    case ActKind.reset:
+      return 'reload';
     case ActKind.idle:
       return 'person';
   }

@@ -819,6 +819,7 @@ class _OnlineGameScreenState extends State<OnlineGameScreen> {
             ActKind.roulette => Move.roulette(_selTarget),
             ActKind.dualShoot => Move.dualShoot(_selTarget, _selTarget2),
             ActKind.voodoo => Move.voodoo(_selTarget),
+            ActKind.reset => const Move.reset(),
             ActKind.idle => const Move.idle(),
           };
           if (_smokeOn &&

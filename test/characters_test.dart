@@ -56,14 +56,14 @@ void main() {
     expect(startAmmoFor(CharId.sniper), 0);
   });
 
-  test('스나이퍼: 10% 관통이 시드에 따라 발동하면 방어를 뚫는다', () {
+  test('스나이퍼: 20% 관통이 시드에 따라 발동하면 방어를 뚫는다 (B1)', () {
     // 발동하는 시드를 찾는다 (결정적이므로 테스트도 안정적).
     String? hitSeed;
     String? missSeed;
     for (var i = 0; i < 200; i++) {
       final r = seededRoll('S$i|0|0|pierce');
-      if (r < 0.10) hitSeed ??= 'S$i';
-      if (r >= 0.10) missSeed ??= 'S$i';
+      if (r < 0.20) hitSeed ??= 'S$i';
+      if (r >= 0.20) missSeed ??= 'S$i';
       if (hitSeed != null && missSeed != null) break;
     }
     expect(hitSeed, isNotNull);
@@ -105,8 +105,8 @@ void main() {
     expect(out.ammoAfter[1], 1);
   });
 
-  test('결투가: 둘만 남으면 즉시 승리', () {
-    // 3인 → 한 명이 사살되어 2인이 되는 턴, 결투가가 즉시 승리.
+  test('결투가 너프(B2): 둘만 남아도 평소엔 즉시 승리하지 않는다', () {
+    // 3인 → 한 명이 사살되어 2인이 되는 턴. 더 이상 결투가 자동승 없음.
     final out = run(
       moves: [Move.shoot(2), const Move.reload(), const Move.reload()],
       ammo: [1, 0, 0],
@@ -114,19 +114,8 @@ void main() {
       chars: [CharId.none, CharId.duelist, CharId.none],
     );
     expect(out.hit[2], isTrue);
-    expect(out.status, GameStatus.won);
-    expect(out.winner, 1);
-    expect(out.specialWin, 'duelist');
-  });
-
-  test('결투가 둘이면 효과 무효', () {
-    final out = run(
-      moves: [Move.shoot(2), const Move.reload(), const Move.reload()],
-      ammo: [1, 0, 0],
-      alive: [true, true, true],
-      chars: [CharId.duelist, CharId.duelist, CharId.none],
-    );
-    expect(out.status, GameStatus.ongoing);
+    expect(out.status, GameStatus.ongoing, reason: '결투가는 평소 효과 없음');
+    expect(out.specialWin, isNull);
   });
 
   test('의사: 게임당 1회 치명상 무효, 두 번째는 사망', () {
@@ -140,6 +129,8 @@ void main() {
     expect(first.hit[1], isFalse);
     expect(first.healed[1], isTrue);
     expect(first.stateAfter!.doctorUsed[1], isTrue);
+    expect(first.ammoAfter[1], 0,
+        reason: 'B7: 버텨낸 직후 총알 0 (장전했어도)');
 
     final second = run(
       moves: [Move.shoot(1), const Move.reload()],
@@ -187,6 +178,7 @@ void main() {
       smokeLeft: s0.smokeLeft,
       reloads: s0.reloads,
       paparazziUsed: s0.paparazziUsed,
+      resetterUsed: s0.resetterUsed,
     );
     final out = run(
       moves: [Move.shoot(1), const Move.trap()],
@@ -270,6 +262,7 @@ void main() {
       smokeLeft: [0, 0],
       reloads: [5, 0],
       paparazziUsed: [false, false],
+      resetterUsed: [false, false],
     );
     final out = run(
       moves: [const Move.reload(), Move.shoot(0)],
@@ -301,6 +294,7 @@ void main() {
       Move.roulette(3),
       Move.dualShoot(1, 4),
       Move.voodoo(2),
+      const Move.reset(),
     ];
     for (final m in samples) {
       expect(Move.decode(m.encode()), m, reason: 'code=${m.encode()}');
@@ -308,6 +302,8 @@ void main() {
     // 신규 코드가 레거시 범위와 겹치지 않는다.
     expect(const Move.idle().encode(), 40);
     expect(Move.decode(40), const Move.idle());
+    expect(const Move.reset().encode(), 47);
+    expect(Move.decode(47), const Move.reset());
   });
 
   String seedFor(String salt, int seat, bool wantUnderHalf) {
@@ -355,6 +351,67 @@ void main() {
     );
     expect(out.hit[0], isTrue);
     expect(out.hit[1], isFalse);
+  });
+
+  test('운명의 방아쇠 + 연막(C1): 상대가 연막으로 회피하면 아무도 안 죽는다', () {
+    // roulette roll<0.5(상대 지목) & evR0 roll<0.5(회피) 둘 다 만족하는 시드 탐색.
+    String? seed;
+    for (var i = 0; i < 2000; i++) {
+      final s = 'R$i';
+      if (seededRoll('$s|0|0|roulette') < 0.5 &&
+          seededRoll('$s|0|1|evR0') < 0.5) {
+        seed = s;
+        break;
+      }
+    }
+    expect(seed, isNotNull, reason: '조건 만족 시드 존재');
+    final out = run(
+      moves: [Move.roulette(1), const Move.reload(smoke: true)],
+      ammo: [0, 0],
+      alive: [true, true],
+      chars: [CharId.roulette, CharId.smoker],
+      seed: seed!,
+    );
+    expect(out.rouletteFired[0], isTrue);
+    expect(out.hit[1], isFalse, reason: '연막으로 회피');
+    expect(out.hit[0], isFalse, reason: '상대가 회피했으니 나도 안 죽음');
+    expect(out.evaded[1], isTrue);
+  });
+
+  test('리셋터 무효(B6): 그 턴 상대의 빵야가 총알만 소모되고 안 맞는다', () {
+    // p0=리셋터(무효), p1=일반(빵야 p0), p2=일반(장전).
+    final out = run(
+      moves: [const Move.reset(), Move.shoot(0), const Move.reload()],
+      ammo: [0, 1, 0],
+      alive: [true, true, true],
+      chars: [CharId.resetter, CharId.none, CharId.none],
+    );
+    expect(out.resetActive[0], isTrue);
+    expect(out.hit[0], isFalse, reason: '빵야 무효 — 리셋터 생존');
+    expect(out.ammoAfter[1], 0, reason: '총알은 소모됨');
+    expect(out.ammoAfter[2], 0, reason: '장전도 무효 — 총알 안 늘어남');
+    expect(out.stateAfter!.resetterUsed[0], isTrue);
+    expect(out.status, GameStatus.ongoing);
+  });
+
+  test('리셋터 무효(B6): 게임당 1회 — 두 번째 무효는 발동 안 함', () {
+    final used = PartyState(
+      doctorUsed: [false, false],
+      trapUsed: [false, false],
+      smokeLeft: [0, 0],
+      reloads: [0, 0],
+      paparazziUsed: [false, false],
+      resetterUsed: [true, false],
+    );
+    final out = run(
+      moves: [const Move.reset(), Move.shoot(0)],
+      ammo: [0, 1],
+      alive: [true, true],
+      chars: [CharId.resetter, CharId.none],
+      state: used,
+    );
+    expect(out.resetActive[0], isFalse, reason: '이미 사용함');
+    expect(out.hit[0], isTrue, reason: '무효 발동 안 돼 빵야 적중');
   });
 
   test('쌍권총 더블 빵야: 총알 2발로 두 명 동시 처치', () {

@@ -957,7 +957,7 @@ class OnlineService {
       if (out.status != GameStatus.ongoing) {
         var status = out.status;
         var winner = out.winner;
-        final specialWin = out.specialWin;
+        var specialWin = out.specialWin;
         var drawTurn = -1;
         var drawParticipants = const <int>[];
         if (out.status == GameStatus.draw) {
@@ -970,6 +970,11 @@ class OnlineService {
           final sdWinner = (showdown != null && _asInt(showdown['turn']) == t)
               ? _asInt(showdown['winner'])
               : null;
+          // B2: 결투가가 결투 참가자 중 정확히 1명이면 반응속도 없이 자동 승리.
+          final duelists = [
+            for (final s in parts)
+              if (s < chars.length && chars[s] == CharId.duelist) s
+          ];
           if (sdWinner != null) {
             status = GameStatus.won;
             winner = sdWinner;
@@ -979,6 +984,13 @@ class OnlineService {
               alive[sdWinner] = true;
               hit[sdWinner] = false;
             }
+          } else if (duelists.length == 1) {
+            status = GameStatus.won;
+            winner = duelists.first;
+            specialWin = 'duelist';
+            final w = duelists.first;
+            alive[w] = true;
+            hit[w] = false;
           } else {
             drawTurn = t;
             drawParticipants = parts;

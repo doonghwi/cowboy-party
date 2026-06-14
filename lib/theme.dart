@@ -44,6 +44,8 @@ class CD {
         return Color(0xFFB5642A);
       case ActKind.voodoo:
         return Color(0xFF5B3A8E);
+      case ActKind.reset:
+        return Color(0xFF2E5E8E);
       case ActKind.idle:
         return muted;
     }
@@ -69,6 +71,8 @@ IconData actionIcon(ActKind a) {
       return Icons.filter_2;
     case ActKind.voodoo:
       return Icons.auto_fix_high;
+    case ActKind.reset:
+      return Icons.restart_alt;
     case ActKind.idle:
       return Icons.bedtime;
   }

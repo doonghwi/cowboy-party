@@ -349,6 +349,7 @@ class CircularTable extends StatelessWidget {
       case ActKind.roulette:
       case ActKind.dualShoot:
       case ActKind.voodoo:
+      case ActKind.reset:
       case ActKind.idle:
         return const [];
     }

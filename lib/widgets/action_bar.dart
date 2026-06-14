@@ -137,6 +137,8 @@ class ActionBar extends StatelessWidget {
         return selectedTarget < 0
             ? '저주 — 대상을 탭! $kCurseFuse턴 뒤 사망 (내가 죽으면 풀림)'
             : '저주 → ${targetName ?? ""} ($kCurseFuse턴 뒤 사망)';
+      case ActKind.reset:
+        return '무효 — 이번 턴 다른 모두의 행동을 없던 일로! (게임당 1번)';
       case ActKind.idle:
         return '가만히 — 아무 행동도 하지 않아요';
     }

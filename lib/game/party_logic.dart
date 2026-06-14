@@ -27,7 +27,7 @@ export 'characters.dart'
 
 /// The kind of an action a cowboy can take in a turn.
 /// New values appended at the end (encoding is by explicit int, see [Move]).
-enum ActKind { reload, defend, shoot, superShoot, trap, idle, roulette, dualShoot, voodoo }
+enum ActKind { reload, defend, shoot, superShoot, trap, idle, roulette, dualShoot, voodoo, reset }
 
 extension ActKindLabel on ActKind {
   String get ko {
@@ -50,6 +50,8 @@ extension ActKindLabel on ActKind {
         return '더블 빵야';
       case ActKind.voodoo:
         return '저주';
+      case ActKind.reset:
+        return '무효';
     }
   }
 }
@@ -112,6 +114,7 @@ class Move {
   const Move.dualShoot(int target, int target2)
       : this._(ActKind.dualShoot, target, target2, false);
   const Move.voodoo(int target) : this._(ActKind.voodoo, target, -1, false);
+  const Move.reset() : this._(ActKind.reset, -1, -1, false);
 
   static const Move empty = Move._(ActKind.reload, -1);
 
@@ -147,6 +150,8 @@ class Move {
         return 40;
       case ActKind.roulette:
         return 41 + target; // 41..46
+      case ActKind.reset:
+        return 47;
       case ActKind.voodoo:
         return 50 + target; // 50..55
       case ActKind.dualShoot:
@@ -160,6 +165,7 @@ class Move {
       return Move.dualShoot(d ~/ 8, d % 8);
     }
     if (c >= 50 && c <= 55) return Move.voodoo(c - 50);
+    if (c == 47) return const Move.reset();
     if (c >= 41 && c <= 46) return Move.roulette(c - 41);
     if (c == 40) return const Move.idle();
     final smoke = c >= 16;
@@ -193,6 +199,7 @@ class PartyState {
   final List<int> smokeLeft;
   final List<int> reloads; // 평화주의자의 성공한 장전 누적
   final List<bool> paparazziUsed; // 파파라치 엿보기 사용 여부
+  final List<bool> resetterUsed; // 리셋터 '무효' 사용 여부
 
   // 부두 저주 (게임당 동시 1개).
   final int curseVictim; // 저주 대상 좌석, -1 없음
@@ -205,6 +212,7 @@ class PartyState {
     required this.smokeLeft,
     required this.reloads,
     required this.paparazziUsed,
+    required this.resetterUsed,
     this.curseVictim = -1,
     this.curseCaster = -1,
     this.curseFuse = 0,
@@ -218,6 +226,7 @@ class PartyState {
         ],
         reloads: List.filled(chars.length, 0),
         paparazziUsed: List.filled(chars.length, false),
+        resetterUsed: List.filled(chars.length, false),
       );
 }
 
@@ -248,6 +257,7 @@ class TurnOutcome {
   final List<int> dualTarget2; // 더블 빵야 두 번째 대상, -1
   final List<bool> voodooCast; // 이 턴 저주를 걸었음
   final List<bool> curseKill; // 저주 만료로 사망
+  final List<bool> resetActive; // 리셋터가 이 턴 '무효'를 발동
   final PartyState? stateAfter;
   final String? specialWin; // 'duelist' | 'pacifist' | null
 
@@ -272,6 +282,7 @@ class TurnOutcome {
     this.dualTarget2 = const [],
     this.voodooCast = const [],
     this.curseKill = const [],
+    this.resetActive = const [],
     this.stateAfter,
     this.specialWin,
   });
@@ -318,6 +329,22 @@ TurnOutcome resolvePartyTurn({
   final smokeLeft = List<int>.from(state.smokeLeft);
   final reloads = List<int>.from(state.reloads);
   final paparazziUsed = List<bool>.from(state.paparazziUsed);
+  final resetterUsed = List<bool>.from(state.resetterUsed);
+
+  // 리셋터 '무효': 살아있는 리셋터가 미사용 상태로 무효를 내면 이번 턴은
+  // 모든 전투 결과(피격/장전/저주발동 등)가 없던 일이 된다. 단 총알·특수자원은 소모.
+  final resetActive = List<bool>.filled(n, false);
+  var turnVoided = false;
+  for (var i = 0; i < n; i++) {
+    if (!aliveBefore[i]) continue;
+    if (moves[i].kind == ActKind.reset &&
+        chars[i] == CharId.resetter &&
+        !resetterUsed[i]) {
+      resetActive[i] = true;
+      resetterUsed[i] = true;
+      turnVoided = true;
+    }
+  }
 
   final fired = List<bool>.filled(n, false);
   final superFired = List<bool>.filled(n, false);
@@ -366,7 +393,7 @@ TurnOutcome resolvePartyTurn({
       fired[i] = true;
       firedTarget[i] = m.target;
       spent[i] = 1;
-      final pierce = chars[i] == CharId.sniper && roll(i, 'pierce') < 0.10;
+      final pierce = chars[i] == CharId.sniper && roll(i, 'pierce') < 0.20;
       pierced[i] = pierce;
       normalAt[m.target].add([i, pierce ? 1 : 0]);
     } else if (m.kind == ActKind.dualShoot &&
@@ -436,7 +463,12 @@ TurnOutcome resolvePartyTurn({
     final victim = (intendedTarget && moves[m.target].kind != ActKind.defend)
         ? m.target
         : i; // 상대 사망, 아니면(자기 차례 or 상대 방어) 내가 사망
-    hit[victim] = true;
+    // C1: 운명의 방아쇠도 '총알이 날아가는' 판정 — 상대를 향하면 연막으로 회피 가능.
+    if (victim == m.target && smoked[victim] && roll(victim, 'evR$i') < 0.50) {
+      evaded[victim] = true;
+    } else {
+      hit[victim] = true;
+    }
   }
 
   // 4) 저주 발동 (이번 턴 만료되는가). caster가 이 턴까지 살아있어야 함.
@@ -450,6 +482,16 @@ TurnOutcome resolvePartyTurn({
         hit[v] = true;
         curseKill[v] = true;
       }
+    }
+  }
+
+  // 4b) 리셋터 '무효': 이번 턴 모든 치명 결과를 없던 일로. (총알·특수자원은 이미 소모됨.)
+  if (turnVoided) {
+    for (var i = 0; i < n; i++) {
+      hit[i] = false;
+      reflectKill[i] = false;
+      curseKill[i] = false;
+      evaded[i] = false;
     }
   }
 
@@ -472,7 +514,7 @@ TurnOutcome resolvePartyTurn({
       continue;
     }
     var a = ammoBefore[i] - spent[i];
-    if (moves[i].kind == ActKind.reload) {
+    if (moves[i].kind == ActKind.reload && !turnVoided) {
       var gain = 1;
       if (chars[i] == CharId.speedloader && roll(i, 'load') < 0.50) {
         gain = 2;
@@ -489,10 +531,11 @@ TurnOutcome resolvePartyTurn({
   }
 
   // 7) 저주 상태 갱신: 기존 저주 진행/해제, 새 저주 적용(동시 1개, 늦게 건 게 우선).
+  // 무효 턴이면 저주 상태도 그대로 보존(없던 일).
   var newVictim = state.curseVictim;
   var newCaster = state.curseCaster;
   var newFuse = state.curseFuse;
-  if (newFuse > 0) {
+  if (!turnVoided && newFuse > 0) {
     final casterDead = newCaster < 0 || !aliveAfter[newCaster];
     final victimDead = newVictim < 0 || !aliveAfter[newVictim];
     if (casterDead || victimDead) {
@@ -508,16 +551,18 @@ TurnOutcome resolvePartyTurn({
       }
     }
   }
-  for (var i = 0; i < n; i++) {
-    if (chars[i] != CharId.voodoo || !aliveBefore[i] || hit[i]) continue;
-    final m = moves[i];
-    if (m.kind == ActKind.voodoo &&
-        targetOk(i, m.target) &&
-        aliveAfter[m.target]) {
-      newVictim = m.target;
-      newCaster = i;
-      newFuse = kCurseFuse;
-      voodooCast[i] = true;
+  if (!turnVoided) {
+    for (var i = 0; i < n; i++) {
+      if (chars[i] != CharId.voodoo || !aliveBefore[i] || hit[i]) continue;
+      final m = moves[i];
+      if (m.kind == ActKind.voodoo &&
+          targetOk(i, m.target) &&
+          aliveAfter[m.target]) {
+        newVictim = m.target;
+        newCaster = i;
+        newFuse = kCurseFuse;
+        voodooCast[i] = true;
+      }
     }
   }
 
@@ -529,6 +574,7 @@ TurnOutcome resolvePartyTurn({
     smokeLeft: smokeLeft,
     reloads: reloads,
     paparazziUsed: paparazziUsed,
+    resetterUsed: resetterUsed,
     curseVictim: newVictim,
     curseCaster: newCaster,
     curseFuse: newFuse,
@@ -556,6 +602,7 @@ TurnOutcome resolvePartyTurn({
         dualTarget2: dualTarget2,
         voodooCast: voodooCast,
         curseKill: curseKill,
+        resetActive: resetActive,
         stateAfter: after,
         specialWin: special,
       );
@@ -578,16 +625,8 @@ TurnOutcome resolvePartyTurn({
       if (aliveAfter[i]) i
   ];
 
-  // 8b) 결투가: 둘만 남고 결투가가 정확히 1명 → 즉시 승리.
-  if (survivors.length == 2) {
-    final duelists = [
-      for (final s in survivors)
-        if (chars[s] == CharId.duelist) s
-    ];
-    if (duelists.length == 1) {
-      return build(GameStatus.won, duelists.first, 'duelist');
-    }
-  }
+  // 8b) 결투가 너프(B2): 평소엔 효과 없음. '반응속도 결투(showdown)'에 가면
+  // 반드시 승리 — 그 판정은 online_service.computeView / 오프라인 showdown에서 처리.
 
   // 8c) 기본: 최후의 1인 / 전멸.
   if (survivors.length >= 2) return build(GameStatus.ongoing, null, null);

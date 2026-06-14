@@ -291,6 +291,9 @@ class SeatCard extends StatelessWidget {
       case ActKind.voodoo:
         c = const Color(0xFF5B3A8E);
         break;
+      case ActKind.reset:
+        c = const Color(0xFF2E5E8E);
+        break;
       case ActKind.idle:
         c = CD.muted;
         break;

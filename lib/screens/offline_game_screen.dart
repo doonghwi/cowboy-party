@@ -248,6 +248,7 @@ class _OfflineGameScreenState extends State<OfflineGameScreen> {
       ActKind.roulette => Move.roulette(_selTarget),
       ActKind.dualShoot => Move.dualShoot(_selTarget, _selTarget2),
       ActKind.voodoo => Move.voodoo(_selTarget),
+      ActKind.reset => const Move.reset(),
       ActKind.idle => const Move.idle(),
     };
     if (_smokeOn &&
@@ -421,6 +422,18 @@ class _OfflineGameScreenState extends State<OfflineGameScreen> {
       for (var s = 0; s < _n; s++)
         if (aliveBefore[s]) s
     ];
+    // B2: 결투가가 결투(showdown) 참가자 중 정확히 1명이면 반응속도 없이 자동 승리.
+    final duelists = [
+      for (final s in _sdPlayers)
+        if (_chars[s] == CharId.duelist) s
+    ];
+    if (duelists.length == 1) {
+      _winner = duelists.first;
+      _status = GameStatus.won;
+      _specialWin = 'duelist';
+      _phase = _Phase.over;
+      return;
+    }
     _sdMeIn = _sdPlayers.contains(0);
     // Pre-roll each bot's reaction so the fastest is fixed for this round.
     _sdFastestBot = -1;
@@ -817,6 +830,7 @@ class _OfflineGameScreenState extends State<OfflineGameScreen> {
                       ActKind.dualShoot =>
                         Move.dualShoot(_selTarget, _selTarget2),
                       ActKind.voodoo => Move.voodoo(_selTarget),
+                      ActKind.reset => const Move.reset(),
                       ActKind.idle => const Move.idle(),
                     };
                     _resolve(mine, frozenBots: _frozenBots);
