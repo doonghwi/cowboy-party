@@ -114,7 +114,8 @@ dailyapp_stats/cowboy_party: 사용량(중앙 대시보드)
 - [x] **Stage 1**: 신규 캐릭터 규칙엔진 + 의사 수정 + idle + 테스트 27건.
 - [x] **Stage 2**: 액션바 특수행동줄 + 타겟선택(더블빵야 2명 순차) + CPU AI(운빵/더블/저주) +
       ??? 변환(effectiveChar) + 결과 배너·사운드. analyze 0 / 54 테스트. (에뮬 검증은 Stage 5)
-- [ ] **Stage 3**: 턴 20초 타이머 + 시간초과 멘트 + 그림자(표시 숨김).
+- [x] **Stage 3**: 턴 20초 타이머(온/오프, 만료 시 idle+멘트) + 그림자(상대에게 탄약/장전·방어 숨김,
+      빵야·피격시 방어는 드러남). kTurnSeconds/kIdleFlavors, SeatView.hideAmmo/hideAction.
 - [ ] **Stage 4**: 파파라치 엿보기 페이즈(온라인 대기 + 이펙트).
 - [ ] **Stage 5**: ??? 해금 게이트 + 캐릭터 탭 정리 + 에뮬 검증 + 배포.
 

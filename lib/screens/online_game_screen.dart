@@ -476,6 +476,8 @@ class _OnlineGameScreenState extends State<OnlineGameScreen> {
             evadedFx: sv.evadedFx,
             reflectedFx: sv.reflectedFx,
             doubleLoadFx: sv.doubleLoadFx,
+            hideAmmo: sv.hideAmmo,
+            hideAction: sv.hideAction,
           ),
       ];
 

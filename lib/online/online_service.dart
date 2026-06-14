@@ -40,6 +40,10 @@ class SeatView {
   final bool doubleLoadFx; // 스피드로더 +2
   final bool late; // 게임 중 난입 — 다음 판부터 참여(관전)
 
+  // 그림자(shadow): 상대가 볼 때 가려짐.
+  final bool hideAmmo; // 탄약 수 숨김
+  final bool hideAction; // 이번 턴 행동 숨김(장전/방어/가만히)
+
   const SeatView({
     required this.seat,
     required this.joined,
@@ -61,6 +65,8 @@ class SeatView {
     this.smokedFx = false,
     this.doubleLoadFx = false,
     this.late = false,
+    this.hideAmmo = false,
+    this.hideAction = false,
   });
 }
 
@@ -1005,6 +1011,25 @@ class OnlineService {
   }) {
     bool fx(List<bool> l, int s) => s < l.length && l[s];
     bool late(int s) => lateFn != null && lateFn(s);
+    bool shotAt(int s) => firedTarget.contains(s);
+    // 그림자: 내가 아닌 그림자 좌석은 탄약을 가리고, 장전/방어/가만히 행동을 가린다.
+    // 단 방어했는데 빵야를 당했다면 그 방어는 드러난다.
+    bool isShadowHidden(int s) {
+      if (s == mySeat) return false;
+      if (s >= chars.length || chars[s] != CharId.shadow) return false;
+      return true;
+    }
+    bool hideActFor(int s) {
+      if (!isShadowHidden(s)) return false;
+      final m = lastMoves[s];
+      if (m == null) return false;
+      final passive = m.kind == ActKind.reload ||
+          m.kind == ActKind.defend ||
+          m.kind == ActKind.idle;
+      if (!passive) return false; // 공격 행동은 드러남
+      if (m.kind == ActKind.defend && shotAt(s)) return false; // 막은 게 보임
+      return true;
+    }
     final seats = <SeatView>[
       for (var s = 0; s < seatCount; s++)
         SeatView(
@@ -1028,6 +1053,8 @@ class OnlineService {
           smokedFx: fx(smokedFx, s),
           doubleLoadFx: fx(doubleLoadFx, s),
           late: late(s),
+          hideAmmo: isShadowHidden(s),
+          hideAction: hideActFor(s),
         ),
     ];
     final presentCount = [

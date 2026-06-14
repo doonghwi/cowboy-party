@@ -30,6 +30,10 @@ class TableSeat {
   final bool reflectedFx;
   final bool doubleLoadFx;
 
+  /// 그림자: 탄약/행동을 가린다.
+  final bool hideAmmo;
+  final bool hideAction;
+
   const TableSeat({
     required this.name,
     required this.ammo,
@@ -48,6 +52,8 @@ class TableSeat {
     this.evadedFx = false,
     this.reflectedFx = false,
     this.doubleLoadFx = false,
+    this.hideAmmo = false,
+    this.hideAction = false,
   });
 }
 
@@ -127,12 +133,15 @@ class CircularTable extends StatelessWidget {
                 child: SeatCard(
                   name: seats[s].name,
                   ammo: seats[s].ammo,
+                  hideAmmo: seats[s].hideAmmo,
                   alive: seats[s].alive,
                   isMe: seats[s].isMe,
                   joined: seats[s].joined,
                   submitted: seats[s].submitted,
                   hit: seats[s].hit,
-                  lastMove: reveal ? seats[s].lastMove : null,
+                  lastMove: (reveal && !seats[s].hideAction)
+                      ? seats[s].lastMove
+                      : null,
                   fired: seats[s].fired,
                   char: seats[s].char,
                   late: seats[s].late,
@@ -195,6 +204,7 @@ class CircularTable extends StatelessWidget {
   }
 
   List<Widget> _effects(int s, Offset pos, double cardW, double cardH) {
+    if (seats[s].hideAction) return const []; // 그림자: 행동 이펙트 숨김
     final m = seats[s].lastMove;
     if (m == null || !seats[s].alive) return const [];
     switch (m.kind) {

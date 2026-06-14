@@ -18,6 +18,9 @@ class SeatCard extends StatelessWidget {
   final bool hit;
   final Move? lastMove;
 
+  /// 그림자: 탄약 수를 '?'로 가린다.
+  final bool hideAmmo;
+
   /// Whether the last move's shot actually left the barrel (for colouring).
   final bool fired;
 
@@ -46,6 +49,7 @@ class SeatCard extends StatelessWidget {
     this.submitted = false,
     this.hit = false,
     this.lastMove,
+    this.hideAmmo = false,
     this.fired = false,
     this.scale = 2,
     this.targetable = false,
@@ -223,6 +227,19 @@ class SeatCard extends StatelessWidget {
   }
 
   Widget _ammoRow(bool mini) {
+    if (hideAmmo) {
+      // 그림자 — 탄약 숨김.
+      return Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(Icons.visibility_off,
+              size: mini ? 11 : 13, color: CD.muted),
+          const SizedBox(width: 3),
+          Text('총알 ?',
+              style: TextStyle(color: CD.muted, fontSize: mini ? 10 : 11.5)),
+        ],
+      );
+    }
     if (ammo <= 0) {
       return Text('총알 0',
           style: TextStyle(color: CD.muted, fontSize: mini ? 10 : 11.5));

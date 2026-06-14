@@ -74,6 +74,10 @@ class _OfflineGameScreenState extends State<OfflineGameScreen> {
   final Map<int, String> _reactions = {};
   final Map<int, Timer> _rxTimers = {};
 
+  // 턴 제한시간(20초) — 만료 시 가만히(idle)로 자동 진행.
+  Timer? _turnTicker;
+  int _secondsLeft = kTurnSeconds;
+
   // 슈퍼빵야 skill flash (one-shot overlay when a super shot fires).
   bool _superFlash = false;
   int _superFlashKey = 0;
@@ -87,10 +91,27 @@ class _OfflineGameScreenState extends State<OfflineGameScreen> {
     _sdPrep?.cancel();
     _sdGo?.cancel();
     _superTimer?.cancel();
+    _turnTicker?.cancel();
     for (final t in _rxTimers.values) {
       t.cancel();
     }
     super.dispose();
+  }
+
+  /// 내 차례(choosing·생존) 동안 20초 카운트다운. 만료 시 가만히로 자동 진행.
+  void _startTurnTimer() {
+    _turnTicker?.cancel();
+    if (!_alive[0]) return; // 관전 중엔 타이머 없음
+    _secondsLeft = kTurnSeconds;
+    _turnTicker = Timer.periodic(const Duration(seconds: 1), (_) {
+      if (!mounted) return;
+      setState(() =>
+          _secondsLeft = (_secondsLeft - 1).clamp(0, kTurnSeconds));
+      if (_secondsLeft <= 0) {
+        _turnTicker?.cancel();
+        if (_phase == _Phase.choosing) _resolve(const Move.idle());
+      }
+    });
   }
 
   void _react(int seat, String emoji) {
@@ -146,6 +167,7 @@ class _OfflineGameScreenState extends State<OfflineGameScreen> {
       _selTarget = -1;
       _selTarget2 = -1;
     });
+    _startTurnTimer();
   }
 
   static bool _isTargetAction(ActKind? k) =>
@@ -197,6 +219,7 @@ class _OfflineGameScreenState extends State<OfflineGameScreen> {
   }
 
   void _resolve(Move mine) {
+    _turnTicker?.cancel();
     final moves = <Move>[
       _alive[0] ? mine : Move.empty,
       for (var s = 1; s < _n; s++)
@@ -291,6 +314,7 @@ class _OfflineGameScreenState extends State<OfflineGameScreen> {
       _phase = _Phase.choosing;
       _banner = '${_turn + 1}번째 턴 · 행동을 골라요';
     });
+    _startTurnTimer();
   }
 
   String _turnBanner(TurnOutcome out, List<Move> moves, List<bool> aliveBefore) {
@@ -546,6 +570,20 @@ class _OfflineGameScreenState extends State<OfflineGameScreen> {
   Widget _game() {
     final reveal = _phase == _Phase.reveal || _phase == _Phase.over;
     bool fx(List<bool>? l, int s) => l != null && s < l.length && l[s];
+    // 그림자 봇은 나(0)에게 탄약·행동을 가린다.
+    bool shotAt(int s) => _firedTarget.contains(s);
+    bool shadowHide(int s) => s != 0 && _chars[s] == CharId.shadow;
+    bool hideAct(int s) {
+      if (!shadowHide(s)) return false;
+      final m = _last[s];
+      if (m == null) return false;
+      final passive = m.kind == ActKind.reload ||
+          m.kind == ActKind.defend ||
+          m.kind == ActKind.idle;
+      if (!passive) return false;
+      if (m.kind == ActKind.defend && shotAt(s)) return false;
+      return true;
+    }
     final seats = [
       for (var s = 0; s < _n; s++)
         TableSeat(
@@ -563,6 +601,8 @@ class _OfflineGameScreenState extends State<OfflineGameScreen> {
           evadedFx: fx(_lastOut?.evaded, s),
           reflectedFx: fx(_lastOut?.reflectKill, s),
           doubleLoadFx: fx(_lastOut?.doubleLoad, s),
+          hideAmmo: shadowHide(s),
+          hideAction: hideAct(s),
         ),
     ];
     final targetMode = _phase == _Phase.choosing && _isTargetAction(_selKind);
@@ -602,6 +642,25 @@ class _OfflineGameScreenState extends State<OfflineGameScreen> {
         _bottom(),
         const SizedBox(height: 10),
       ],
+    );
+  }
+
+  Widget _turnCountdown() {
+    final low = _secondsLeft <= 10;
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 8),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Icon(Icons.timer, size: 16, color: low ? CD.danger : CD.muted),
+          const SizedBox(width: 6),
+          Text('$_secondsLeft초',
+              style: TextStyle(
+                  fontWeight: FontWeight.w900,
+                  fontSize: 13,
+                  color: low ? CD.danger : CD.leather)),
+        ],
+      ),
     );
   }
 
@@ -660,7 +719,9 @@ class _OfflineGameScreenState extends State<OfflineGameScreen> {
         }
         return Padding(
           padding: const EdgeInsets.symmetric(horizontal: 16),
-          child: ActionBar(
+          child: Column(mainAxisSize: MainAxisSize.min, children: [
+            _turnCountdown(),
+            ActionBar(
             myAmmo: _ammo[0],
             selected: _selKind,
             selectedTarget: _selTarget,
@@ -689,6 +750,7 @@ class _OfflineGameScreenState extends State<OfflineGameScreen> {
             }),
             onConfirm: _confirm,
           ),
+          ]),
         );
       case _Phase.reveal:
         return Padding(
