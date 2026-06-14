@@ -45,7 +45,68 @@ class _ShellScreenState extends State<ShellScreen> {
     final code = OnlineService.roomCodeFromUrl();
     if (code != null) {
       WidgetsBinding.instance.addPostFrameCallback((_) => _enterRoom(code));
+    } else if (Meta.I.nickname.isEmpty) {
+      // G4: 기록 없는 첫 진입 → 게스트/구글 선택 + 닉네임 안내.
+      WidgetsBinding.instance.addPostFrameCallback((_) => _showOnboarding());
     }
+  }
+
+  void _showOnboarding() {
+    if (!mounted) return;
+    final ctl = TextEditingController();
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: CD.parchment,
+        title: Text('카우보이에 온 걸 환영해요!', style: posterTitle(20)),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text('시작 보너스로 $kNewAccountGold골드를 드렸어요 🎉',
+                style: const TextStyle(
+                    fontWeight: FontWeight.w800, color: CD.leather)),
+            const SizedBox(height: 10),
+            TextField(
+              controller: ctl,
+              maxLength: 8,
+              decoration: const InputDecoration(
+                counterText: '',
+                labelText: '닉네임 (최대 8자)',
+                border: OutlineInputBorder(),
+              ),
+            ),
+            const Text('닉네임은 나중에 바꾸려면 변경권이 필요해요. 신중히 정해주세요!',
+                style: TextStyle(fontSize: 11.5, color: CD.muted)),
+            const SizedBox(height: 6),
+            const Text('랭킹에 오르려면 구글 로그인이 필요해요(게스트는 미등록).',
+                style: TextStyle(fontSize: 11.5, color: CD.muted)),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () {
+              if (ctl.text.trim().isNotEmpty) Meta.I.setNickname(ctl.text);
+              Navigator.pop(ctx);
+            },
+            child: const Text('게스트로 시작'),
+          ),
+          FilledButton.icon(
+            style: FilledButton.styleFrom(backgroundColor: CD.rust),
+            onPressed: () async {
+              if (ctl.text.trim().isNotEmpty) Meta.I.setNickname(ctl.text);
+              final ok = await AuthService.I.signInWithGoogle();
+              if (ok) await Meta.I.mergeFromCloud();
+              if (ctx.mounted) Navigator.pop(ctx);
+            },
+            icon: const Icon(Icons.login, size: 18),
+            label: const Text('구글 로그인',
+                style: TextStyle(fontWeight: FontWeight.w900)),
+          ),
+        ],
+      ),
+    );
   }
 
   Future<void> _enterRoom(String code) async {

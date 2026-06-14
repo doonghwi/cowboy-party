@@ -29,6 +29,8 @@ class TableSeat {
   final bool evadedFx;
   final bool reflectedFx;
   final bool doubleLoadFx;
+  final bool piercedFx; // 스나이퍼 관통(D1)
+  final bool resetFx; // 리셋터 무효(D4)
 
   /// 부두 저주(C2): 남은 턴(0=없음)을 좌석에 상시 표시, 만료 사망은 별도 이펙트.
   final int curseTurnsLeft;
@@ -56,6 +58,8 @@ class TableSeat {
     this.evadedFx = false,
     this.reflectedFx = false,
     this.doubleLoadFx = false,
+    this.piercedFx = false,
+    this.resetFx = false,
     this.curseTurnsLeft = 0,
     this.curseKillFx = false,
     this.hideAmmo = false,
@@ -210,7 +214,9 @@ class CircularTable extends StatelessWidget {
   /// 이 턴 발동한 능력의 좌석 배지 라벨 (우선순위 1개만).
   static String? _fxLabel(TableSeat s) {
     if (s.curseKillFx) return '저주 사망!';
+    if (s.resetFx) return '무효!';
     if (s.reflectedFx) return '덫 반사!';
+    if (s.piercedFx) return '관통!';
     if (s.healedFx) return '자힐!';
     if (s.evadedFx) return '회피!';
     if (s.doubleLoadFx) return '+2 장전!';

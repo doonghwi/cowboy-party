@@ -38,6 +38,8 @@ class SeatView {
   final bool reflectedFx; // 덫 반사로 사망
   final bool smokedFx; // 이 턴 연막 사용
   final bool doubleLoadFx; // 스피드로더 +2
+  final bool piercedFx; // 스나이퍼 관통 발동(D1)
+  final bool resetFx; // 리셋터 무효 발동(D4)
   final bool curseKillFx; // 저주 만료로 이 턴 사망
   final int curseTurnsLeft; // 부두 저주 남은 턴(0=저주 없음) — 모두에게 표시(C2)
   final bool late; // 게임 중 난입 — 다음 판부터 참여(관전)
@@ -66,6 +68,8 @@ class SeatView {
     this.reflectedFx = false,
     this.smokedFx = false,
     this.doubleLoadFx = false,
+    this.piercedFx = false,
+    this.resetFx = false,
     this.curseKillFx = false,
     this.curseTurnsLeft = 0,
     this.late = false,
@@ -785,6 +789,8 @@ class OnlineService {
     var reflectedFx = List<bool>.filled(n, false);
     var smokedFx = List<bool>.filled(n, false);
     var doubleLoadFx = List<bool>.filled(n, false);
+    var piercedFx = List<bool>.filled(n, false);
+    var resetFx = List<bool>.filled(n, false);
     var banner = '행동을 골라라!';
     final reap = <int>{};
     var t = 0;
@@ -970,6 +976,8 @@ class OnlineService {
           reflectedFx: reflectedFx,
           smokedFx: smokedFx,
           doubleLoadFx: doubleLoadFx,
+          piercedFx: piercedFx,
+          resetFx: resetFx,
           curseVictim: pstate.curseVictim,
           curseFuse: pstate.curseFuse,
           myTrapAvailable: mySeat >= 0 &&
@@ -1016,6 +1024,8 @@ class OnlineService {
       reflectedFx = out.reflectKill;
       smokedFx = out.smoked;
       doubleLoadFx = out.doubleLoad;
+      piercedFx = out.pierced;
+      resetFx = out.resetActive;
       alive = out.aliveAfter;
       // B8: ??? 정체 공개 — 직업 고유 행동/능력이 실제로 발동한 턴.
       for (var s = 0; s < n; s++) {
@@ -1139,6 +1149,8 @@ class OnlineService {
           reflectedFx: reflectedFx,
           smokedFx: smokedFx,
           doubleLoadFx: doubleLoadFx,
+          piercedFx: piercedFx,
+          resetFx: resetFx,
           curseVictim: pstate.curseVictim,
           curseFuse: pstate.curseFuse,
           curseKillFx: out.curseKill,
@@ -1191,6 +1203,8 @@ class OnlineService {
     List<bool> reflectedFx = const [],
     List<bool> smokedFx = const [],
     List<bool> doubleLoadFx = const [],
+    List<bool> piercedFx = const [],
+    List<bool> resetFx = const [],
     String? specialWin,
     bool myTrapAvailable = false,
     bool myResetAvailable = false,
@@ -1249,6 +1263,8 @@ class OnlineService {
           reflectedFx: fx(reflectedFx, s),
           smokedFx: fx(smokedFx, s),
           doubleLoadFx: fx(doubleLoadFx, s),
+          piercedFx: fx(piercedFx, s),
+          resetFx: fx(resetFx, s),
           curseKillFx: fx(curseKillFx, s),
           curseTurnsLeft: s == curseVictim ? curseFuse : 0,
           late: late(s),

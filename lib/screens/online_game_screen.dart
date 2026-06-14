@@ -580,6 +580,8 @@ class _OnlineGameScreenState extends State<OnlineGameScreen> {
             evadedFx: sv.evadedFx,
             reflectedFx: sv.reflectedFx,
             doubleLoadFx: sv.doubleLoadFx,
+            piercedFx: sv.piercedFx,
+            resetFx: sv.resetFx,
             curseTurnsLeft: sv.curseTurnsLeft,
             curseKillFx: sv.curseKillFx,
             hideAmmo: sv.hideAmmo,
