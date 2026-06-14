@@ -716,6 +716,15 @@ class OnlineService {
     final chars = <CharId>[
       for (var s = 0; s < n; s++) effectiveChar(charAt(s), seed, s)
     ];
+    // B8: ???(mystery)는 능력을 실제로 쓰기 전까지 상대에게 정체를 숨긴다.
+    final origChars = <CharId>[for (var s = 0; s < n; s++) charAt(s)];
+    final revealed = List<bool>.filled(n, false);
+    List<CharId> displayCharsNow() => [
+          for (var s = 0; s < n; s++)
+            (origChars[s] == CharId.mystery && !revealed[s] && s != mySeat)
+                ? CharId.mystery
+                : chars[s]
+        ];
     var pstate = PartyState.initial(chars);
 
     var ammo = <int>[for (var s = 0; s < n; s++) startAmmoFor(chars[s])];
@@ -823,6 +832,7 @@ class OnlineService {
               quitFn: quit,
               reap: reap.toList()..sort(),
               chars: chars,
+              displayChars: displayCharsNow(),
               lateFn: (s) => lateSeat[s] == true,
             );
           }
@@ -907,6 +917,7 @@ class OnlineService {
           quitFn: quit,
           reap: reap.toList()..sort(),
           chars: chars,
+          displayChars: displayCharsNow(),
           lateFn: (s) => lateSeat[s] == true,
           healedFx: healedFx,
           evadedFx: evadedFx,
@@ -958,6 +969,29 @@ class OnlineService {
       smokedFx = out.smoked;
       doubleLoadFx = out.doubleLoad;
       alive = out.aliveAfter;
+      // B8: ??? 정체 공개 — 직업 고유 행동/능력이 실제로 발동한 턴.
+      for (var s = 0; s < n; s++) {
+        if (origChars[s] != CharId.mystery || revealed[s]) continue;
+        final mk = moves[s].kind;
+        final usedSpecial = mk == ActKind.trap ||
+            mk == ActKind.roulette ||
+            mk == ActKind.dualShoot ||
+            mk == ActKind.voodoo ||
+            mk == ActKind.reset;
+        if (usedSpecial ||
+            out.pierced[s] ||
+            out.healed[s] ||
+            out.doubleLoad[s] ||
+            out.trapSet[s] ||
+            out.smoked[s] ||
+            out.evaded[s] ||
+            out.rouletteFired[s] ||
+            out.dualFired[s] ||
+            out.voodooCast[s] ||
+            out.resetActive[s]) {
+          revealed[s] = true;
+        }
+      }
       banner = _turnBanner(out, names, moves, aliveBefore, seed, t);
 
       if (out.status != GameStatus.ongoing) {
@@ -1050,6 +1084,7 @@ class OnlineService {
           drawTurn: drawTurn,
           drawParticipants: drawParticipants,
           chars: chars,
+          displayChars: displayCharsNow(),
           lateFn: (s) => lateSeat[s] == true,
           healedFx: healedFx,
           evadedFx: evadedFx,
@@ -1095,6 +1130,7 @@ class OnlineService {
     int drawTurn = -1,
     List<int> drawParticipants = const [],
     List<CharId> chars = const [],
+    List<CharId> displayChars = const [],
     bool Function(int)? lateFn,
     List<bool> healedFx = const [],
     List<bool> evadedFx = const [],
@@ -1151,7 +1187,9 @@ class OnlineService {
           hitThisTurn: hit[s],
           submittedThisTurn: submitted[s],
           score: scoreFor(s),
-          char: s < chars.length ? chars[s] : CharId.none,
+          char: s < displayChars.length
+              ? displayChars[s]
+              : (s < chars.length ? chars[s] : CharId.none),
           healedFx: fx(healedFx, s),
           evadedFx: fx(evadedFx, s),
           reflectedFx: fx(reflectedFx, s),

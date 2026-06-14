@@ -232,6 +232,41 @@ void main() {
     });
   });
 
+  group('??? 정체 숨김 (B8) & 그림자 은폐 (B9)', () {
+    // CharId index: mystery=13, shadow=10.
+    Map<String, Object?> room({required int p0char}) => {
+          'host': 'h',
+          'capacity': 6,
+          'started': true,
+          'seatCount': 2,
+          'game': 1,
+          'chars': {'p0': p0char, 'p1': 0},
+          'players': {
+            'p0': {'id': 'h', 'name': 'A', 'char': p0char},
+            'p1': {'id': 'g', 'name': 'B', 'char': 0},
+          },
+          'turns': const {},
+        };
+
+    test('B8: ???는 상대에게 정체를 숨긴다(상대 시야엔 mystery)', () {
+      final v = OnlineService.computeView(room(p0char: 13), 'g'); // p1 시야
+      expect(v.seats[0].char, CharId.mystery, reason: '상대에겐 ??? 그대로');
+    });
+
+    test('B8: ??? 본인은 자기 실제 직업을 본다', () {
+      final v = OnlineService.computeView(room(p0char: 13), 'h'); // p0 본인
+      expect(v.seats[0].char, isNot(CharId.mystery),
+          reason: '본인은 변환된 실제 직업을 봄');
+    });
+
+    test('B9: 그림자는 상대 시야에서 탄약이 가려진다', () {
+      final v = OnlineService.computeView(room(p0char: 10), 'g'); // p1 시야
+      expect(v.seats[0].hideAmmo, isTrue, reason: '상대에겐 그림자 탄약 숨김');
+      final mine = OnlineService.computeView(room(p0char: 10), 'h');
+      expect(mine.seats[0].hideAmmo, isFalse, reason: '본인 탄약은 보임');
+    });
+  });
+
   group('파파라치 온라인 엿보기 (computeView)', () {
     // p0=파파라치(12), p1·p2=일반. p0가 p1을 엿보기. p1·p2만 제출.
     Map<String, Object?> peekRoom() => {
