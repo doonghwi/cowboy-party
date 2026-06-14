@@ -18,7 +18,7 @@ const String kDiscordUrl = 'https://discord.com/invite/UhAV5zjKP';
 /// 광고 배너 자리 표시 여부 (실제 광고 SDK 전이라 점선 placeholder).
 const bool kShowAdPlaceholder = true;
 
-/// 하단 4탭 셸: [플레이] [캐릭터] [랭킹] [보상] + 코인칩 + 설정.
+/// 하단 4탭 셸: [플레이] [상점] [랭킹] [보상] + 코인칩 + 설정.
 class ShellScreen extends StatefulWidget {
   const ShellScreen({super.key});
 
@@ -29,7 +29,7 @@ class ShellScreen extends StatefulWidget {
 class _ShellScreenState extends State<ShellScreen> {
   int _tab = 0;
 
-  static const _titles = ['카우보이 파티', '캐릭터', '랭킹', '보상'];
+  static const _titles = ['카우보이', '상점', '랭킹', '보상'];
 
   @override
   void initState() {
@@ -116,7 +116,7 @@ class _ShellScreenState extends State<ShellScreen> {
           destinations: const [
             NavigationDestination(
                 icon: Icon(Icons.sports_esports), label: '플레이'),
-            NavigationDestination(icon: Icon(Icons.face_6), label: '캐릭터'),
+            NavigationDestination(icon: Icon(Icons.storefront), label: '상점'),
             NavigationDestination(icon: Icon(Icons.emoji_events), label: '랭킹'),
             NavigationDestination(
                 icon: Icon(Icons.card_giftcard), label: '보상'),

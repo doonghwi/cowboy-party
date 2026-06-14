@@ -779,6 +779,7 @@ class _OnlineGameScreenState extends State<OnlineGameScreen> {
             : null,
         myChar: myChar,
         trapAvailable: view.myTrapAvailable,
+        resetAvailable: view.myResetAvailable,
         smokeLeft: view.mySmokeLeft,
         smokeOn: _smokeOn,
         onSmokeToggle: (v) => setState(() => _smokeOn = v),

@@ -127,6 +127,7 @@ class RoomView {
 
   /// 내 캐릭터 능력 잔여량 (게임 화면의 버튼 상태용).
   final bool myTrapAvailable;
+  final bool myResetAvailable;
   final int mySmokeLeft;
 
   /// 'duelist' | 'pacifist' when a character ability decided the game.
@@ -172,6 +173,7 @@ class RoomView {
     this.iAmOut = false,
     this.iAmLate = false,
     this.myTrapAvailable = false,
+    this.myResetAvailable = false,
     this.mySmokeLeft = 0,
     this.specialWin,
     this.peekActive = false,
@@ -915,6 +917,10 @@ class OnlineService {
               mySeat < n &&
               chars[mySeat] == CharId.hunter &&
               !pstate.trapUsed[mySeat],
+          myResetAvailable: mySeat >= 0 &&
+              mySeat < n &&
+              chars[mySeat] == CharId.resetter &&
+              !pstate.resetterUsed[mySeat],
           mySmokeLeft:
               (mySeat >= 0 && mySeat < n) ? pstate.smokeLeft[mySeat] : 0,
           peekActive: peekActive,
@@ -1097,6 +1103,7 @@ class OnlineService {
     List<bool> doubleLoadFx = const [],
     String? specialWin,
     bool myTrapAvailable = false,
+    bool myResetAvailable = false,
     int mySmokeLeft = 0,
     bool peekActive = false,
     int peekerSeat = -1,
@@ -1196,6 +1203,7 @@ class OnlineService {
       iAmOut: iAmOut,
       iAmLate: iAmLate,
       myTrapAvailable: myTrapAvailable,
+      myResetAvailable: myResetAvailable,
       mySmokeLeft: mySmokeLeft,
       specialWin: specialWin,
       peekActive: peekActive,

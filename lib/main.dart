@@ -65,7 +65,7 @@ void _recordOpen() {
       return Transaction.success(n + 1);
     });
     ref.update({
-      'name': '🎉 카우보이 파티',
+      'name': '🎉 카우보이',
       'desc': '2~6인 원형 눈치 대결 · 아무나 저격 · 온라인+컴퓨터전',
       'day': 'Day 4',
       'platforms': ['web', 'android', 'online'],
@@ -84,7 +84,7 @@ class CowboyPartyApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      title: '카우보이 파티',
+      title: '카우보이',
       debugShowCheckedModeBanner: false,
       theme: buildCowboyTheme(),
       home: const ShellScreen(),

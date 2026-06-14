@@ -790,6 +790,8 @@ class _OfflineGameScreenState extends State<OfflineGameScreen> {
             targetName2: _selTarget2 >= 0 ? _names[_selTarget2] : null,
             myChar: _chars[0],
             trapAvailable: _chars[0] == CharId.hunter && !_pstate.trapUsed[0],
+            resetAvailable:
+                _chars[0] == CharId.resetter && !_pstate.resetterUsed[0],
             smokeLeft: _pstate.smokeLeft[0],
             smokeOn: _smokeOn,
             onSmokeToggle: (v) => setState(() => _smokeOn = v),

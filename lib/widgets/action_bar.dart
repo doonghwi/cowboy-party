@@ -20,6 +20,7 @@ class ActionBar extends StatelessWidget {
   /// 캐릭터 능력 (기본값 = 능력 없음 — 오프라인 등 기존 경로 무변경).
   final CharId myChar;
   final bool trapAvailable; // 사냥꾼, 게임당 1회
+  final bool resetAvailable; // 리셋터 '무효', 게임당 1회
   final int smokeLeft; // 스모커 잔여 연막
   final bool smokeOn; // 이번 턴 연막 토글 상태
   final ValueChanged<bool>? onSmokeToggle;
@@ -43,6 +44,7 @@ class ActionBar extends StatelessWidget {
     required this.onConfirm,
     this.myChar = CharId.none,
     this.trapAvailable = false,
+    this.resetAvailable = false,
     this.smokeLeft = 0,
     this.smokeOn = false,
     this.onSmokeToggle,
@@ -57,6 +59,7 @@ class ActionBar extends StatelessWidget {
   bool get _canShoot => myAmmo > 0 && !_pacifist;
   bool get _canSuper => myAmmo >= kMaxAmmo && !_pacifist;
   bool get _showTrap => myChar == CharId.hunter;
+  bool get _showReset => myChar == CharId.resetter;
   bool get _showSmoke => myChar == CharId.smoker;
 
   /// 캐릭터 전용 '상시' 액션(있으면 별도 줄에 표시). 파파라치 엿보기는 Stage 4.
@@ -201,6 +204,11 @@ class ActionBar extends StatelessWidget {
               const SizedBox(width: 10),
               _opt(ActKind.trap, '덫',
                   trapAvailable ? '일반탄 반사' : '사용함', trapAvailable),
+            ],
+            if (_showReset) ...[
+              const SizedBox(width: 10),
+              _opt(ActKind.reset, '무효',
+                  resetAvailable ? '모두 무효화' : '사용함', resetAvailable),
             ],
           ],
         ),

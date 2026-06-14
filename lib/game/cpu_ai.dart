@@ -56,6 +56,15 @@ class CpuAi {
       return const Move.trap();
     }
 
+    // 리셋터 봇: 위협이 클 때(무장 라이벌 2명+) 가끔 '무효'로 판을 지운다(게임당 1회).
+    if (myChar == CharId.resetter &&
+        state != null &&
+        !state.resetterUsed[seat] &&
+        threats.length >= 2 &&
+        _r.nextDouble() < 0.35) {
+      return const Move.reset();
+    }
+
     // 스모커 봇: 위협받으면 가끔 연막을 행동에 얹는다.
     Move smoke(Move m) {
       if (myChar == CharId.smoker &&

@@ -31,7 +31,7 @@ class HomeScreen extends StatelessWidget {
                     ],
                   ),
                   const SizedBox(height: 10),
-                  Text('카우보이 파티',
+                  Text('카우보이',
                       textAlign: TextAlign.center,
                       style: posterTitle(46, color: Colors.white)),
                   Text('COWBOY PARTY',
