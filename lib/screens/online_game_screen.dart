@@ -708,6 +708,14 @@ class _OnlineGameScreenState extends State<OnlineGameScreen> {
         smokeLeft: view.mySmokeLeft,
         smokeOn: _smokeOn,
         onSmokeToggle: (v) => setState(() => _smokeOn = v),
+        showPeek: myChar == CharId.paparazzi,
+        peekEnabled: false, // 온라인 엿보기 페이즈는 추후
+        onPeek: () => ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            behavior: SnackBarBehavior.floating,
+            content: Text('온라인 엿보기는 준비 중이에요 — 컴퓨터전에서 써보세요!'),
+          ),
+        ),
         onSelect: (k) => setState(() {
           Sfx.click();
           _selKind = k;

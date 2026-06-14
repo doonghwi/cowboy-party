@@ -15,7 +15,7 @@ import '../widgets/emoji_bar.dart';
 import '../widgets/reaction_panel.dart';
 import '../widgets/super_flash.dart';
 
-enum _Phase { setup, choosing, reveal, over, showdown }
+enum _Phase { setup, choosing, reveal, over, showdown, peeking }
 
 enum _SdStage { prep, go, result }
 
@@ -78,6 +78,11 @@ class _OfflineGameScreenState extends State<OfflineGameScreen> {
   Timer? _turnTicker;
   int _secondsLeft = kTurnSeconds;
 
+  // 파파라치 엿보기.
+  bool _peekUsed = false; // 게임당 1회
+  bool _peekSelecting = false; // 엿볼 대상 선택 중
+  List<Move>? _frozenBots; // 엿보기 시점에 고정한 봇들의 행동
+
   // 슈퍼빵야 skill flash (one-shot overlay when a super shot fires).
   bool _superFlash = false;
   int _superFlashKey = 0;
@@ -109,7 +114,11 @@ class _OfflineGameScreenState extends State<OfflineGameScreen> {
           _secondsLeft = (_secondsLeft - 1).clamp(0, kTurnSeconds));
       if (_secondsLeft <= 0) {
         _turnTicker?.cancel();
-        if (_phase == _Phase.choosing) _resolve(const Move.idle());
+        if (_phase == _Phase.choosing) {
+          _resolve(const Move.idle());
+        } else if (_phase == _Phase.peeking) {
+          _resolve(const Move.idle(), frozenBots: _frozenBots);
+        }
       }
     });
   }
@@ -166,8 +175,36 @@ class _OfflineGameScreenState extends State<OfflineGameScreen> {
       _selKind = null;
       _selTarget = -1;
       _selTarget2 = -1;
+      _peekUsed = false;
+      _peekSelecting = false;
+      _frozenBots = null;
     });
     _startTurnTimer();
+  }
+
+  /// 파파라치 엿보기 시작: 봇들의 이번 턴 행동을 고정하고, 대상 행동을 미리 본 뒤
+  /// 내 행동을 다시 고르는 페이즈로 전환. (게임당 1회)
+  void _doPeek(int target) {
+    _turnTicker?.cancel();
+    final frozen = <Move>[
+      Move.empty, // 0번(나)은 placeholder
+      for (var s = 1; s < _n; s++)
+        _alive[s]
+            ? _cpu.chooseMove(
+                seat: s, ammo: _ammo, alive: _alive, chars: _chars, state: _pstate)
+            : Move.empty,
+    ];
+    setState(() {
+      _frozenBots = frozen;
+      _peekUsed = true;
+      _peekSelecting = false;
+      _selKind = null;
+      _selTarget = -1;
+      _selTarget2 = -1;
+      _phase = _Phase.peeking;
+      _banner = '📸 ${_names[target]}의 행동: ${frozen[target].kind.ko}';
+    });
+    _startTurnTimer(); // 10초가 아니라 동일 20초 적용(오프라인)
   }
 
   static bool _isTargetAction(ActKind? k) =>
@@ -179,6 +216,10 @@ class _OfflineGameScreenState extends State<OfflineGameScreen> {
 
   /// 좌석 탭. 더블 빵야는 두 명을 순서대로(다시 탭하면 재시작).
   void _onSeatTap(int s) {
+    if (_peekSelecting) {
+      if (s != 0 && _alive[s]) _doPeek(s); // 자신/사망자 제외
+      return;
+    }
     setState(() {
       if (_selKind == ActKind.dualShoot) {
         if (_selTarget < 0) {
@@ -218,18 +259,20 @@ class _OfflineGameScreenState extends State<OfflineGameScreen> {
     _resolve(mine);
   }
 
-  void _resolve(Move mine) {
+  void _resolve(Move mine, {List<Move>? frozenBots}) {
     _turnTicker?.cancel();
     final moves = <Move>[
       _alive[0] ? mine : Move.empty,
       for (var s = 1; s < _n; s++)
         _alive[s]
-            ? _cpu.chooseMove(
-                seat: s,
-                ammo: _ammo,
-                alive: _alive,
-                chars: _chars,
-                state: _pstate)
+            ? (frozenBots != null
+                ? frozenBots[s]
+                : _cpu.chooseMove(
+                    seat: s,
+                    ammo: _ammo,
+                    alive: _alive,
+                    chars: _chars,
+                    state: _pstate))
             : Move.empty,
     ];
     final aliveBefore = List<bool>.from(_alive);
@@ -605,7 +648,9 @@ class _OfflineGameScreenState extends State<OfflineGameScreen> {
           hideAction: hideAct(s),
         ),
     ];
-    final targetMode = _phase == _Phase.choosing && _isTargetAction(_selKind);
+    final targetMode =
+        (_phase == _Phase.choosing && _isTargetAction(_selKind)) ||
+            _peekSelecting;
     return Column(
       children: [
         Expanded(
@@ -687,6 +732,8 @@ class _OfflineGameScreenState extends State<OfflineGameScreen> {
       case _Phase.showdown:
         return const SizedBox.shrink();
       case _Phase.choosing:
+      case _Phase.peeking:
+        final peeking = _phase == _Phase.peeking;
         if (!_alive[0]) {
           return Padding(
             padding: const EdgeInsets.symmetric(horizontal: 24),
@@ -733,6 +780,14 @@ class _OfflineGameScreenState extends State<OfflineGameScreen> {
             smokeLeft: _pstate.smokeLeft[0],
             smokeOn: _smokeOn,
             onSmokeToggle: (v) => setState(() => _smokeOn = v),
+            showPeek: !peeking && _chars[0] == CharId.paparazzi && !_peekUsed,
+            peekEnabled: true,
+            onPeek: () => setState(() {
+              Sfx.click();
+              _peekSelecting = true;
+              _selKind = null;
+              _banner = '📸 엿볼 상대를 탭하세요';
+            }),
             onSelect: (k) => setState(() {
               Sfx.click();
               _selKind = k;
@@ -748,7 +803,25 @@ class _OfflineGameScreenState extends State<OfflineGameScreen> {
                 _selTarget2 = opp[1];
               }
             }),
-            onConfirm: _confirm,
+            onConfirm: peeking
+                ? () {
+                    if (_selKind == null) return;
+                    Sfx.confirm();
+                    final mine = switch (_selKind!) {
+                      ActKind.reload => const Move.reload(),
+                      ActKind.defend => const Move.defend(),
+                      ActKind.shoot => Move.shoot(_selTarget),
+                      ActKind.superShoot => Move.superShoot(_selTarget),
+                      ActKind.trap => const Move.trap(),
+                      ActKind.roulette => Move.roulette(_selTarget),
+                      ActKind.dualShoot =>
+                        Move.dualShoot(_selTarget, _selTarget2),
+                      ActKind.voodoo => Move.voodoo(_selTarget),
+                      ActKind.idle => const Move.idle(),
+                    };
+                    _resolve(mine, frozenBots: _frozenBots);
+                  }
+                : _confirm,
           ),
           ]),
         );

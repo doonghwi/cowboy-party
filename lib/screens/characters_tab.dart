@@ -161,9 +161,16 @@ class _CharCard extends StatelessWidget {
                             visualDensity: VisualDensity.compact,
                           ),
                           onPressed: () => _tryUnlock(context),
-                          icon: const Icon(Icons.monetization_on,
-                              color: CD.gold, size: 16),
-                          label: Text('${def.cost}',
+                          icon: Icon(
+                              (def.id == CharId.mystery && !Meta.I.canBuyMystery)
+                                  ? Icons.lock
+                                  : Icons.monetization_on,
+                              color: CD.gold,
+                              size: 16),
+                          label: Text(
+                              (def.id == CharId.mystery && !Meta.I.canBuyMystery)
+                                  ? '전 캐릭터 필요'
+                                  : '${def.cost}',
                               style: const TextStyle(
                                   fontWeight: FontWeight.w900)),
                         ),
@@ -176,6 +183,15 @@ class _CharCard extends StatelessWidget {
 
   void _tryUnlock(BuildContext context) {
     final meta = Meta.I;
+    // ???는 다른 캐릭터를 모두 보유해야 구매 가능.
+    if (def.id == CharId.mystery && !meta.canBuyMystery) {
+      HapticFeedback.heavyImpact();
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+        content: Text('다른 캐릭터를 모두 모은 뒤에 구매할 수 있어요'),
+        behavior: SnackBarBehavior.floating,
+      ));
+      return;
+    }
     if (meta.coins < def.cost) {
       HapticFeedback.heavyImpact();
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(

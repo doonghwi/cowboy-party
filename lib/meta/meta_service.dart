@@ -178,9 +178,16 @@ class Meta extends ChangeNotifier {
 
   bool isUnlocked(CharId c) => _unlocked.contains(c.index);
 
-  /// 코인으로 해금. 성공 시 true.
+  /// ??? 구매 전제: ??? 외 모든 캐릭터를 이미 보유.
+  /// (한번 사면 이후 새 캐릭터가 추가돼도 보유는 유지 — _unlocked는 영구.)
+  bool get canBuyMystery => kCharacters
+      .where((c) => c.id != CharId.mystery)
+      .every((c) => isUnlocked(c.id));
+
+  /// 코인으로 해금. 성공 시 true. 실패 사유 없이 false.
   bool unlock(CharId c) {
     if (isUnlocked(c)) return true;
+    if (c == CharId.mystery && !canBuyMystery) return false; // 전 캐릭터 보유 필요
     final def = charDef(c);
     if (!trySpend(def.cost)) return false;
     _unlocked.add(c.index);

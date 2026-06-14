@@ -28,6 +28,11 @@ class ActionBar extends StatelessWidget {
   final int selectedTarget2;
   final String? targetName2;
 
+  /// 파파라치 엿보기.
+  final bool showPeek; // 파파라치 + 미사용
+  final bool peekEnabled; // 오프라인 true (온라인은 준비 중)
+  final VoidCallback? onPeek;
+
   const ActionBar({
     super.key,
     required this.myAmmo,
@@ -43,6 +48,9 @@ class ActionBar extends StatelessWidget {
     this.onSmokeToggle,
     this.selectedTarget2 = -1,
     this.targetName2,
+    this.showPeek = false,
+    this.peekEnabled = false,
+    this.onPeek,
   });
 
   bool get _pacifist => myChar == CharId.pacifist;
@@ -194,6 +202,24 @@ class ActionBar extends StatelessWidget {
             ],
           ],
         ),
+        if (showPeek) ...[
+          const SizedBox(height: 10),
+          SizedBox(
+            width: double.infinity,
+            child: OutlinedButton.icon(
+              onPressed: onPeek,
+              style: OutlinedButton.styleFrom(
+                foregroundColor: const Color(0xFF4A6FA5),
+                side: const BorderSide(color: Color(0xFF4A6FA5), width: 2),
+                padding: const EdgeInsets.symmetric(vertical: 12),
+              ),
+              icon: const Icon(Icons.photo_camera, size: 18),
+              label: Text(
+                  peekEnabled ? '엿보기 — 1명 행동 미리보기 (게임당 1번)' : '엿보기 (온라인 준비 중)',
+                  style: const TextStyle(fontWeight: FontWeight.w800)),
+            ),
+          ),
+        ],
         if (_specialKind != null) ...[
           const SizedBox(height: 10),
           Row(children: [
