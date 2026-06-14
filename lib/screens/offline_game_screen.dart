@@ -20,13 +20,16 @@ enum _Phase { setup, choosing, reveal, over, showdown, peeking }
 enum _SdStage { prep, go, result }
 
 class OfflineGameScreen extends StatefulWidget {
-  const OfflineGameScreen({super.key});
+  /// 튜토리얼 진입 시 장착과 무관하게 강제할 캐릭터(예: 일반인). null = 내 장착.
+  final CharId? forcedChar;
+  const OfflineGameScreen({super.key, this.forcedChar});
 
   @override
   State<OfflineGameScreen> createState() => _OfflineGameScreenState();
 }
 
 class _OfflineGameScreenState extends State<OfflineGameScreen> {
+  CharId get _myChar => widget.forcedChar ?? Meta.I.equipped;
   static const _botNames = ['잭', '빌', '한스', '로사', '듀크'];
   final _cpu = CpuAi();
   final _rand = Random();
@@ -147,7 +150,7 @@ class _OfflineGameScreenState extends State<OfflineGameScreen> {
       _gameSeed = seed;
       // 봇은 ???(mystery)·none을 제외한 실제 직업 중에서. 내 ???는 seed로 변환.
       final raw = <CharId>[
-        Meta.I.equipped,
+        _myChar,
         for (var i = 1; i < _n; i++)
           kMysteryPool[_rand.nextInt(kMysteryPool.length)],
       ];
@@ -525,11 +528,11 @@ class _OfflineGameScreenState extends State<OfflineGameScreen> {
               child: Row(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  Icon(charDef(Meta.I.equipped).icon,
-                      size: 16, color: charDef(Meta.I.equipped).color),
+                  Icon(charDef(_myChar).icon,
+                      size: 16, color: charDef(_myChar).color),
                   const SizedBox(width: 6),
                   Text(
-                    '내 캐릭터: ${charDef(Meta.I.equipped).name} · 봇들도 랜덤 캐릭터를 써요',
+                    '내 캐릭터: ${charDef(_myChar).name} · 봇들도 랜덤 캐릭터를 써요',
                     style: const TextStyle(
                         color: Colors.white,
                         fontSize: 12,

@@ -17,6 +17,12 @@ const List<int> kDailyCycle = [20, 20, 30, 30, 40, 40, 60];
 int winCoins(int players) => 30 + (players.clamp(2, 6) - 2) * 8;
 const int kPlayCoins = 5;
 
+/// 닉네임 변경권 가격(G2). 첫 닉네임 설정은 무료, 이후 변경은 변경권 소모.
+const int kNicknameTicketCost = 10000;
+
+/// 신규 계정 시작 골드(G4).
+const int kNewAccountGold = 5000;
+
 /// 코인·캐릭터 해금·장착·출석 — 로컬 우선(SharedPreferences), 로그인 시
 /// /users/$uid 로 미러(기기 간 이동). 서버 실패는 전부 조용히 무시:
 /// 게임은 메타 서버 없이도 완전히 동작해야 한다.
@@ -35,9 +41,14 @@ class Meta extends ChangeNotifier {
   int _seasonPtsLocal = 0;
   String _nickname = '';
   Set<String> _redeemed = {}; // 사용한 선물 코드(계정당 1회)
+  int _nicknameTickets = 0; // 닉네임 변경권 보유 수(G2)
+  bool _nicknameSet = false; // 첫 닉네임 설정 여부(첫 설정은 무료)
 
   int get coins => _coins;
   String get nickname => _nickname;
+  int get nicknameTickets => _nicknameTickets;
+  bool get nicknameSet => _nicknameSet;
+  bool get canChangeNicknameFree => !_nicknameSet;
   int get dailyStreak => _dailyStreak;
   int get seasonPtsLocal => _seasonPtsLocal;
 
@@ -48,7 +59,9 @@ class Meta extends ChangeNotifier {
     if (_sp != null) return;
     final sp = await SharedPreferences.getInstance();
     _sp = sp;
-    _coins = sp.getInt('coins') ?? 0;
+    // G4: 신규 계정(코인 기록 없음)에 시작 골드 지급.
+    final brandNew = !sp.containsKey('coins');
+    _coins = sp.getInt('coins') ?? kNewAccountGold;
     _unlocked = (sp.getStringList('unlocked') ?? [])
         .map(int.parse)
         .toSet();
@@ -56,12 +69,18 @@ class Meta extends ChangeNotifier {
     for (final c in kCharacters) {
       if (c.cost == 0) _unlocked.add(c.id.index);
     }
-    _equipped = sp.getInt('equipped') ?? CharId.prepper.index;
+    // B4: 기본 장착은 무료 기본 캐릭터(일반인). 기존 사용자는 저장값 유지.
+    _equipped = sp.getInt('equipped') ?? CharId.commoner.index;
+    // 안전장치: 보유하지 않은 캐릭터가 장착돼 있으면 일반인으로.
+    if (!_unlocked.contains(_equipped)) _equipped = CharId.commoner.index;
     _dailyLast = sp.getString('daily_last') ?? '';
     _dailyStreak = sp.getInt('daily_streak') ?? 0;
     _seasonPtsLocal = sp.getInt('season_pts_local') ?? 0;
     _nickname = sp.getString('nickname') ?? '';
     _redeemed = (sp.getStringList('redeemed') ?? []).toSet();
+    _nicknameTickets = sp.getInt('nick_tickets') ?? 0;
+    _nicknameSet = sp.getBool('nick_set') ?? _nickname.isNotEmpty;
+    if (brandNew) _save();
     notifyListeners();
   }
 
@@ -77,13 +96,52 @@ class Meta extends ChangeNotifier {
     await sp.setInt('season_pts_local', _seasonPtsLocal);
     await sp.setString('nickname', _nickname);
     await sp.setStringList('redeemed', _redeemed.toList());
+    await sp.setInt('nick_tickets', _nicknameTickets);
+    await sp.setBool('nick_set', _nicknameSet);
     _mirrorToCloud();
   }
 
+  /// 저수준 닉네임 설정 — 첫 진입/로비에서 직접 정할 때만 사용(첫 설정 무료).
+  /// 설정 탭의 '변경'은 [changeNickname](변경권 게이트)을 쓴다.
   void setNickname(String n) {
-    _nickname = n.trim();
+    final t = n.trim();
+    if (t.isEmpty) return;
+    _nickname = t;
+    _nicknameSet = true;
     _save();
     notifyListeners();
+  }
+
+  /// 닉네임 변경권 구매(G2). 성공 시 true.
+  bool buyNicknameTicket() {
+    if (!trySpend(kNicknameTicketCost)) return false;
+    _nicknameTickets += 1;
+    _save();
+    notifyListeners();
+    return true;
+  }
+
+  /// 닉네임 설정/변경(G2). 첫 설정은 무료, 이후 변경은 변경권 소모.
+  /// 반환: (ok, message).
+  ({bool ok, String message}) changeNickname(String raw) {
+    final n = raw.trim();
+    if (n.isEmpty) return (ok: false, message: '닉네임을 입력해 주세요');
+    if (n == _nickname) return (ok: false, message: '같은 닉네임이에요');
+    if (!_nicknameSet) {
+      _nickname = n;
+      _nicknameSet = true;
+      _save();
+      notifyListeners();
+      return (ok: true, message: '닉네임을 정했어요!');
+    }
+    if (_nicknameTickets <= 0) {
+      return (ok: false, message: '닉네임 변경권이 필요해요 (상점에서 구매)');
+    }
+    _nicknameTickets -= 1;
+    _nickname = n;
+    _save();
+    notifyListeners();
+    return (ok: true, message: '닉네임을 변경했어요 (변경권 1장 사용)');
   }
 
   // ---- 코인 ---------------------------------------------------------------

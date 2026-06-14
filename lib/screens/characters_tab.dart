@@ -5,8 +5,9 @@ import '../audio/sfx.dart';
 import '../game/characters.dart';
 import '../meta/meta_service.dart';
 import '../theme.dart';
+import 'offline_game_screen.dart';
 
-/// 캐릭터 탭: 8종 카드 그리드 — 장착 / 코인 해금 (UX_UI.md §6 패턴).
+/// 상점 탭: 캐릭터 구매·장착 + 튜토리얼 진입(E1/E3). 설명은 잘리지 않게 스크롤(E2).
 class CharactersTab extends StatefulWidget {
   const CharactersTab({super.key});
 
@@ -31,18 +32,196 @@ class _CharactersTabState extends State<CharactersTab> {
     if (mounted) setState(() {});
   }
 
+  void _startTutorial() {
+    Sfx.confirm();
+    // E3: 캐릭터를 사지 않아도 일반인으로 봇 튜토리얼 가능.
+    Navigator.of(context).push(MaterialPageRoute(
+      builder: (_) => const OfflineGameScreen(forcedChar: CharId.commoner),
+    ));
+  }
+
+  void _buyNicknameTicket(BuildContext context) {
+    final meta = Meta.I;
+    if (meta.coins < kNicknameTicketCost) {
+      HapticFeedback.heavyImpact();
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+        content: Text(
+            '코인이 ${kNicknameTicketCost - meta.coins}개 부족해요'),
+        behavior: SnackBarBehavior.floating,
+      ));
+      return;
+    }
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: CD.parchment,
+        title: Text('닉네임 변경권', style: posterTitle(20)),
+        content: const Text(
+            '$kNicknameTicketCost코인으로 닉네임 변경권 1장을 살까요?\n'
+            '설정 탭에서 닉네임을 바꿀 때 1장이 사용돼요.',
+            style: TextStyle(height: 1.5)),
+        actions: [
+          TextButton(
+              onPressed: () => Navigator.pop(ctx), child: const Text('취소')),
+          FilledButton(
+            style: FilledButton.styleFrom(backgroundColor: CD.rust),
+            onPressed: () {
+              Navigator.pop(ctx);
+              if (Meta.I.buyNicknameTicket()) {
+                HapticFeedback.mediumImpact();
+                Sfx.coin();
+                ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+                  content: Text('닉네임 변경권 1장 구매 완료!'),
+                  behavior: SnackBarBehavior.floating,
+                ));
+              }
+            },
+            child: const Text('구매',
+                style: TextStyle(fontWeight: FontWeight.w900)),
+          ),
+        ],
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
-    return GridView.builder(
-      padding: const EdgeInsets.fromLTRB(16, 4, 16, 16),
-      gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-        crossAxisCount: 2,
-        mainAxisSpacing: 12,
-        crossAxisSpacing: 12,
-        childAspectRatio: 0.78,
+    return CustomScrollView(
+      slivers: [
+        SliverToBoxAdapter(
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(16, 4, 16, 4),
+            child: _TutorialCard(onStart: _startTutorial),
+          ),
+        ),
+        SliverToBoxAdapter(
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(16, 0, 16, 4),
+            child: _NicknameTicketCard(onBuy: () => _buyNicknameTicket(context)),
+          ),
+        ),
+        SliverPadding(
+          padding: const EdgeInsets.fromLTRB(16, 8, 16, 20),
+          sliver: SliverGrid(
+            gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+              crossAxisCount: 2,
+              mainAxisSpacing: 12,
+              crossAxisSpacing: 12,
+              childAspectRatio: 0.70,
+            ),
+            delegate: SliverChildBuilderDelegate(
+              (context, i) => _CharCard(def: kCharacters[i]),
+              childCount: kCharacters.length,
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+/// 상점 상단 튜토리얼 진입 카드(E1/E3) — 일반인으로 vs 컴퓨터.
+class _TutorialCard extends StatelessWidget {
+  final VoidCallback onStart;
+  const _TutorialCard({required this.onStart});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      decoration: BoxDecoration(
+        color: CD.parchment.withValues(alpha: 0.96),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: CD.sage, width: 2),
       ),
-      itemCount: kCharacters.length,
-      itemBuilder: (context, i) => _CharCard(def: kCharacters[i]),
+      padding: const EdgeInsets.all(14),
+      child: Row(
+        children: [
+          const Icon(Icons.school, color: CD.sage, size: 30),
+          const SizedBox(width: 12),
+          const Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text('튜토리얼',
+                    style: TextStyle(
+                        fontWeight: FontWeight.w900, fontSize: 15)),
+                SizedBox(height: 2),
+                Text('캐릭터를 사지 않아도 일반인으로 컴퓨터와 연습할 수 있어요',
+                    style: TextStyle(fontSize: 11.5, color: CD.muted)),
+              ],
+            ),
+          ),
+          const SizedBox(width: 8),
+          FilledButton(
+            style: FilledButton.styleFrom(
+                backgroundColor: CD.sage,
+                visualDensity: VisualDensity.compact),
+            onPressed: onStart,
+            child: const Text('시작',
+                style: TextStyle(fontWeight: FontWeight.w900)),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+/// 닉네임 변경권 판매 카드(E1/G2).
+class _NicknameTicketCard extends StatelessWidget {
+  final VoidCallback onBuy;
+  const _NicknameTicketCard({required this.onBuy});
+
+  @override
+  Widget build(BuildContext context) {
+    final have = Meta.I.nicknameTickets;
+    return Container(
+      decoration: BoxDecoration(
+        color: CD.parchment.withValues(alpha: 0.96),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: CD.gold, width: 2),
+      ),
+      padding: const EdgeInsets.all(14),
+      child: Row(
+        children: [
+          const Icon(Icons.badge, color: CD.gold, size: 30),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    const Text('닉네임 변경권',
+                        style: TextStyle(
+                            fontWeight: FontWeight.w900, fontSize: 15)),
+                    if (have > 0) ...[
+                      const SizedBox(width: 6),
+                      Text('보유 $have장',
+                          style: const TextStyle(
+                              fontSize: 11.5,
+                              color: CD.sage,
+                              fontWeight: FontWeight.w800)),
+                    ],
+                  ],
+                ),
+                const SizedBox(height: 2),
+                const Text('설정 탭에서 닉네임을 바꿀 때 1장 사용 (첫 설정은 무료)',
+                    style: TextStyle(fontSize: 11.5, color: CD.muted)),
+              ],
+            ),
+          ),
+          const SizedBox(width: 8),
+          FilledButton.icon(
+            style: FilledButton.styleFrom(
+                backgroundColor: CD.leather,
+                visualDensity: VisualDensity.compact),
+            onPressed: onBuy,
+            icon: const Icon(Icons.monetization_on, color: CD.gold, size: 16),
+            label: const Text('$kNicknameTicketCost',
+                style: TextStyle(fontWeight: FontWeight.w900)),
+          ),
+        ],
+      ),
     );
   }
 }
@@ -117,11 +296,14 @@ class _CharCard extends StatelessWidget {
             Text(def.name, style: posterTitle(17)),
             const SizedBox(height: 4),
             Expanded(
-              child: Text(
-                def.ability,
-                textAlign: TextAlign.center,
-                style: const TextStyle(
-                    fontSize: 11.5, color: CD.muted, height: 1.35),
+              // E2: 긴 설명도 잘리지 않게 — 넘치면 스크롤로 전부 읽힌다.
+              child: SingleChildScrollView(
+                child: Text(
+                  def.ability,
+                  textAlign: TextAlign.center,
+                  style: const TextStyle(
+                      fontSize: 11.5, color: CD.muted, height: 1.35),
+                ),
               ),
             ),
             const SizedBox(height: 6),

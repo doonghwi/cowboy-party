@@ -282,35 +282,85 @@ class CoinChip extends StatelessWidget {
   }
 }
 
-/// 설정에서 바로 닉네임 변경 (로비 안 가도 됨).
+/// 설정의 닉네임 — G2: 첫 설정은 무료, 이후 변경은 변경권 1장 소모(상점 판매).
 class _NicknameRow extends StatelessWidget {
+  void _edit(BuildContext context) {
+    final meta = Meta.I;
+    final ctl = TextEditingController(text: meta.nickname);
+    final free = meta.canChangeNicknameFree;
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: CD.parchment,
+        title: Text(free ? '닉네임 정하기' : '닉네임 변경', style: posterTitle(20)),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            TextField(
+              controller: ctl,
+              maxLength: 8,
+              autofocus: true,
+              decoration: const InputDecoration(
+                counterText: '',
+                hintText: '닉네임 (최대 8자)',
+                border: UnderlineInputBorder(),
+              ),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              free
+                  ? '첫 닉네임 설정은 무료예요. 이후 변경엔 변경권이 필요해요.'
+                  : '변경권 보유: ${meta.nicknameTickets}장 — 변경 시 1장 사용',
+              style: const TextStyle(fontSize: 12, color: CD.muted),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+              onPressed: () => Navigator.pop(ctx), child: const Text('취소')),
+          FilledButton(
+            style: FilledButton.styleFrom(backgroundColor: CD.rust),
+            onPressed: () {
+              final r = Meta.I.changeNickname(ctl.text);
+              Navigator.pop(ctx);
+              ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+                content: Text(r.message),
+                behavior: SnackBarBehavior.floating,
+              ));
+            },
+            child: Text(free ? '저장' : '변경권 사용',
+                style: const TextStyle(fontWeight: FontWeight.w900)),
+          ),
+        ],
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
-    final ctl = TextEditingController(text: Meta.I.nickname);
+    final name = Meta.I.nickname.isEmpty ? '(미설정)' : Meta.I.nickname;
     return Row(
       children: [
         const Icon(Icons.badge, color: CD.rust, size: 22),
         const SizedBox(width: 10),
         Expanded(
-          child: TextField(
-            controller: ctl,
-            maxLength: 8,
-            decoration: const InputDecoration(
-              isDense: true,
-              counterText: '',
-              hintText: '닉네임 (비우면 랜덤)',
-              border: UnderlineInputBorder(),
-            ),
-            onSubmitted: (v) => Meta.I.setNickname(v),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text('닉네임: $name',
+                  style: const TextStyle(fontWeight: FontWeight.w800)),
+              Text(
+                Meta.I.canChangeNicknameFree
+                    ? '첫 설정 무료'
+                    : '변경권 ${Meta.I.nicknameTickets}장',
+                style: const TextStyle(fontSize: 11, color: CD.muted),
+              ),
+            ],
           ),
         ),
         TextButton(
-          onPressed: () {
-            Meta.I.setNickname(ctl.text);
-            ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(content: Text('닉네임 저장됨')));
-          },
-          child: const Text('저장'),
+          onPressed: () => _edit(context),
+          child: Text(Meta.I.canChangeNicknameFree ? '정하기' : '변경'),
         ),
       ],
     );
