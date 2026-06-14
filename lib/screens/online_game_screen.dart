@@ -48,9 +48,13 @@ class _OnlineGameScreenState extends State<OnlineGameScreen> {
   int _pendingTurn = -1;
   ActKind? _selKind;
   int _selTarget = -1;
-  // ignore: prefer_final_fields
-  int _selTarget2 = -1; // 쌍권총 더블 빵야 두 번째 대상 (Stage 2 UI에서 갱신)
+  int _selTarget2 = -1; // 쌍권총 더블 빵야 두 번째 대상
   bool _smokeOn = false; // 스모커 연막 토글 (턴마다 리셋)
+
+  // 턴 제한시간(20초) — 만료 시 자동 idle 제출.
+  Timer? _turnTicker;
+  int _timerTurn = -1;
+  int _secondsLeft = kTurnSeconds;
 
   // 코인/포인트는 게임(판)당 한 번만 지급.
   bool _rewarded = false;
@@ -94,6 +98,7 @@ class _OnlineGameScreenState extends State<OnlineGameScreen> {
   @override
   void dispose() {
     _revealTimer?.cancel();
+    _turnTicker?.cancel();
     _offsetSub?.cancel();
     _heartbeat?.cancel();
     _staleTick?.cancel();
@@ -283,6 +288,7 @@ class _OnlineGameScreenState extends State<OnlineGameScreen> {
                 _handleReactions(data);
                 _maybeReset(view, data['scored'] == true);
                 _maybeReward(view);
+                _manageTurnTimer(view);
                 if (view.phase == OnlinePhase.waiting) {
                   if (view.mySeat < 0) {
                     return _info('방에서 나왔어요.', back: true);
@@ -552,6 +558,36 @@ class _OnlineGameScreenState extends State<OnlineGameScreen> {
     });
   }
 
+  /// 내가 행동을 골라야 하는 동안만 20초 카운트다운. 만료되면 자동으로 가만히(idle).
+  void _manageTurnTimer(RoomView view) {
+    final myTurn = view.phase == OnlinePhase.choosing &&
+        view.seated &&
+        !view.iAmLate &&
+        (view.me?.alive ?? false);
+    if (myTurn) {
+      if (_timerTurn != view.turn) {
+        _timerTurn = view.turn;
+        _secondsLeft = kTurnSeconds;
+        final mySeat = view.mySeat;
+        final turn = view.turn;
+        _turnTicker?.cancel();
+        _turnTicker = Timer.periodic(const Duration(seconds: 1), (_) {
+          if (!mounted) return;
+          setState(() => _secondsLeft = (_secondsLeft - 1).clamp(0, kTurnSeconds));
+          if (_secondsLeft <= 0) {
+            _turnTicker?.cancel();
+            // 시간초과 → 아무것도 안 함(가만히) 자동 제출.
+            widget.service
+                .submitMove(widget.code, turn, mySeat, const Move.idle());
+          }
+        });
+      }
+    } else {
+      _turnTicker?.cancel();
+      _timerTurn = -1;
+    }
+  }
+
   void _resetPendingFor(int turn) {
     if (_pendingTurn != turn) {
       _pendingTurn = turn;
@@ -650,7 +686,11 @@ class _OnlineGameScreenState extends State<OnlineGameScreen> {
     final myChar = view.me?.char ?? CharId.none;
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 16),
-      child: ActionBar(
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          _turnCountdown(),
+          ActionBar(
         myAmmo: myAmmo,
         selected: _selKind,
         selectedTarget: _selTarget,
@@ -704,6 +744,29 @@ class _OnlineGameScreenState extends State<OnlineGameScreen> {
           }
           widget.service.submitMove(widget.code, view.turn, view.mySeat, m);
         },
+          ),
+        ],
+      ),
+    );
+  }
+
+  /// 남은 시간 카운트다운 바 (10초 이하 빨강).
+  Widget _turnCountdown() {
+    final low = _secondsLeft <= 10;
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 8),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Icon(Icons.timer,
+              size: 16, color: low ? CD.danger : CD.muted),
+          const SizedBox(width: 6),
+          Text('$_secondsLeft초',
+              style: TextStyle(
+                  fontWeight: FontWeight.w900,
+                  fontSize: 13,
+                  color: low ? CD.danger : CD.leather)),
+        ],
       ),
     );
   }

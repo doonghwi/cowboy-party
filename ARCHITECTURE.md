@@ -87,7 +87,9 @@
   **super_flash.dart**: 슈퍼빵야 연출. **top_toast.dart**: 상단 토스트(코인 등).
 
 ### 메타/경제
-- **meta/meta_service.dart**(`Meta.I`): 코인·해금·장착·출석. 로컬(SharedPreferences) + 로그인 시 /users/$uid 미러.
+- **meta/meta_service.dart**(`Meta.I`): 코인·해금·장착·출석·**선물코드**(redeemGiftCode). 로컬(SharedPreferences) + 로그인 시 /users/$uid 미러.
+- **meta/gift_codes.dart**: 선물 코드 정의. `kGiftCodes`(빌드 내장 공용 코드, 예 `thankyou`→100000) +
+  단일 코드는 RTDB `/giftcodes/<code>`. 공용=계정당 1회(_redeemed), 단일=전체 1명 선착순(`claimedBy` 트랜잭션). 입력은 소문자 정규화.
 - **meta/auth_service.dart**(`AuthService.I`): Google + 게스트(익명). 콘솔 미설정이어도 폴백.
 - **meta/season_service.dart**(`SeasonService.I`): 월별 시즌 랭킹 /seasons/$sid/$uid.
 

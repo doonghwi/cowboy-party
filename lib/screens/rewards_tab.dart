@@ -15,6 +15,9 @@ class RewardsTab extends StatefulWidget {
 }
 
 class _RewardsTabState extends State<RewardsTab> {
+  final _codeCtl = TextEditingController();
+  bool _redeeming = false;
+
   @override
   void initState() {
     super.initState();
@@ -23,8 +26,28 @@ class _RewardsTabState extends State<RewardsTab> {
 
   @override
   void dispose() {
+    _codeCtl.dispose();
     Meta.I.removeListener(_onMeta);
     super.dispose();
+  }
+
+  Future<void> _redeem() async {
+    if (_redeeming) return;
+    setState(() => _redeeming = true);
+    final res = await Meta.I.redeemGiftCode(_codeCtl.text);
+    if (!mounted) return;
+    setState(() => _redeeming = false);
+    if (res.ok) {
+      _codeCtl.clear();
+      Sfx.coin();
+      TopToast.show(context, message: '선물 코드 ${res.message}');
+    } else {
+      Sfx.play('click');
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+        behavior: SnackBarBehavior.floating,
+        content: Text(res.message),
+      ));
+    }
   }
 
   void _onMeta() {
@@ -88,6 +111,59 @@ class _RewardsTabState extends State<RewardsTab> {
                       : '오늘은 받았어요 — 내일 또 만나요!',
                   style: posterTitle(16, color: Colors.white),
                 ),
+              ),
+            ],
+          ),
+        ),
+        const SizedBox(height: 14),
+        _card(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Text('선물 코드', style: posterTitle(19)),
+              const SizedBox(height: 6),
+              const Text('받은 코드를 입력하면 골드를 드려요. (코드당 계정 1회)',
+                  style: TextStyle(color: CD.muted, fontSize: 12.5)),
+              const SizedBox(height: 10),
+              Row(
+                children: [
+                  Expanded(
+                    child: TextField(
+                      controller: _codeCtl,
+                      textInputAction: TextInputAction.done,
+                      onSubmitted: (_) => _redeem(),
+                      decoration: InputDecoration(
+                        isDense: true,
+                        hintText: '코드 입력',
+                        filled: true,
+                        fillColor: Colors.white.withValues(alpha: 0.7),
+                        contentPadding: const EdgeInsets.symmetric(
+                            horizontal: 12, vertical: 12),
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(12),
+                          borderSide: const BorderSide(color: CD.leather),
+                        ),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  FilledButton(
+                    onPressed: _redeeming ? null : _redeem,
+                    style: FilledButton.styleFrom(
+                      backgroundColor: CD.rust,
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 18, vertical: 14),
+                    ),
+                    child: _redeeming
+                        ? const SizedBox(
+                            width: 18,
+                            height: 18,
+                            child: CircularProgressIndicator(
+                                strokeWidth: 2, color: Colors.white))
+                        : const Text('받기',
+                            style: TextStyle(fontWeight: FontWeight.w900)),
+                  ),
+                ],
               ),
             ],
           ),

@@ -868,7 +868,7 @@ class OnlineService {
       smokedFx = out.smoked;
       doubleLoadFx = out.doubleLoad;
       alive = out.aliveAfter;
-      banner = _turnBanner(out, names, moves, aliveBefore);
+      banner = _turnBanner(out, names, moves, aliveBefore, seed, t);
 
       if (out.status != GameStatus.ongoing) {
         var status = out.status;
@@ -1079,7 +1079,7 @@ class OnlineService {
   }
 
   static String _turnBanner(TurnOutcome out, Map<int, String> names,
-      List<Move> moves, List<bool> aliveBefore) {
+      List<Move> moves, List<bool> aliveBefore, String seed, int turn) {
     String nameOf(int s) => names[s] ?? '카우보이';
     // 캐릭터 능력이 만든 드라마가 우선 — 평범한 결과 문구에 묻히지 않게.
     final reflected = <String>[
@@ -1121,6 +1121,18 @@ class OnlineService {
     ];
     if (evaded.isNotEmpty) return '${evaded.join(", ")}, 연막으로 회피!';
     if (out.fired.any((x) => x)) return '모두 막거나 빗나갔다!';
+    // 시간초과(가만히) 멘트 — 모두가 가만히면 한 명을 골라 보여준다.
+    final idlers = <int>[
+      for (var s = 0; s < moves.length; s++)
+        if (s < aliveBefore.length &&
+            aliveBefore[s] &&
+            moves[s].kind == ActKind.idle)
+          s
+    ];
+    if (idlers.isNotEmpty) {
+      final s = idlers.first;
+      return '${nameOf(s)}, ${idleFlavor(seed, turn, s)}...';
+    }
     return _quietBanner(moves, aliveBefore);
   }
 

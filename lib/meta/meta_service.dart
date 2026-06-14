@@ -8,6 +8,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import '../game/characters.dart';
 import '../online/online_service.dart' show OnlineService;
 import 'auth_service.dart';
+import 'gift_codes.dart';
 
 /// 일일 출석 보상 사이클 (7일).
 const List<int> kDailyCycle = [20, 20, 30, 30, 40, 40, 60];
@@ -33,6 +34,7 @@ class Meta extends ChangeNotifier {
   int _dailyStreak = 0;
   int _seasonPtsLocal = 0;
   String _nickname = '';
+  Set<String> _redeemed = {}; // 사용한 선물 코드(계정당 1회)
 
   int get coins => _coins;
   String get nickname => _nickname;
@@ -59,6 +61,7 @@ class Meta extends ChangeNotifier {
     _dailyStreak = sp.getInt('daily_streak') ?? 0;
     _seasonPtsLocal = sp.getInt('season_pts_local') ?? 0;
     _nickname = sp.getString('nickname') ?? '';
+    _redeemed = (sp.getStringList('redeemed') ?? []).toSet();
     notifyListeners();
   }
 
@@ -73,6 +76,7 @@ class Meta extends ChangeNotifier {
     await sp.setInt('daily_streak', _dailyStreak);
     await sp.setInt('season_pts_local', _seasonPtsLocal);
     await sp.setString('nickname', _nickname);
+    await sp.setStringList('redeemed', _redeemed.toList());
     _mirrorToCloud();
   }
 
@@ -97,6 +101,77 @@ class Meta extends ChangeNotifier {
     _save();
     notifyListeners();
     return true;
+  }
+
+  // ---- 선물 코드 ----------------------------------------------------------
+
+  bool hasRedeemed(String code) => _redeemed.contains(normalizeGiftCode(code));
+
+  /// 선물 코드 사용. 계정당 1회. 공용 코드는 [kGiftCodes], 단일 코드는 RTDB
+  /// `/giftcodes/<code>`(선착순 점유). 골드 지급.
+  Future<({bool ok, String message, int gold})> redeemGiftCode(
+      String raw) async {
+    final code = normalizeGiftCode(raw);
+    if (code.isEmpty) {
+      return (ok: false, message: '코드를 입력해 주세요', gold: 0);
+    }
+    if (_redeemed.contains(code)) {
+      return (ok: false, message: '이미 사용한 코드예요', gold: 0);
+    }
+    GiftCode? def = kGiftCodes[code] ?? await _fetchGiftCodeFromCloud(code);
+    if (def == null) {
+      return (ok: false, message: '없는 코드예요', gold: 0);
+    }
+    if (def.single) {
+      final claimed = await _claimSingleUse(code);
+      if (!claimed) {
+        return (ok: false, message: '이미 누군가 사용한 코드예요', gold: 0);
+      }
+    }
+    _redeemed.add(code);
+    addCoins(def.gold); // _save 포함
+    return (ok: true, message: '+${def.gold} 골드 획득!', gold: def.gold);
+  }
+
+  DatabaseReference? _giftRef(String code) {
+    try {
+      return FirebaseDatabase.instanceFor(
+              app: Firebase.app(), databaseURL: OnlineService.databaseUrl)
+          .ref('giftcodes/$code');
+    } catch (_) {
+      return null;
+    }
+  }
+
+  Future<GiftCode?> _fetchGiftCodeFromCloud(String code) async {
+    final ref = _giftRef(code);
+    if (ref == null) return null;
+    try {
+      final snap = await ref.get();
+      final v = snap.value;
+      if (v is! Map) return null;
+      final gold = v['gold'];
+      if (gold is! int) return null;
+      return GiftCode(gold: gold, single: v['single'] == true);
+    } catch (_) {
+      return null;
+    }
+  }
+
+  /// 단일 코드 선착순 점유. 비어 있으면 내 id로 점유 성공, 아니면 실패.
+  Future<bool> _claimSingleUse(String code) async {
+    final ref = _giftRef(code);
+    if (ref == null) return false;
+    final id = AuthService.I.uid; // 로그인 uid 또는 기기 게스트 id
+    try {
+      final res = await ref.child('claimedBy').runTransaction((cur) {
+        if (cur == null || cur == id) return Transaction.success(id);
+        return Transaction.abort();
+      });
+      return res.committed && res.snapshot.value == id;
+    } catch (_) {
+      return false;
+    }
   }
 
   // ---- 캐릭터 -------------------------------------------------------------
@@ -199,6 +274,7 @@ class Meta extends ChangeNotifier {
       'equipped': _equipped,
       'dailyLast': _dailyLast,
       'dailyStreak': _dailyStreak,
+      'redeemed': _redeemed.toList(),
       'updatedAt': ServerValue.timestamp,
     }).catchError((_) {});
   }
@@ -221,6 +297,12 @@ class Meta extends ChangeNotifier {
       if (cUnlocked is List) {
         for (final e in cUnlocked) {
           if (e is int) _unlocked.add(e);
+        }
+      }
+      final cRedeemed = cloud['redeemed'];
+      if (cRedeemed is List) {
+        for (final e in cRedeemed) {
+          if (e is String) _redeemed.add(e);
         }
       }
       final cStreak = cloud['dailyStreak'];

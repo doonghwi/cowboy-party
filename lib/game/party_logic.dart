@@ -67,6 +67,24 @@ const int kPacifistGoal = 6;
 const int kMinSeats = 2;
 const int kMaxSeats = 6;
 
+/// 턴당 제한 시간(초). 만료 시 아무 행동 없이(idle) 턴이 넘어간다.
+const int kTurnSeconds = 20;
+
+/// 시간초과(가만히)일 때 보여줄 멘트. 결정적으로 고르도록 seed/turn/seat 사용.
+const List<String> kIdleFlavors = [
+  '석양을 보고 있었다',
+  '멍때리고 있었다',
+  '담배를 말고 있었다',
+  '딴생각에 빠져 있었다',
+  '말에게 한눈 팔았다',
+  '모자를 고쳐 쓰고 있었다',
+];
+
+String idleFlavor(String seed, int turn, int seat) {
+  final r = seededRoll('$seed|$turn|$seat|idle');
+  return kIdleFlavors[(r * kIdleFlavors.length).floor().clamp(0, kIdleFlavors.length - 1)];
+}
+
 /// One cowboy's full commitment for a turn.
 class Move {
   final ActKind kind;

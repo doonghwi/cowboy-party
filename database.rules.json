@@ -43,6 +43,16 @@
       }
     },
 
+    "giftcodes": {
+      ".read": true,
+      "$code": {
+        "claimedBy": {
+          ".write": "!data.exists() || data.val() == newData.val()",
+          ".validate": "newData.isString() && newData.val().length <= 64"
+        }
+      }
+    },
+
     "build": { ".read": true, ".write": true },
     "stats": { ".read": true, ".write": true }
   }
