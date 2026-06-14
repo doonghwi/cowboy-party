@@ -186,6 +186,7 @@ void main() {
       trapUsed: [false, true],
       smokeLeft: s0.smokeLeft,
       reloads: s0.reloads,
+      paparazziUsed: s0.paparazziUsed,
     );
     final out = run(
       moves: [Move.shoot(1), const Move.trap()],
@@ -268,6 +269,7 @@ void main() {
       trapUsed: [false, false],
       smokeLeft: [0, 0],
       reloads: [5, 0],
+      paparazziUsed: [false, false],
     );
     final out = run(
       moves: [const Move.reload(), Move.shoot(0)],
@@ -289,5 +291,181 @@ void main() {
     );
     expect(out.hit[1], isFalse);
     expect(out.status, GameStatus.ongoing);
+  });
+
+  // ---- 신규 캐릭터 ----
+
+  test('인코딩 라운드트립: 신규 액션', () {
+    final samples = [
+      const Move.idle(),
+      Move.roulette(3),
+      Move.dualShoot(1, 4),
+      Move.voodoo(2),
+    ];
+    for (final m in samples) {
+      expect(Move.decode(m.encode()), m, reason: 'code=${m.encode()}');
+    }
+    // 신규 코드가 레거시 범위와 겹치지 않는다.
+    expect(const Move.idle().encode(), 40);
+    expect(Move.decode(40), const Move.idle());
+  });
+
+  String seedFor(String salt, int seat, bool wantUnderHalf) {
+    for (var i = 0; i < 500; i++) {
+      final r = seededRoll('S$i|0|$seat|$salt');
+      if ((r < 0.5) == wantUnderHalf) return 'S$i';
+    }
+    throw StateError('seed 못 찾음');
+  }
+
+  test('운명의 방아쇠: roll<0.5면 상대 사망, 상대가 방어하면 내가 사망', () {
+    final hitTargetSeed = seedFor('roulette', 0, true); // 상대 지목
+    final out = run(
+      moves: [Move.roulette(1), const Move.reload()],
+      ammo: [0, 0],
+      alive: [true, true],
+      chars: [CharId.roulette, CharId.none],
+      seed: hitTargetSeed,
+    );
+    expect(out.rouletteFired[0], isTrue);
+    expect(out.hit[1], isTrue, reason: '상대 사망');
+    expect(out.hit[0], isFalse);
+    expect(out.ammoAfter[0], 0, reason: '총알 소모 없음');
+
+    // 같은 시드(상대 지목)인데 상대가 방어 → 반사돼 내가 죽음
+    final reflect = run(
+      moves: [Move.roulette(1), const Move.defend()],
+      ammo: [0, 0],
+      alive: [true, true],
+      chars: [CharId.roulette, CharId.none],
+      seed: hitTargetSeed,
+    );
+    expect(reflect.hit[0], isTrue, reason: '상대 방어 → 내가 죽음');
+    expect(reflect.hit[1], isFalse);
+  });
+
+  test('운명의 방아쇠: roll>=0.5면 내가 사망', () {
+    final selfSeed = seedFor('roulette', 0, false);
+    final out = run(
+      moves: [Move.roulette(1), const Move.reload()],
+      ammo: [0, 0],
+      alive: [true, true],
+      chars: [CharId.roulette, CharId.none],
+      seed: selfSeed,
+    );
+    expect(out.hit[0], isTrue);
+    expect(out.hit[1], isFalse);
+  });
+
+  test('쌍권총 더블 빵야: 총알 2발로 두 명 동시 처치', () {
+    final out = run(
+      moves: [Move.dualShoot(1, 2), const Move.reload(), const Move.reload()],
+      ammo: [2, 0, 0],
+      alive: [true, true, true],
+      chars: [CharId.dualgun, CharId.none, CharId.none],
+    );
+    expect(out.dualFired[0], isTrue);
+    expect(out.hit[1], isTrue);
+    expect(out.hit[2], isTrue);
+    expect(out.ammoAfter[0], 0, reason: '2발 소모');
+    expect(out.status, GameStatus.won);
+    expect(out.winner, 0);
+  });
+
+  test('쌍권총: 한 명이 방어하면 그 한 명만 산다', () {
+    final out = run(
+      moves: [Move.dualShoot(1, 2), const Move.defend(), const Move.reload()],
+      ammo: [2, 0, 0],
+      alive: [true, true, true],
+      chars: [CharId.dualgun, CharId.none, CharId.none],
+    );
+    expect(out.hit[1], isFalse, reason: '방어 성공');
+    expect(out.hit[2], isTrue);
+  });
+
+  test('의사 수정: 치명타를 버티면 그 즉시 총알 0', () {
+    final out = run(
+      moves: [Move.shoot(1), const Move.reload()],
+      ammo: [1, 3],
+      alive: [true, true],
+      chars: [CharId.none, CharId.doctor],
+    );
+    expect(out.hit[1], isFalse);
+    expect(out.healed[1], isTrue);
+    expect(out.ammoAfter[1], 0, reason: '버틴 즉시 총알 0 (장전했어도 0)');
+  });
+
+  test('idle(가만히): 아무 일도 없음', () {
+    final out = run(
+      moves: [const Move.idle(), const Move.reload()],
+      ammo: [2, 0],
+      alive: [true, true],
+      chars: [CharId.none, CharId.none],
+    );
+    expect(out.ammoAfter[0], 2, reason: '장전 안 함');
+    expect(out.hit[0], isFalse);
+    expect(out.status, GameStatus.ongoing);
+  });
+
+  test('부두 저주: 10턴 뒤 대상 사망, 부두술사 죽으면 해제', () {
+    final chars = [CharId.voodoo, CharId.none, CharId.none];
+    // turn 0: 부두(0)가 1을 저주.
+    var state = PartyState.initial(chars);
+    var ammo = [0, 0, 0];
+    var alive = [true, true, true];
+    var out = run(
+      moves: [Move.voodoo(1), const Move.reload(), const Move.reload()],
+      ammo: ammo, alive: alive, chars: chars, state: state, turn: 0,
+    );
+    expect(out.voodooCast[0], isTrue);
+    expect(out.stateAfter!.curseFuse, kCurseFuse);
+    state = out.stateAfter!;
+    ammo = out.ammoAfter;
+    alive = out.aliveAfter;
+
+    // turn 1..10: 모두 장전. turn 10에서 대상 사망해야 함.
+    var diedTurn = -1;
+    for (var t = 1; t <= kCurseFuse; t++) {
+      out = run(
+        moves: [const Move.reload(), const Move.reload(), const Move.reload()],
+        ammo: ammo, alive: alive, chars: chars, state: state, turn: t,
+      );
+      if (out.curseKill[1]) diedTurn = t;
+      state = out.stateAfter!;
+      ammo = out.ammoAfter;
+      alive = out.aliveAfter;
+    }
+    expect(diedTurn, kCurseFuse, reason: '건 턴(0)으로부터 10턴 뒤 사망');
+    expect(alive[1], isFalse);
+  });
+
+  test('부두 저주: 부두술사가 죽으면 저주가 풀린다', () {
+    final chars = [CharId.voodoo, CharId.none, CharId.none];
+    var state = PartyState.initial(chars);
+    // 0이 1을 저주.
+    var out = run(
+      moves: [Move.voodoo(1), const Move.reload(), const Move.reload()],
+      ammo: [0, 0, 0], alive: [true, true, true], chars: chars,
+      state: state, turn: 0,
+    );
+    state = out.stateAfter!;
+    expect(state.curseFuse, kCurseFuse);
+    // 2가 부두술사(0)를 사살 → 저주 해제.
+    out = run(
+      moves: [const Move.reload(), const Move.reload(), Move.shoot(0)],
+      ammo: [0, 0, 1], alive: out.aliveAfter, chars: chars,
+      state: state, turn: 1,
+    );
+    expect(out.hit[0], isTrue, reason: '부두술사 사망');
+    expect(out.stateAfter!.curseFuse, 0, reason: '저주 해제');
+  });
+
+  test('mystery: 시드로 결정적으로 한 직업이 되고 풀 안에 든다', () {
+    final a = resolveMystery('GAME1', 0);
+    final b = resolveMystery('GAME1', 0);
+    expect(a, b, reason: '결정적');
+    expect(kMysteryPool.contains(a), isTrue);
+    expect(a, isNot(CharId.mystery));
+    expect(a, isNot(CharId.none));
   });
 }

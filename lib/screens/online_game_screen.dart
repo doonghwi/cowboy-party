@@ -48,6 +48,8 @@ class _OnlineGameScreenState extends State<OnlineGameScreen> {
   int _pendingTurn = -1;
   ActKind? _selKind;
   int _selTarget = -1;
+  // ignore: prefer_final_fields
+  int _selTarget2 = -1; // 쌍권총 더블 빵야 두 번째 대상 (Stage 2 UI에서 갱신)
   bool _smokeOn = false; // 스모커 연막 토글 (턴마다 리셋)
 
   // 코인/포인트는 게임(판)당 한 번만 지급.
@@ -651,6 +653,10 @@ class _OnlineGameScreenState extends State<OnlineGameScreen> {
             ActKind.shoot => Move.shoot(_selTarget),
             ActKind.superShoot => Move.superShoot(_selTarget),
             ActKind.trap => const Move.trap(),
+            ActKind.roulette => Move.roulette(_selTarget),
+            ActKind.dualShoot => Move.dualShoot(_selTarget, _selTarget2),
+            ActKind.voodoo => Move.voodoo(_selTarget),
+            ActKind.idle => const Move.idle(),
           };
           if (_smokeOn &&
               myChar == CharId.smoker &&

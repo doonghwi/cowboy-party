@@ -76,6 +76,18 @@ class ActionBar extends StatelessWidget {
             : '⚡슈퍼빵야 → ${targetName ?? ""} 확정 처치!';
       case ActKind.trap:
         return '덫 — 이번 턴 나를 쏜 일반탄을 전부 반사! (게임당 1번)';
+      case ActKind.roulette:
+        return selectedTarget < 0
+            ? '운명의 방아쇠 — 상대를 탭! 50:50로 나/상대 중 한 명 사망'
+            : '운명의 방아쇠 → ${targetName ?? ""} (상대 방어 시 내가 죽음)';
+      case ActKind.dualShoot:
+        return '더블 빵야 — 쏠 두 명을 탭! (총알 2발 소비)';
+      case ActKind.voodoo:
+        return selectedTarget < 0
+            ? '저주 — 대상을 탭! $kCurseFuse턴 뒤 사망 (내가 죽으면 풀림)'
+            : '저주 → ${targetName ?? ""} ($kCurseFuse턴 뒤 사망)';
+      case ActKind.idle:
+        return '가만히 — 아무 행동도 하지 않아요';
     }
   }
 

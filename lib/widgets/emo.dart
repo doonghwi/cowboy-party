@@ -33,5 +33,13 @@ String actionEmoji(ActKind a) {
       return 'bang';
     case ActKind.trap:
       return 'shield';
+    case ActKind.roulette:
+      return 'bang';
+    case ActKind.dualShoot:
+      return 'bang';
+    case ActKind.voodoo:
+      return 'skull';
+    case ActKind.idle:
+      return 'person';
   }
 }

@@ -58,6 +58,8 @@ class _OfflineGameScreenState extends State<OfflineGameScreen> {
 
   ActKind? _selKind;
   int _selTarget = -1;
+  // ignore: prefer_final_fields
+  int _selTarget2 = -1; // 쌍권총 더블 빵야 두 번째 대상 (Stage 2 UI에서 갱신)
 
   // Reaction showdown state.
   _SdStage _sdStage = _SdStage.prep;
@@ -149,6 +151,10 @@ class _OfflineGameScreenState extends State<OfflineGameScreen> {
       ActKind.shoot => Move.shoot(_selTarget),
       ActKind.superShoot => Move.superShoot(_selTarget),
       ActKind.trap => const Move.trap(),
+      ActKind.roulette => Move.roulette(_selTarget),
+      ActKind.dualShoot => Move.dualShoot(_selTarget, _selTarget2),
+      ActKind.voodoo => Move.voodoo(_selTarget),
+      ActKind.idle => const Move.idle(),
     };
     if (_smokeOn &&
         _chars[0] == CharId.smoker &&

@@ -38,6 +38,14 @@ class CD {
         return nova;
       case ActKind.trap:
         return Color(0xFF7A3E18);
+      case ActKind.roulette:
+        return Color(0xFF8E1E1E);
+      case ActKind.dualShoot:
+        return Color(0xFFB5642A);
+      case ActKind.voodoo:
+        return Color(0xFF5B3A8E);
+      case ActKind.idle:
+        return muted;
     }
   }
 }
@@ -55,6 +63,14 @@ IconData actionIcon(ActKind a) {
       return Icons.bolt;
     case ActKind.trap:
       return Icons.crisis_alert;
+    case ActKind.roulette:
+      return Icons.casino;
+    case ActKind.dualShoot:
+      return Icons.filter_2;
+    case ActKind.voodoo:
+      return Icons.auto_fix_high;
+    case ActKind.idle:
+      return Icons.bedtime;
   }
 }
 

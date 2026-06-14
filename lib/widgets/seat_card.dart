@@ -265,6 +265,18 @@ class SeatCard extends StatelessWidget {
       case ActKind.trap:
         c = const Color(0xFF7A3E18);
         break;
+      case ActKind.roulette:
+        c = const Color(0xFF8E1E1E);
+        break;
+      case ActKind.dualShoot:
+        c = fired ? const Color(0xFFB5642A) : CD.muted;
+        break;
+      case ActKind.voodoo:
+        c = const Color(0xFF5B3A8E);
+        break;
+      case ActKind.idle:
+        c = CD.muted;
+        break;
     }
     return Row(
       mainAxisSize: MainAxisSize.min,
