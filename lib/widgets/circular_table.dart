@@ -30,6 +30,10 @@ class TableSeat {
   final bool reflectedFx;
   final bool doubleLoadFx;
 
+  /// 부두 저주(C2): 남은 턴(0=없음)을 좌석에 상시 표시, 만료 사망은 별도 이펙트.
+  final int curseTurnsLeft;
+  final bool curseKillFx;
+
   /// 그림자: 탄약/행동을 가린다.
   final bool hideAmmo;
   final bool hideAction;
@@ -52,6 +56,8 @@ class TableSeat {
     this.evadedFx = false,
     this.reflectedFx = false,
     this.doubleLoadFx = false,
+    this.curseTurnsLeft = 0,
+    this.curseKillFx = false,
     this.hideAmmo = false,
     this.hideAction = false,
   });
@@ -145,6 +151,7 @@ class CircularTable extends StatelessWidget {
                   fired: seats[s].fired,
                   char: seats[s].char,
                   late: seats[s].late,
+                  curseTurnsLeft: seats[s].curseTurnsLeft,
                   abilityFx: reveal ? _fxLabel(seats[s]) : null,
                   scale: 0,
                   targetable: targetMode && !seats[s].isMe && seats[s].alive,
@@ -196,6 +203,7 @@ class CircularTable extends StatelessWidget {
 
   /// 이 턴 발동한 능력의 좌석 배지 라벨 (우선순위 1개만).
   static String? _fxLabel(TableSeat s) {
+    if (s.curseKillFx) return '저주 사망!';
     if (s.reflectedFx) return '덫 반사!';
     if (s.healedFx) return '자힐!';
     if (s.evadedFx) return '회피!';

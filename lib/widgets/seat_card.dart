@@ -39,6 +39,9 @@ class SeatCard extends StatelessWidget {
   /// 리빌 중 능력 발동 라벨 ('자힐!' 등). null이면 표시 안 함.
   final String? abilityFx;
 
+  /// 부두 저주(C2): 남은 턴(0=없음)을 좌석에 상시 표시 — 모두에게 보임.
+  final int curseTurnsLeft;
+
   const SeatCard({
     super.key,
     required this.name,
@@ -58,6 +61,7 @@ class SeatCard extends StatelessWidget {
     this.char = CharId.none,
     this.late = false,
     this.abilityFx,
+    this.curseTurnsLeft = 0,
   });
 
   @override
@@ -146,6 +150,34 @@ class SeatCard extends StatelessWidget {
                     ),
                     child: Icon(charDef(char).icon,
                         size: 11, color: Colors.white),
+                  ),
+                ),
+              // C2: 저주 남은 턴 — 모두에게 보이는 해골 카운트다운.
+              if (curseTurnsLeft > 0 && alive)
+                Positioned(
+                  right: -10,
+                  bottom: -6,
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 5, vertical: 2),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFF5B3A8E),
+                      borderRadius: BorderRadius.circular(9),
+                      border: Border.all(color: Colors.white, width: 1.2),
+                    ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        const Text('💀',
+                            style: TextStyle(fontSize: 9)),
+                        const SizedBox(width: 2),
+                        Text('$curseTurnsLeft',
+                            style: const TextStyle(
+                                color: Colors.white,
+                                fontSize: 10,
+                                fontWeight: FontWeight.w900)),
+                      ],
+                    ),
                   ),
                 ),
             ],

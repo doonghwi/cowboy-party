@@ -38,6 +38,8 @@ class SeatView {
   final bool reflectedFx; // 덫 반사로 사망
   final bool smokedFx; // 이 턴 연막 사용
   final bool doubleLoadFx; // 스피드로더 +2
+  final bool curseKillFx; // 저주 만료로 이 턴 사망
+  final int curseTurnsLeft; // 부두 저주 남은 턴(0=저주 없음) — 모두에게 표시(C2)
   final bool late; // 게임 중 난입 — 다음 판부터 참여(관전)
 
   // 그림자(shadow): 상대가 볼 때 가려짐.
@@ -64,6 +66,8 @@ class SeatView {
     this.reflectedFx = false,
     this.smokedFx = false,
     this.doubleLoadFx = false,
+    this.curseKillFx = false,
+    this.curseTurnsLeft = 0,
     this.late = false,
     this.hideAmmo = false,
     this.hideAction = false,
@@ -924,6 +928,8 @@ class OnlineService {
           reflectedFx: reflectedFx,
           smokedFx: smokedFx,
           doubleLoadFx: doubleLoadFx,
+          curseVictim: pstate.curseVictim,
+          curseFuse: pstate.curseFuse,
           myTrapAvailable: mySeat >= 0 &&
               mySeat < n &&
               chars[mySeat] == CharId.hunter &&
@@ -1091,6 +1097,9 @@ class OnlineService {
           reflectedFx: reflectedFx,
           smokedFx: smokedFx,
           doubleLoadFx: doubleLoadFx,
+          curseVictim: pstate.curseVictim,
+          curseFuse: pstate.curseFuse,
+          curseKillFx: out.curseKill,
           specialWin: specialWin,
         );
       }
@@ -1131,6 +1140,9 @@ class OnlineService {
     List<int> drawParticipants = const [],
     List<CharId> chars = const [],
     List<CharId> displayChars = const [],
+    int curseVictim = -1,
+    int curseFuse = 0,
+    List<bool> curseKillFx = const [],
     bool Function(int)? lateFn,
     List<bool> healedFx = const [],
     List<bool> evadedFx = const [],
@@ -1195,6 +1207,8 @@ class OnlineService {
           reflectedFx: fx(reflectedFx, s),
           smokedFx: fx(smokedFx, s),
           doubleLoadFx: fx(doubleLoadFx, s),
+          curseKillFx: fx(curseKillFx, s),
+          curseTurnsLeft: s == curseVictim ? curseFuse : 0,
           late: late(s),
           hideAmmo: isShadowHidden(s),
           hideAction: hideActFor(s),

@@ -267,6 +267,34 @@ void main() {
     });
   });
 
+  group('저주 표시 (C2)', () {
+    // voodoo=14. p0가 t0에 p1에게 저주 → t1 프론티어에서 남은 턴 표시.
+    Map<String, Object?> cursedRoom() => {
+          'host': 'h',
+          'capacity': 6,
+          'started': true,
+          'seatCount': 2,
+          'game': 1,
+          'chars': {'p0': 14, 'p1': 0},
+          'players': {
+            'p0': {'id': 'h', 'name': '부두', 'char': 14},
+            'p1': {'id': 'g', 'name': 'B', 'char': 0},
+          },
+          'turns': {
+            't0': {'p0': Move.voodoo(1).encode(), 'p1': reload()},
+          },
+        };
+
+    test('저주 대상 좌석에 남은 턴이 모두에게 보인다', () {
+      final mine = OnlineService.computeView(cursedRoom(), 'h');
+      expect(mine.seats[1].curseTurnsLeft, kCurseFuse);
+      final theirs = OnlineService.computeView(cursedRoom(), 'g');
+      expect(theirs.seats[1].curseTurnsLeft, kCurseFuse,
+          reason: '저주는 모두에게 표시');
+      expect(mine.seats[0].curseTurnsLeft, 0, reason: '시전자는 저주 아님');
+    });
+  });
+
   group('파파라치 온라인 엿보기 (computeView)', () {
     // p0=파파라치(12), p1·p2=일반. p0가 p1을 엿보기. p1·p2만 제출.
     Map<String, Object?> peekRoom() => {
