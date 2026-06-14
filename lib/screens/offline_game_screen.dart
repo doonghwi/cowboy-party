@@ -10,6 +10,7 @@ import '../meta/meta_service.dart';
 import '../theme.dart';
 import '../widgets/action_bar.dart';
 import '../widgets/circular_table.dart';
+import '../widgets/seat_profile.dart';
 import '../widgets/desert_background.dart';
 import '../widgets/emoji_bar.dart';
 import '../widgets/reaction_panel.dart';
@@ -684,6 +685,8 @@ class _OfflineGameScreenState extends State<OfflineGameScreen> {
                   selectedTarget: _selTarget,
                   selectedTarget2: _selTarget2,
                   onSeatTap: _onSeatTap,
+                  onSeatInfo: (s) => showSeatProfile(context,
+                      name: _names[s], char: _chars[s]),
                   center: _centerBanner(),
                   reactions: _reactions,
                 ),

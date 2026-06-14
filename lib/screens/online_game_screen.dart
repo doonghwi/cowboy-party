@@ -12,6 +12,7 @@ import '../online/online_service.dart';
 import '../theme.dart';
 import '../widgets/action_bar.dart';
 import '../widgets/circular_table.dart';
+import '../widgets/seat_profile.dart';
 import '../widgets/desert_background.dart';
 import '../widgets/emoji_bar.dart';
 import '../widgets/online_showdown.dart';
@@ -622,6 +623,13 @@ class _OnlineGameScreenState extends State<OnlineGameScreen> {
                       }
                     } else {
                       _onSeatTap(s);
+                    }
+                  },
+                  onSeatInfo: (s) {
+                    if (s < view.seats.length) {
+                      final sv = view.seats[s];
+                      showSeatProfile(context,
+                          name: sv.name, char: sv.char, score: sv.score);
                     }
                   },
                   center: _centerBanner(view.banner),

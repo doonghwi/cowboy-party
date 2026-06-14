@@ -79,6 +79,9 @@ class CircularTable extends StatelessWidget {
   final int selectedTarget2;
   final ValueChanged<int>? onSeatTap;
 
+  /// 타겟 모드가 아닐 때 좌석을 탭하면 프로필/능력 팝업(G3, 결정④).
+  final ValueChanged<int>? onSeatInfo;
+
   /// Show the tracer lines + revealed moves.
   final bool reveal;
 
@@ -94,6 +97,7 @@ class CircularTable extends StatelessWidget {
     this.selectedTarget = -1,
     this.selectedTarget2 = -1,
     this.onSeatTap,
+    this.onSeatInfo,
     this.reveal = false,
     this.reactions = const {},
   });
@@ -159,7 +163,9 @@ class CircularTable extends StatelessWidget {
                       (selectedTarget == s || selectedTarget2 == s),
                   onTap: targetMode && !seats[s].isMe && seats[s].alive
                       ? () => onSeatTap?.call(s)
-                      : null,
+                      : (!targetMode && seats[s].joined && onSeatInfo != null
+                          ? () => onSeatInfo!.call(s)
+                          : null),
                 ),
               ),
             // Per-action effects on the reveal: shield ring for defend, a gold
