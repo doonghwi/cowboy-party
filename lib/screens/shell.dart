@@ -13,7 +13,7 @@ import 'ranking_tab.dart';
 import 'rewards_tab.dart';
 
 /// 공식 디스코드 — 서버가 생기면 초대 링크만 넣으면 버튼이 살아난다.
-const String kDiscordUrl = '';
+const String kDiscordUrl = 'https://discord.com/invite/UhAV5zjKP';
 
 /// 광고 배너 자리 표시 여부 (실제 광고 SDK 전이라 점선 placeholder).
 const bool kShowAdPlaceholder = true;
