@@ -42,7 +42,9 @@ class SeasonService {
   static int winPts(int players) => 10 * (players.clamp(2, 6) - 1);
 
   /// 온라인 승리 시 호출 (베스트에포트).
+  /// G2: 랭킹은 **계정(구글 로그인)만** 등록 — 게스트/익명은 닉네임은 쓰되 미등록.
   void recordWin(int players) {
+    if (!AuthService.I.isGoogle) return;
     final uid = AuthService.I.cloudUid;
     final ref = _ref;
     if (uid == null || ref == null) return;

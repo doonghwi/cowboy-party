@@ -122,21 +122,39 @@ class _PlayTabState extends State<PlayTab> {
             ],
           ),
           const SizedBox(height: 10),
-          Center(
-            child: TextButton.icon(
-              onPressed: () => Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                      builder: (_) => const HowToPlayScreen())),
-              icon: const Icon(Icons.menu_book, size: 18, color: CD.gold),
-              label: const Text('게임 방법 · 캐릭터 능력 보기',
-                  style: TextStyle(
-                      color: CD.gold,
-                      fontWeight: FontWeight.w800,
-                      fontSize: 13)),
+          // H3: 게임 방법 진입을 눈에 잘 띄는 전체폭 배너로.
+          InkWell(
+            borderRadius: BorderRadius.circular(12),
+            onTap: () => Navigator.push(
+                context,
+                MaterialPageRoute(
+                    builder: (_) => const HowToPlayScreen())),
+            child: Container(
+              padding:
+                  const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+              decoration: BoxDecoration(
+                borderRadius: BorderRadius.circular(12),
+                color: CD.gold.withValues(alpha: 0.16),
+                border: Border.all(color: CD.gold.withValues(alpha: 0.7)),
+              ),
+              child: Row(
+                children: [
+                  const Icon(Icons.menu_book, size: 20, color: CD.gold),
+                  const SizedBox(width: 10),
+                  const Expanded(
+                    child: Text('처음이세요? 게임 방법 · 캐릭터 능력 보기',
+                        style: TextStyle(
+                            color: Colors.white,
+                            fontWeight: FontWeight.w800,
+                            fontSize: 13.5)),
+                  ),
+                  Icon(Icons.chevron_right,
+                      color: CD.sand.withValues(alpha: 0.9), size: 20),
+                ],
+              ),
             ),
           ),
-          const SizedBox(height: 6),
+          const SizedBox(height: 12),
           Row(
             children: [
               Text('공개 방', style: posterTitle(20, color: Colors.white)),
