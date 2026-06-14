@@ -22,6 +22,7 @@ export 'characters.dart'
         kCurseFuse,
         kMysteryPool,
         resolveMystery,
+        effectiveChar,
         seededRoll;
 
 /// The kind of an action a cowboy can take in a turn.

@@ -68,6 +68,35 @@ class CpuAi {
       return m;
     }
 
+    // 부두술사 봇: 활성 저주가 없고 라이벌이 있으면 가끔 저주를 건다.
+    if (myChar == CharId.voodoo &&
+        state != null &&
+        state.curseFuse == 0 &&
+        rivals.isNotEmpty &&
+        _r.nextDouble() < 0.35) {
+      return Move.voodoo(_pickTarget(threats.isNotEmpty ? threats : rivals, ammo));
+    }
+
+    // 쌍권총 봇: 총알 2발+ 라이벌 2명+ 이면 가끔 두 명을 동시에 노린다.
+    if (myChar == CharId.dualgun &&
+        myAmmo >= 2 &&
+        rivals.length >= 2 &&
+        _r.nextDouble() < 0.5) {
+      final pool = threats.length >= 2 ? threats : rivals;
+      final t1 = _pickTarget(pool, ammo);
+      final rest = [for (final r in rivals) if (r != t1) r];
+      return Move.dualShoot(t1, _pickTarget(rest, ammo));
+    }
+
+    // 러시안룰렛 봇: 총알이 없을 때 도박으로, 평소엔 가끔 운명의 방아쇠.
+    if (myChar == CharId.roulette && rivals.isNotEmpty) {
+      final p = myAmmo == 0 ? 0.45 : 0.18;
+      if (_r.nextDouble() < p) {
+        return Move.roulette(
+            _pickTarget(threats.isNotEmpty ? threats : rivals, ammo));
+      }
+    }
+
     // Full magazine → the reload slot is a 슈퍼빵야. Mostly use it (it pierces
     // defence), preferring the most armed rival; sometimes hold for a normal play.
     if (myAmmo >= kMaxAmmo && _r.nextDouble() < 0.8) {

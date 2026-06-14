@@ -180,6 +180,11 @@ CharId resolveMystery(String seed, int seat) {
   return pool[(r * pool.length).floor().clamp(0, pool.length - 1)];
 }
 
+/// 게임 판정에 쓸 **실제** 직업. ???(mystery)는 그 게임의 랜덤 직업으로 변환,
+/// 그 외엔 그대로. 규칙 엔진에 넘기기 전에 항상 이걸 통과시킨다.
+CharId effectiveChar(CharId c, String seed, int seat) =>
+    c == CharId.mystery ? resolveMystery(seed, seat) : c;
+
 CharDef charDef(CharId id) =>
     kCharacters.firstWhere((c) => c.id == id, orElse: () => kCharacters[0]);
 

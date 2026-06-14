@@ -113,13 +113,18 @@ class _OfflineGameScreenState extends State<OfflineGameScreen> {
   void _start() {
     _n = 1 + _botCount;
     setState(() {
-      _chars = [
+      final seed = 'OFF${_rand.nextInt(1 << 30)}';
+      _gameSeed = seed;
+      // 봇은 ???(mystery)·none을 제외한 실제 직업 중에서. 내 ???는 seed로 변환.
+      final raw = <CharId>[
         Meta.I.equipped,
         for (var i = 1; i < _n; i++)
-          kCharacters[_rand.nextInt(kCharacters.length)].id,
+          kMysteryPool[_rand.nextInt(kMysteryPool.length)],
+      ];
+      _chars = [
+        for (var s = 0; s < _n; s++) effectiveChar(raw[s], seed, s)
       ];
       _pstate = PartyState.initial(_chars);
-      _gameSeed = 'OFF${_rand.nextInt(1 << 30)}';
       _lastOut = null;
       _specialWin = null;
       _smokeOn = false;
@@ -139,6 +144,32 @@ class _OfflineGameScreenState extends State<OfflineGameScreen> {
       _winner = null;
       _selKind = null;
       _selTarget = -1;
+      _selTarget2 = -1;
+    });
+  }
+
+  static bool _isTargetAction(ActKind? k) =>
+      k == ActKind.shoot ||
+      k == ActKind.superShoot ||
+      k == ActKind.roulette ||
+      k == ActKind.voodoo ||
+      k == ActKind.dualShoot;
+
+  /// 좌석 탭. 더블 빵야는 두 명을 순서대로(다시 탭하면 재시작).
+  void _onSeatTap(int s) {
+    setState(() {
+      if (_selKind == ActKind.dualShoot) {
+        if (_selTarget < 0) {
+          _selTarget = s;
+        } else if (_selTarget2 < 0 && s != _selTarget) {
+          _selTarget2 = s;
+        } else {
+          _selTarget = s;
+          _selTarget2 = -1;
+        }
+      } else {
+        _selTarget = s;
+      }
     });
   }
 
@@ -215,6 +246,7 @@ class _OfflineGameScreenState extends State<OfflineGameScreen> {
       }
       _selKind = null;
       _selTarget = -1;
+      _selTarget2 = -1;
       _smokeOn = false;
     });
   }
@@ -224,6 +256,13 @@ class _OfflineGameScreenState extends State<OfflineGameScreen> {
       Sfx.play('super');
     } else if (out.reflectKill.any((x) => x)) {
       Sfx.play('trap');
+    } else if (out.curseKill.any((x) => x)) {
+      Sfx.play('hit');
+    } else if (out.rouletteFired.any((x) => x)) {
+      Sfx.play('shot');
+      Timer(const Duration(milliseconds: 130), () => Sfx.play('hit'));
+    } else if (out.voodooCast.any((x) => x)) {
+      Sfx.play('smoke');
     } else if (out.fired.any((x) => x)) {
       Sfx.play('shot');
       if (out.hit.any((x) => x)) {
@@ -260,6 +299,11 @@ class _OfflineGameScreenState extends State<OfflineGameScreen> {
         if (out.reflectKill[s]) _names[s]
     ];
     if (reflected.isNotEmpty) return '덫 발동! ${reflected.join(", ")} 반사 명중!';
+    final cursed = <String>[
+      for (var s = 0; s < out.curseKill.length; s++)
+        if (out.curseKill[s]) _names[s]
+    ];
+    if (cursed.isNotEmpty) return '저주 발동! ${cursed.join(", ")} 쓰러졌다!';
     final healed = <String>[
       for (var s = 0; s < out.healed.length; s++)
         if (out.healed[s]) _names[s]
@@ -271,7 +315,17 @@ class _OfflineGameScreenState extends State<OfflineGameScreen> {
     if (healed.isNotEmpty && downed.isEmpty) {
       return '${healed.join(", ")}, 의사의 자힐로 버텼다!';
     }
+    if (out.rouletteFired.any((x) => x) && downed.isNotEmpty) {
+      return '운명의 방아쇠! ${downed.join(", ")} 쓰러졌다!';
+    }
     if (downed.isNotEmpty) return '${downed.join(", ")} 명중!';
+    final voodooCasters = <String>[
+      for (var s = 0; s < out.voodooCast.length; s++)
+        if (out.voodooCast[s]) _names[s]
+    ];
+    if (voodooCasters.isNotEmpty) {
+      return '${voodooCasters.join(", ")}, 저주를 걸었다... ($kCurseFuse턴)';
+    }
     final evaded = <String>[
       for (var s = 0; s < out.evaded.length; s++)
         if (out.evaded[s]) _names[s]
@@ -511,8 +565,7 @@ class _OfflineGameScreenState extends State<OfflineGameScreen> {
           doubleLoadFx: fx(_lastOut?.doubleLoad, s),
         ),
     ];
-    final targetMode = _phase == _Phase.choosing &&
-        (_selKind == ActKind.shoot || _selKind == ActKind.superShoot);
+    final targetMode = _phase == _Phase.choosing && _isTargetAction(_selKind);
     return Column(
       children: [
         Expanded(
@@ -526,7 +579,8 @@ class _OfflineGameScreenState extends State<OfflineGameScreen> {
                   reveal: reveal,
                   targetMode: targetMode,
                   selectedTarget: _selTarget,
-                  onSeatTap: (s) => setState(() => _selTarget = s),
+                  selectedTarget2: _selTarget2,
+                  onSeatTap: _onSeatTap,
                   center: _centerBanner(),
                   reactions: _reactions,
                 ),
@@ -611,6 +665,8 @@ class _OfflineGameScreenState extends State<OfflineGameScreen> {
             selected: _selKind,
             selectedTarget: _selTarget,
             targetName: _selTarget >= 0 ? _names[_selTarget] : null,
+            selectedTarget2: _selTarget2,
+            targetName2: _selTarget2 >= 0 ? _names[_selTarget2] : null,
             myChar: _chars[0],
             trapAvailable: _chars[0] == CharId.hunter && !_pstate.trapUsed[0],
             smokeLeft: _pstate.smokeLeft[0],
@@ -619,11 +675,16 @@ class _OfflineGameScreenState extends State<OfflineGameScreen> {
             onSelect: (k) => setState(() {
               Sfx.click();
               _selKind = k;
-              if (k == ActKind.shoot || k == ActKind.superShoot) {
-                final opp = [for (var s = 1; s < _n; s++) if (_alive[s]) s];
-                _selTarget = opp.length == 1 ? opp.first : -1;
-              } else {
-                _selTarget = -1;
+              _selTarget = -1;
+              _selTarget2 = -1;
+              final opp = [for (var s = 1; s < _n; s++) if (_alive[s]) s];
+              if (_isTargetAction(k) &&
+                  k != ActKind.dualShoot &&
+                  opp.length == 1) {
+                _selTarget = opp.first;
+              } else if (k == ActKind.dualShoot && opp.length == 2) {
+                _selTarget = opp[0];
+                _selTarget2 = opp[1];
               }
             }),
             onConfirm: _confirm,

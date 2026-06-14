@@ -24,6 +24,10 @@ class ActionBar extends StatelessWidget {
   final bool smokeOn; // 이번 턴 연막 토글 상태
   final ValueChanged<bool>? onSmokeToggle;
 
+  /// 쌍권총 더블 빵야 두 번째 대상.
+  final int selectedTarget2;
+  final String? targetName2;
+
   const ActionBar({
     super.key,
     required this.myAmmo,
@@ -37,6 +41,8 @@ class ActionBar extends StatelessWidget {
     this.smokeLeft = 0,
     this.smokeOn = false,
     this.onSmokeToggle,
+    this.selectedTarget2 = -1,
+    this.targetName2,
   });
 
   bool get _pacifist => myChar == CharId.pacifist;
@@ -45,10 +51,43 @@ class ActionBar extends StatelessWidget {
   bool get _showTrap => myChar == CharId.hunter;
   bool get _showSmoke => myChar == CharId.smoker;
 
+  /// 캐릭터 전용 '상시' 액션(있으면 별도 줄에 표시). 파파라치 엿보기는 Stage 4.
+  ActKind? get _specialKind {
+    switch (myChar) {
+      case CharId.roulette:
+        return ActKind.roulette;
+      case CharId.dualgun:
+        return ActKind.dualShoot;
+      case CharId.voodoo:
+        return ActKind.voodoo;
+      default:
+        return null;
+    }
+  }
+
+  bool get _specialEnabled {
+    switch (_specialKind) {
+      case ActKind.dualShoot:
+        return myAmmo >= 2; // 2발 필요
+      case ActKind.roulette:
+      case ActKind.voodoo:
+        return true; // 상시
+      default:
+        return false;
+    }
+  }
+
   bool get _ready {
-    if (selected == null) return false;
-    if (selected == ActKind.shoot || selected == ActKind.superShoot) {
+    final s = selected;
+    if (s == null) return false;
+    if (s == ActKind.shoot ||
+        s == ActKind.superShoot ||
+        s == ActKind.roulette ||
+        s == ActKind.voodoo) {
       return selectedTarget >= 0;
+    }
+    if (s == ActKind.dualShoot) {
+      return selectedTarget >= 0 && selectedTarget2 >= 0;
     }
     return true;
   }
@@ -81,7 +120,11 @@ class ActionBar extends StatelessWidget {
             ? '운명의 방아쇠 — 상대를 탭! 50:50로 나/상대 중 한 명 사망'
             : '운명의 방아쇠 → ${targetName ?? ""} (상대 방어 시 내가 죽음)';
       case ActKind.dualShoot:
-        return '더블 빵야 — 쏠 두 명을 탭! (총알 2발 소비)';
+        if (selectedTarget < 0) return '더블 빵야 — 첫 번째 상대를 탭! (총알 2발)';
+        if (selectedTarget2 < 0) {
+          return '더블 빵야 — 두 번째 상대를 탭! (1: ${targetName ?? ""})';
+        }
+        return '더블 빵야 → ${targetName ?? ""}, ${targetName2 ?? ""}';
       case ActKind.voodoo:
         return selectedTarget < 0
             ? '저주 — 대상을 탭! $kCurseFuse턴 뒤 사망 (내가 죽으면 풀림)'
@@ -151,6 +194,23 @@ class ActionBar extends StatelessWidget {
             ],
           ],
         ),
+        if (_specialKind != null) ...[
+          const SizedBox(height: 10),
+          Row(children: [
+            _opt(
+              _specialKind!,
+              _specialKind!.ko,
+              switch (_specialKind!) {
+                ActKind.roulette => '운빵 50:50',
+                ActKind.dualShoot =>
+                  _specialEnabled ? '2발·두 명' : '총알 2발 필요',
+                ActKind.voodoo => '$kCurseFuse턴 뒤 사망',
+                _ => '',
+              },
+              _specialEnabled,
+            ),
+          ]),
+        ],
         const SizedBox(height: 8),
         Text(
           _hint,

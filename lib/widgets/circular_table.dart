@@ -62,6 +62,9 @@ class CircularTable extends StatelessWidget {
   /// When true, alive non-me seats become tappable targets.
   final bool targetMode;
   final int selectedTarget;
+
+  /// 더블 빵야 두 번째 대상(있으면 함께 하이라이트).
+  final int selectedTarget2;
   final ValueChanged<int>? onSeatTap;
 
   /// Show the tracer lines + revealed moves.
@@ -77,6 +80,7 @@ class CircularTable extends StatelessWidget {
     required this.center,
     this.targetMode = false,
     this.selectedTarget = -1,
+    this.selectedTarget2 = -1,
     this.onSeatTap,
     this.reveal = false,
     this.reactions = const {},
@@ -135,7 +139,8 @@ class CircularTable extends StatelessWidget {
                   abilityFx: reveal ? _fxLabel(seats[s]) : null,
                   scale: 0,
                   targetable: targetMode && !seats[s].isMe && seats[s].alive,
-                  targeted: targetMode && selectedTarget == s,
+                  targeted: targetMode &&
+                      (selectedTarget == s || selectedTarget2 == s),
                   onTap: targetMode && !seats[s].isMe && seats[s].alive
                       ? () => onSeatTap?.call(s)
                       : null,

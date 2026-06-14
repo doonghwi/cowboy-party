@@ -666,9 +666,12 @@ class OnlineService {
     final n =
         (_asInt(data['seatCount']) ?? joinedCount).clamp(kMinSeats, kMaxSeats);
 
-    final chars = <CharId>[for (var s = 0; s < n; s++) charAt(s)];
     final gameNo = _asInt(data['game']) ?? 0;
     final seed = '$seedKey#$gameNo';
+    // ???(mystery)는 이 게임의 랜덤 직업으로 변환(모든 클라이언트 동일).
+    final chars = <CharId>[
+      for (var s = 0; s < n; s++) effectiveChar(charAt(s), seed, s)
+    ];
     var pstate = PartyState.initial(chars);
 
     var ammo = <int>[for (var s = 0; s < n; s++) startAmmoFor(chars[s])];
@@ -1084,6 +1087,16 @@ class OnlineService {
         if (out.reflectKill[s]) nameOf(s)
     ];
     if (reflected.isNotEmpty) return '덫 발동! ${reflected.join(", ")} 반사 명중!';
+    final cursed = <String>[
+      for (var s = 0; s < out.curseKill.length; s++)
+        if (out.curseKill[s]) nameOf(s)
+    ];
+    if (cursed.isNotEmpty) return '저주 발동! ${cursed.join(", ")} 쓰러졌다!';
+    final voodooCasters = <String>[
+      for (var s = 0; s < out.voodooCast.length; s++)
+        if (out.voodooCast[s]) nameOf(s)
+    ];
+    final roulette = out.rouletteFired.any((x) => x);
     final healed = <String>[
       for (var s = 0; s < out.healed.length; s++)
         if (out.healed[s]) nameOf(s)
@@ -1095,7 +1108,13 @@ class OnlineService {
     if (healed.isNotEmpty && downed.isEmpty) {
       return '${healed.join(", ")}, 의사의 자힐로 버텼다!';
     }
+    if (roulette && downed.isNotEmpty) {
+      return '운명의 방아쇠! ${downed.join(", ")} 쓰러졌다!';
+    }
     if (downed.isNotEmpty) return '${downed.join(", ")} 명중!';
+    if (voodooCasters.isNotEmpty) {
+      return '${voodooCasters.join(", ")}, 저주를 걸었다... ($kCurseFuse턴)';
+    }
     final evaded = <String>[
       for (var s = 0; s < out.evaded.length; s++)
         if (out.evaded[s]) nameOf(s)

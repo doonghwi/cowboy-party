@@ -224,6 +224,9 @@ class _OnlineGameScreenState extends State<OnlineGameScreen> {
       }
     } else if (seats.any((s) => s.healedFx)) {
       Sfx.play('shield');
+    } else if (seats.any((s) => s.hitThisTurn)) {
+      // 총성 없는 죽음(저주·운명의 방아쇠 반사 등).
+      Sfx.play('hit');
     } else {
       Sfx.play('reload', volume: 0.7);
     }
@@ -475,8 +478,7 @@ class _OnlineGameScreenState extends State<OnlineGameScreen> {
     final choosing =
         view.phase == OnlinePhase.choosing && view.seated && !_revealing;
     if (choosing) _resetPendingFor(view.turn);
-    final targetMode = choosing &&
-        (_selKind == ActKind.shoot || _selKind == ActKind.superShoot);
+    final targetMode = choosing && _isTargetAction(_selKind);
     final canReact = view.seated && view.phase != OnlinePhase.over;
     return Column(
       children: [
@@ -493,7 +495,8 @@ class _OnlineGameScreenState extends State<OnlineGameScreen> {
                   reveal: reveal,
                   targetMode: targetMode,
                   selectedTarget: _selTarget,
-                  onSeatTap: (s) => setState(() => _selTarget = s),
+                  selectedTarget2: _selTarget2,
+                  onSeatTap: _onSeatTap,
                   center: _centerBanner(view.banner),
                   reactions: _reactions,
                 ),
@@ -523,11 +526,38 @@ class _OnlineGameScreenState extends State<OnlineGameScreen> {
     );
   }
 
+  /// 타겟을 골라야 하는 액션인가 (테이블 탭 활성화 조건).
+  static bool _isTargetAction(ActKind? k) =>
+      k == ActKind.shoot ||
+      k == ActKind.superShoot ||
+      k == ActKind.roulette ||
+      k == ActKind.voodoo ||
+      k == ActKind.dualShoot;
+
+  /// 좌석 탭 처리. 더블 빵야는 두 명을 순서대로 고른다(다시 탭하면 재시작).
+  void _onSeatTap(int s) {
+    setState(() {
+      if (_selKind == ActKind.dualShoot) {
+        if (_selTarget < 0) {
+          _selTarget = s;
+        } else if (_selTarget2 < 0 && s != _selTarget) {
+          _selTarget2 = s;
+        } else {
+          _selTarget = s; // 재시작
+          _selTarget2 = -1;
+        }
+      } else {
+        _selTarget = s;
+      }
+    });
+  }
+
   void _resetPendingFor(int turn) {
     if (_pendingTurn != turn) {
       _pendingTurn = turn;
       _selKind = null;
       _selTarget = -1;
+      _selTarget2 = -1;
       _smokeOn = false;
     }
   }
@@ -627,6 +657,10 @@ class _OnlineGameScreenState extends State<OnlineGameScreen> {
         targetName: _selTarget >= 0 && _selTarget < view.seats.length
             ? view.seats[_selTarget].name
             : null,
+        selectedTarget2: _selTarget2,
+        targetName2: _selTarget2 >= 0 && _selTarget2 < view.seats.length
+            ? view.seats[_selTarget2].name
+            : null,
         myChar: myChar,
         trapAvailable: view.myTrapAvailable,
         smokeLeft: view.mySmokeLeft,
@@ -635,14 +669,18 @@ class _OnlineGameScreenState extends State<OnlineGameScreen> {
         onSelect: (k) => setState(() {
           Sfx.click();
           _selKind = k;
-          if (k == ActKind.shoot || k == ActKind.superShoot) {
-            final opp = [
-              for (final s in view.seats)
-                if (s.alive && !s.isMe) s.seat
-            ];
-            _selTarget = opp.length == 1 ? opp.first : -1;
-          } else {
-            _selTarget = -1;
+          _selTarget = -1;
+          _selTarget2 = -1;
+          final opp = [
+            for (final s in view.seats)
+              if (s.alive && !s.isMe) s.seat
+          ];
+          // 외길이면 자동 지정.
+          if (_isTargetAction(k) && k != ActKind.dualShoot && opp.length == 1) {
+            _selTarget = opp.first;
+          } else if (k == ActKind.dualShoot && opp.length == 2) {
+            _selTarget = opp[0];
+            _selTarget2 = opp[1];
           }
         }),
         onConfirm: () {
