@@ -33,6 +33,7 @@
     "seasons": {
       ".read": true,
       "$sid": {
+        ".indexOn": "pts",
         "$uid": {
           ".write": "newData.exists() && auth != null && auth.uid == $uid",
           "name": { ".validate": "newData.isString() && newData.val().length <= 24" },
