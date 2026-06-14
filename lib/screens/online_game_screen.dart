@@ -320,6 +320,77 @@ class _OnlineGameScreenState extends State<OnlineGameScreen> {
     );
   }
 
+  // F1: 대기실에서 내 캐릭터 변경(보유한 캐릭터 중에서). 시작 전만.
+  void _changeCharInRoom(int mySeat) {
+    final owned = [for (final d in kCharacters) if (Meta.I.isUnlocked(d.id)) d];
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: CD.parchment,
+      shape: const RoundedRectangleBorder(
+          borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
+      builder: (ctx) => SafeArea(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Padding(
+              padding: const EdgeInsets.all(14),
+              child: Text('캐릭터 변경', style: posterTitle(20)),
+            ),
+            Flexible(
+              child: GridView.count(
+                shrinkWrap: true,
+                crossAxisCount: 4,
+                padding: const EdgeInsets.fromLTRB(12, 0, 12, 16),
+                mainAxisSpacing: 10,
+                crossAxisSpacing: 10,
+                children: [
+                  for (final d in owned)
+                    GestureDetector(
+                      onTap: () {
+                        Sfx.confirm();
+                        Meta.I.equip(d.id);
+                        widget.service
+                            .setRoomChar(widget.code, mySeat, d.id.index);
+                        Navigator.pop(ctx);
+                      },
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          CircleAvatar(
+                            radius: 22,
+                            backgroundColor: d.color,
+                            child: Icon(d.icon, color: Colors.white, size: 22),
+                          ),
+                          const SizedBox(height: 4),
+                          Text(d.name,
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: const TextStyle(
+                                  fontSize: 11, fontWeight: FontWeight.w700)),
+                        ],
+                      ),
+                    ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  // F4: 초대 링크 복사 — 카톡 등에 붙여넣어 공유. 링크로 들어오면 이 방에 입장.
+  void _shareInvite() {
+    final link = OnlineService.inviteLink(widget.code);
+    Clipboard.setData(ClipboardData(text: link));
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+        content: Text('초대 링크 복사됨 — 카톡 등에 붙여넣어 친구를 초대하세요'),
+        behavior: SnackBarBehavior.floating,
+      ),
+    );
+  }
+
   void _maybeReset(RoomView view, bool scored) {
     if (view.phase == OnlinePhase.over &&
         view.status == GameStatus.won &&
@@ -401,6 +472,36 @@ class _OnlineGameScreenState extends State<OnlineGameScreen> {
         const SizedBox(height: 6),
         const Text('친구에게 코드를 알려주세요 (탭하면 복사)',
             style: TextStyle(color: CD.muted)),
+        const SizedBox(height: 8),
+        Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            OutlinedButton.icon(
+              onPressed: _shareInvite,
+              style: OutlinedButton.styleFrom(
+                foregroundColor: CD.rust,
+                side: const BorderSide(color: CD.rust, width: 1.5),
+              ),
+              icon: const Icon(Icons.share, size: 18),
+              label: const Text('초대 링크 공유',
+                  style: TextStyle(fontWeight: FontWeight.w800)),
+            ),
+            const SizedBox(width: 8),
+            // F1: 시작 전 대기실에서 캐릭터 변경.
+            OutlinedButton.icon(
+              onPressed: view.mySeat < 0
+                  ? null
+                  : () => _changeCharInRoom(view.mySeat),
+              style: OutlinedButton.styleFrom(
+                foregroundColor: CD.sage,
+                side: const BorderSide(color: CD.sage, width: 1.5),
+              ),
+              icon: const Icon(Icons.face_retouching_natural, size: 18),
+              label: const Text('캐릭터 변경',
+                  style: TextStyle(fontWeight: FontWeight.w800)),
+            ),
+          ],
+        ),
         Expanded(
           child: Padding(
             padding: const EdgeInsets.all(10),

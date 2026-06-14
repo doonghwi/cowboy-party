@@ -197,7 +197,7 @@ class RoomView {
   bool get iWon => status == GameStatus.won && winnerSeat == mySeat;
 }
 
-enum JoinResult { joined, notFound, full, alreadyStarted }
+enum JoinResult { joined, notFound, full, alreadyStarted, wrongPassword }
 
 class OnlineService {
   OnlineService() : clientId = _genClientId() {
@@ -237,6 +237,24 @@ class OnlineService {
         .join();
   }
 
+  /// 배포된 웹 주소 (딥링크 기준). repo/URL은 유지(A1).
+  static const String webBaseUrl = 'https://doonghwi.github.io/cowboy-party/';
+
+  /// F4: 방 초대 링크. 이 링크로 들어오면 해당 방으로 입장(main.dart 딥링크 처리).
+  static String inviteLink(String code) => '$webBaseUrl?room=$code';
+
+  /// 현재 URL/딥링크에서 방 코드 추출(웹). 없으면 null.
+  static String? roomCodeFromUrl() {
+    try {
+      final c = Uri.base.queryParameters['room'];
+      if (c == null) return null;
+      final code = c.trim().toUpperCase();
+      return code.length == 4 ? code : null;
+    } catch (_) {
+      return null;
+    }
+  }
+
   static const _nickPool = [
     '방랑객', '총잡이', '무법자', '보안관', '건맨', '독수리',
     '선인장', '리볼버', '데드샷', '현상금', '협곡', '먼지'
@@ -254,12 +272,17 @@ class OnlineService {
   Stream<DatabaseEvent> watch(String code) => room(code).onValue;
 
   Future<void> createRoom(String code, String name, int capacity,
-      {int charIndex = 0, String title = '', bool public = true}) async {
+      {int charIndex = 0,
+      String title = '',
+      bool public = true,
+      String password = ''}) async {
     await room(code).set({
       'host': clientId,
       'capacity': capacity.clamp(kMinSeats, kMaxSeats),
       'started': false,
       'public': public,
+      // F3: 비공개 방은 비밀번호로 보호(공개 방은 비번 무시).
+      'pw': public ? '' : password.trim(),
       'title': title.trim().isEmpty ? '$name의 결투장' : title.trim(),
       'hostName': name,
       'game': 0,
@@ -319,11 +342,22 @@ class OnlineService {
   /// or long-silent (stale) seat can be taken. No hard onDisconnect removal —
   /// the heartbeat + grace decides presence, so a brief blip never kicks you.
   Future<JoinResult> joinRoom(String code, String name,
-      {int charIndex = 0}) async {
+      {int charIndex = 0, String password = ''}) async {
     final snap = await room(code).get();
     if (!snap.exists) return JoinResult.notFound;
     final data = _asMap(snap.value) ?? const {};
     final players = _asMap(data['players']) ?? const {};
+
+    // F3: 비공개 방 비밀번호 확인 (이미 좌석을 가진 재입장은 통과).
+    final isPublic = data['public'] == true;
+    final roomPw = (data['pw'] as String?) ?? '';
+    final alreadySeated = players.values.any((v) {
+      final m = _asMap(v);
+      return m != null && m['id'] == clientId;
+    });
+    if (!isPublic && roomPw.isNotEmpty && !alreadySeated) {
+      if (password.trim() != roomPw) return JoinResult.wrongPassword;
+    }
 
     // Already hold a seat? Reclaim it (refresh heartbeat; keep the original
     // character — mid-game swaps would corrupt the deterministic replay).
@@ -392,6 +426,14 @@ class OnlineService {
     try {
       await room(code).child('players/${slotKey(seat)}/seen').set(_now);
     } catch (_) {}
+  }
+
+  /// F1: 대기실에서 시작 전 내 캐릭터 변경. 시작된 방에서는 무시(결정성 보호).
+  Future<void> setRoomChar(String code, int seat, int charIndex) async {
+    final snap = await room(code).get();
+    final data = _asMap(snap.value) ?? const {};
+    if (data['started'] == true) return;
+    await room(code).child('players/${slotKey(seat)}/char').set(charIndex);
   }
 
   Future<void> startGame(String code) async {

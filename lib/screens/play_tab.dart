@@ -80,6 +80,10 @@ class _PlayTabState extends State<PlayTab> {
       case JoinResult.alreadyStarted:
         messenger.showSnackBar(
             const SnackBar(content: Text('이미 시작된 방이에요 — 다음 판부터 참여돼요')));
+      case JoinResult.wrongPassword:
+        // 공개 방 목록에선 비밀번호가 없지만, 만약을 위해 안내.
+        messenger.showSnackBar(
+            const SnackBar(content: Text('비공개 방이에요 — 코드로 입장해 주세요')));
     }
   }
 

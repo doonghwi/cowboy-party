@@ -6,9 +6,12 @@ import '../meta/announcements.dart';
 import '../meta/auth_service.dart';
 import '../meta/feedback_service.dart';
 import '../meta/meta_service.dart';
+import '../online/online_service.dart';
 import '../theme.dart';
 import '../widgets/desert_background.dart';
 import 'characters_tab.dart';
+import 'online_game_screen.dart';
+import 'online_lobby_screen.dart';
 import 'how_to_play_screen.dart';
 import 'play_tab.dart';
 import 'ranking_tab.dart';
@@ -38,6 +41,34 @@ class _ShellScreenState extends State<ShellScreen> {
     super.initState();
     Meta.I.addListener(_onMeta);
     AuthService.I.addListener(_onMeta);
+    // F4: 초대 링크(?room=CODE)로 들어오면 그 방으로 바로 입장.
+    final code = OnlineService.roomCodeFromUrl();
+    if (code != null) {
+      WidgetsBinding.instance.addPostFrameCallback((_) => _enterRoom(code));
+    }
+  }
+
+  Future<void> _enterRoom(String code) async {
+    final service = OnlineService();
+    final name = Meta.I.nickname.isNotEmpty
+        ? Meta.I.nickname
+        : OnlineService.randomNickname();
+    final res = await service.joinRoom(code, name,
+        charIndex: Meta.I.equippedIndex);
+    if (!mounted) return;
+    if (res == JoinResult.joined) {
+      Navigator.of(context).push(MaterialPageRoute(
+          builder: (_) => OnlineGameScreen(service: service, code: code)));
+    } else if (res == JoinResult.wrongPassword) {
+      // 비공개 방은 로비에서 코드+비번 입력으로 들어가도록 안내.
+      Navigator.of(context).push(MaterialPageRoute(
+          builder: (_) => const OnlineLobbyScreen(startOnJoinCard: true)));
+    } else {
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+        content: Text('초대받은 방에 들어갈 수 없어요 (사라졌거나 가득 참)'),
+        behavior: SnackBarBehavior.floating,
+      ));
+    }
   }
 
   @override

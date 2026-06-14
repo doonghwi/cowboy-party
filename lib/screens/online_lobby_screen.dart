@@ -23,7 +23,9 @@ class _OnlineLobbyScreenState extends State<OnlineLobbyScreen> {
   final _nameCtl = TextEditingController();
   final _codeCtl = TextEditingController();
   final _titleCtl = TextEditingController();
-  int _capacity = 4;
+  final _pwCtl = TextEditingController(); // 비공개 방 비밀번호(F3)
+  final _joinPwCtl = TextEditingController();
+  int _capacity = 6; // F2: 기본 6명
   bool _public = true;
   bool _busy = false;
   String? _error;
@@ -39,6 +41,8 @@ class _OnlineLobbyScreenState extends State<OnlineLobbyScreen> {
     _nameCtl.dispose();
     _codeCtl.dispose();
     _titleCtl.dispose();
+    _pwCtl.dispose();
+    _joinPwCtl.dispose();
     super.dispose();
   }
 
@@ -54,12 +58,20 @@ class _OnlineLobbyScreenState extends State<OnlineLobbyScreen> {
       _busy = true;
       _error = null;
     });
+    if (!_public && _pwCtl.text.trim().isEmpty) {
+      setState(() {
+        _busy = false;
+        _error = '비공개 방은 비밀번호를 정해주세요.';
+      });
+      return;
+    }
     try {
       final code = OnlineService.generateRoomCode();
       await _service.createRoom(code, _name, _capacity,
           charIndex: Meta.I.equippedIndex,
           title: _titleCtl.text,
-          public: _public);
+          public: _public,
+          password: _pwCtl.text);
       if (!mounted) return;
       _open(code);
     } catch (e) {
@@ -81,7 +93,7 @@ class _OnlineLobbyScreenState extends State<OnlineLobbyScreen> {
     });
     try {
       final res = await _service.joinRoom(code, _name,
-          charIndex: Meta.I.equippedIndex);
+          charIndex: Meta.I.equippedIndex, password: _joinPwCtl.text);
       if (!mounted) return;
       switch (res) {
         case JoinResult.joined:
@@ -92,6 +104,8 @@ class _OnlineLobbyScreenState extends State<OnlineLobbyScreen> {
           setState(() => _error = '방이 꽉 찼어요.');
         case JoinResult.alreadyStarted:
           setState(() => _error = '이미 시작된 방이에요.');
+        case JoinResult.wrongPassword:
+          setState(() => _error = '비밀번호가 달라요.');
       }
     } catch (e) {
       setState(() => _error = '입장에 실패했어요. 연결을 확인해 주세요.');
@@ -159,17 +173,25 @@ class _OnlineLobbyScreenState extends State<OnlineLobbyScreen> {
                         activeTrackColor: CD.sage,
                         value: _public,
                         onChanged: (v) => setState(() => _public = v),
-                        title: const Text('공개 방',
-                            style: TextStyle(
+                        title: Text(_public ? '공개 방' : '비공개 방',
+                            style: const TextStyle(
                                 fontWeight: FontWeight.w800, fontSize: 14)),
                         subtitle: Text(
                           _public
-                              ? '방 목록에 노출 — 아무나 들어올 수 있어요'
-                              : '비공개 — 코드를 아는 사람만 입장',
+                              ? '방 목록에 노출 — 누구나 들어올 수 있어요'
+                              : '목록에 안 보임 — 비밀번호를 아는 사람만 입장',
                           style:
                               const TextStyle(fontSize: 11.5, color: CD.muted),
                         ),
                       ),
+                      if (!_public) ...[
+                        const SizedBox(height: 6),
+                        TextField(
+                          controller: _pwCtl,
+                          maxLength: 12,
+                          decoration: _dec('방 비밀번호 (입장 시 필요)'),
+                        ),
+                      ],
                       const SizedBox(height: 6),
                       const Text('최대 인원',
                           style: TextStyle(
@@ -254,6 +276,12 @@ class _OnlineLobbyScreenState extends State<OnlineLobbyScreen> {
                 UpperCaseFormatter(),
               ],
               decoration: _dec('ABCD'),
+            ),
+            const SizedBox(height: 8),
+            TextField(
+              controller: _joinPwCtl,
+              maxLength: 12,
+              decoration: _dec('비공개 방이면 비밀번호'),
             ),
             const SizedBox(height: 6),
             FilledButton.icon(
