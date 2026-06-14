@@ -50,6 +50,7 @@ class _OnlineGameScreenState extends State<OnlineGameScreen> {
   int _selTarget = -1;
   int _selTarget2 = -1; // 쌍권총 더블 빵야 두 번째 대상
   bool _smokeOn = false; // 스모커 연막 토글 (턴마다 리셋)
+  bool _peekSelecting = false; // 파파라치 엿볼 대상 선택 중
 
   // 턴 제한시간(20초) — 만료 시 자동 idle 제출.
   Timer? _turnTicker;
@@ -289,6 +290,7 @@ class _OnlineGameScreenState extends State<OnlineGameScreen> {
                 _maybeReset(view, data['scored'] == true);
                 _maybeReward(view);
                 _manageTurnTimer(view);
+                _maybePeekUnblock(view);
                 if (view.phase == OnlinePhase.waiting) {
                   if (view.mySeat < 0) {
                     return _info('방에서 나왔어요.', back: true);
@@ -486,7 +488,8 @@ class _OnlineGameScreenState extends State<OnlineGameScreen> {
     final choosing =
         view.phase == OnlinePhase.choosing && view.seated && !_revealing;
     if (choosing) _resetPendingFor(view.turn);
-    final targetMode = choosing && _isTargetAction(_selKind);
+    final targetMode =
+        choosing && (_isTargetAction(_selKind) || _peekSelecting);
     final canReact = view.seated && view.phase != OnlinePhase.over;
     return Column(
       children: [
@@ -504,7 +507,20 @@ class _OnlineGameScreenState extends State<OnlineGameScreen> {
                   targetMode: targetMode,
                   selectedTarget: _selTarget,
                   selectedTarget2: _selTarget2,
-                  onSeatTap: _onSeatTap,
+                  onSeatTap: (s) {
+                    if (_peekSelecting) {
+                      if (s != view.mySeat &&
+                          s < view.seats.length &&
+                          view.seats[s].alive) {
+                        setState(() => _peekSelecting = false);
+                        Sfx.confirm();
+                        widget.service
+                            .startPeek(widget.code, view.turn, view.mySeat, s);
+                      }
+                    } else {
+                      _onSeatTap(s);
+                    }
+                  },
                   center: _centerBanner(view.banner),
                   reactions: _reactions,
                 ),
@@ -560,11 +576,31 @@ class _OnlineGameScreenState extends State<OnlineGameScreen> {
     });
   }
 
+  bool _peekUnblocking = false;
+
+  /// 엿보기가 10초+ 멈춰 있으면(엿보는 사람이 끊김 등) 호스트가 그 좌석을 가만히로
+  /// 제출해 전체를 언블록한다.
+  void _maybePeekUnblock(RoomView view) {
+    if (view.isHost &&
+        view.peekActive &&
+        view.peekStale &&
+        view.peekerSeat >= 0 &&
+        !_peekUnblocking) {
+      _peekUnblocking = true;
+      widget.service
+          .submitMove(widget.code, view.turn, view.peekerSeat, const Move.idle())
+          .whenComplete(() => _peekUnblocking = false);
+    }
+  }
+
   /// 내가 행동을 골라야 하는 동안만 20초 카운트다운. 만료되면 자동으로 가만히(idle).
   void _manageTurnTimer(RoomView view) {
+    // 엿보는 사람이 전원 제출을 기다리는 동안엔 타이머를 멈춘다(잘못된 자동 idle 방지).
+    final peekerWaiting = view.iAmPeeker && !view.peekActive;
     final myTurn = view.phase == OnlinePhase.choosing &&
         view.seated &&
         !view.iAmLate &&
+        !peekerWaiting &&
         (view.me?.alive ?? false);
     if (myTurn) {
       if (_timerTurn != view.turn) {
@@ -597,6 +633,7 @@ class _OnlineGameScreenState extends State<OnlineGameScreen> {
       _selTarget = -1;
       _selTarget2 = -1;
       _smokeOn = false;
+      _peekSelecting = false;
     }
   }
 
@@ -670,6 +707,29 @@ class _OnlineGameScreenState extends State<OnlineGameScreen> {
       );
     }
 
+    // 파파라치 엿보기 — 다른 사람은 대기.
+    if (view.peekActive && !view.iAmPeeker) {
+      return Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(children: [
+          const Icon(Icons.photo_camera, color: Color(0xFF4A6FA5), size: 26),
+          const SizedBox(height: 8),
+          Text('📸 ${view.peekerName} 님이 엿보는 중...',
+              style: const TextStyle(
+                  color: Color(0xFF4A6FA5), fontWeight: FontWeight.w800)),
+        ]),
+      );
+    }
+    // 엿보기 지목 후 전원 제출 대기(엿보는 사람).
+    if (view.iAmPeeker && !view.peekActive) {
+      return const Padding(
+        padding: EdgeInsets.all(16),
+        child: Text('📸 엿보기 — 다른 총잡이 제출을 기다리는 중...',
+            style: TextStyle(
+                color: Color(0xFF4A6FA5), fontWeight: FontWeight.w800)),
+      );
+    }
+
     if (view.phase == OnlinePhase.submitted) {
       return Padding(
         padding: const EdgeInsets.all(16),
@@ -686,11 +746,25 @@ class _OnlineGameScreenState extends State<OnlineGameScreen> {
 
     final myAmmo = view.me?.ammo ?? 0;
     final myChar = view.me?.char ?? CharId.none;
+    // 엿보는 사람의 재선택 단계 — 엿본 결과를 보여준다.
+    final peekResult = (view.iAmPeeker && view.peekActive)
+        ? '📸 ${view.peekTargetSeat >= 0 && view.peekTargetSeat < view.seats.length ? view.seats[view.peekTargetSeat].name : "상대"}의 행동: ${view.peekedMove?.kind.ko ?? "?"} — 내 행동을 고르세요'
+        : null;
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 16),
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
+          if (peekResult != null)
+            Padding(
+              padding: const EdgeInsets.only(bottom: 6),
+              child: Text(peekResult,
+                  textAlign: TextAlign.center,
+                  style: const TextStyle(
+                      color: Color(0xFF4A6FA5),
+                      fontWeight: FontWeight.w800,
+                      fontSize: 13)),
+            ),
           _turnCountdown(),
           ActionBar(
         myAmmo: myAmmo,
@@ -708,14 +782,15 @@ class _OnlineGameScreenState extends State<OnlineGameScreen> {
         smokeLeft: view.mySmokeLeft,
         smokeOn: _smokeOn,
         onSmokeToggle: (v) => setState(() => _smokeOn = v),
-        showPeek: myChar == CharId.paparazzi,
-        peekEnabled: false, // 온라인 엿보기 페이즈는 추후
-        onPeek: () => ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            behavior: SnackBarBehavior.floating,
-            content: Text('온라인 엿보기는 준비 중이에요 — 컴퓨터전에서 써보세요!'),
-          ),
-        ),
+        showPeek: myChar == CharId.paparazzi && !view.myPaparazziUsed,
+        peekEnabled: true,
+        onPeek: () => setState(() {
+          Sfx.click();
+          _peekSelecting = true;
+          _selKind = null;
+          _selTarget = -1;
+          _selTarget2 = -1;
+        }),
         onSelect: (k) => setState(() {
           Sfx.click();
           _selKind = k;

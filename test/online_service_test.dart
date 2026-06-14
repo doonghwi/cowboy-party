@@ -231,4 +231,52 @@ void main() {
       expect(v.banner, contains('장전과 방어'));
     });
   });
+
+  group('파파라치 온라인 엿보기 (computeView)', () {
+    // p0=파파라치(12), p1·p2=일반. p0가 p1을 엿보기. p1·p2만 제출.
+    Map<String, Object?> peekRoom() => {
+          'host': 'h',
+          'capacity': 6,
+          'started': true,
+          'seatCount': 3,
+          'game': 1,
+          'chars': {'p0': 12, 'p1': 0, 'p2': 0}, // 12 = paparazzi
+          'players': {
+            'p0': {'id': 'h', 'name': '파파', 'char': 12},
+            'p1': {'id': 'g1', 'name': 'B', 'char': 0},
+            'p2': {'id': 'g2', 'name': 'C', 'char': 0},
+          },
+          'turns': {
+            't0': {'p1': defend(), 'p2': reload()}, // p0 미제출
+          },
+          'peek': {
+            't0': {'by': 0, 'target': 1},
+          },
+          'peekUsed': {'p0': true},
+        };
+
+    test('엿보는 사람: peekActive·iAmPeeker·엿본 행동 노출', () {
+      final v = OnlineService.computeView(peekRoom(), 'h');
+      expect(v.peekActive, isTrue, reason: '다른 사람 전원 제출 → 엿보기 활성');
+      expect(v.iAmPeeker, isTrue);
+      expect(v.peekTargetSeat, 1);
+      expect(v.peekedMove, const Move.defend(), reason: 'p1의 방어가 보여야');
+      expect(v.myPaparazziUsed, isTrue);
+    });
+
+    test('다른 사람: 엿보기 활성이지만 본인은 엿보는 사람 아님', () {
+      final v = OnlineService.computeView(peekRoom(), 'g1');
+      expect(v.peekActive, isTrue);
+      expect(v.iAmPeeker, isFalse);
+      expect(v.peekerSeat, 0);
+    });
+
+    test('아직 다른 사람이 안 냈으면 엿보기 비활성(대기)', () {
+      final data = peekRoom();
+      (data['turns'] as Map)['t0'] = {'p1': defend()}; // p2 미제출
+      final v = OnlineService.computeView(data, 'h');
+      expect(v.peekActive, isFalse, reason: '전원 제출 전');
+      expect(v.iAmPeeker, isTrue, reason: '엿보기 지목은 유지');
+    });
+  });
 }

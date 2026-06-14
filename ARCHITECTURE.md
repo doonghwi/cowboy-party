@@ -116,13 +116,15 @@ dailyapp_stats/cowboy_party: 사용량(중앙 대시보드)
       ??? 변환(effectiveChar) + 결과 배너·사운드. analyze 0 / 54 테스트. (에뮬 검증은 Stage 5)
 - [x] **Stage 3**: 턴 20초 타이머(온/오프, 만료 시 idle+멘트) + 그림자(상대에게 탄약/장전·방어 숨김,
       빵야·피격시 방어는 드러남). kTurnSeconds/kIdleFlavors, SeatView.hideAmmo/hideAction.
-- [~] **Stage 4**: 파파라치 엿보기 — **오프라인 완성**(봇 행동 고정→대상 행동 미리보기→재선택).
-      **온라인은 "준비 중"**(전원 대기 페이즈는 멀티클라 검증 필요 — 다음 집중 작업).
+- [x] **Stage 4**: 파파라치 엿보기 — **오프라인·온라인 모두 완성**.
+      온라인: `startPeek`(peek/t<turn> + peekUsed) → 전원 제출되면 computeView가 peekActive로
+      `RoomView.iAmPeeker/peekedMove` 노출 → 재선택 제출. 다른 사람은 "엿보는 중" 대기.
+      호스트 언블록(_maybePeekUnblock, peekStale 10초+). computeView 엿보기 테스트 3건.
 - [x] **Stage 5**: ??? 해금 게이트(canBuyMystery, 전 캐릭터 보유 시) + 선물코드 + 에뮬 검증 + 배포.
 
-## 미완/후속
-- 파파라치 **온라인 엿보기 페이즈**(spec: 전원 제출 후 10초 대기, 엿보는 중 이펙트, 호스트 언블록 안전장치).
-- 그림자/파파라치 등 신규 캐릭터의 SeatView 발동 배지(현재 배너+사운드로만 표시되는 일부).
+## 후속(선택)
+- 그림자/파파라치 등 신규 캐릭터의 SeatView 발동 배지(현재 일부는 배너+사운드로만 표시).
+- 온라인 엿보기 2-클라이언트 실기기 검증(현재 computeView 단위테스트 + 오프라인 동작으로 검증됨).
 
 ## 7. 유지보수 원칙
 - 규칙 바꿀 일은 **party_logic.dart 한 곳**. 바꾸면 characters_test.dart에 케이스 추가.

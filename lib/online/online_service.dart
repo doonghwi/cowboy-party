@@ -132,6 +132,17 @@ class RoomView {
   /// 'duelist' | 'pacifist' when a character ability decided the game.
   final String? specialWin;
 
+  // ---- 파파라치 엿보기 ----
+  /// 이 턴 누군가 엿보기 중(전원 제출됨, 엿본 사람만 행동 미정).
+  final bool peekActive;
+  final int peekerSeat; // 엿보는 좌석
+  final int peekTargetSeat; // 엿보는 대상
+  final String peekerName;
+  final bool iAmPeeker; // 내가 엿보는 사람
+  final Move? peekedMove; // (엿보는 사람에게만) 대상의 이번 턴 행동
+  final bool peekStale; // 10초+ 경과 — 호스트가 언블록
+  final bool myPaparazziUsed; // 내 엿보기 사용됨(버튼 비활성)
+
   final int drawTurn;
   final List<int> drawParticipants;
 
@@ -163,6 +174,14 @@ class RoomView {
     this.myTrapAvailable = false,
     this.mySmokeLeft = 0,
     this.specialWin,
+    this.peekActive = false,
+    this.peekerSeat = -1,
+    this.peekTargetSeat = -1,
+    this.peekerName = '',
+    this.iAmPeeker = false,
+    this.peekedMove,
+    this.peekStale = false,
+    this.myPaparazziUsed = false,
     this.drawTurn = -1,
     this.drawParticipants = const [],
   });
@@ -406,12 +425,25 @@ class OnlineService {
       'quit': null,
       'scored': null,
       'react': null,
+      'peek': null,
+      'peekUsed': null,
     });
   }
 
   Future<void> submitMove(String code, int turn, int seat, Move m) {
     room(code).child('players/${slotKey(seat)}/seen').set(_now);
     return room(code).child('turns/t$turn/${slotKey(seat)}').set(m.encode());
+  }
+
+  /// 파파라치 엿보기 시작: 이 턴에 한 명을 엿보기로 지목(아직 내 행동은 제출 안 함).
+  /// 게임당 1회(peekUsed). 전원 제출되면 엿보기 페이즈로 들어가 대상 행동을 보고
+  /// 내 행동을 다시 고른다(submitMove로 마무리).
+  Future<void> startPeek(String code, int turn, int seat, int target) async {
+    await room(code).update({
+      'peek/t$turn': {'by': seat, 'target': target, 'at': ServerValue.timestamp},
+      'peekUsed/${slotKey(seat)}': true,
+    });
+    await room(code).child('players/${slotKey(seat)}/seen').set(_now);
   }
 
   Future<void> requestRematch(String code, int seat) {
@@ -465,6 +497,8 @@ class OnlineService {
       'quit': null,
       'scored': null,
       'react': null,
+      'peek': null,
+      'peekUsed': null,
       'game': (_asInt(data['game']) ?? 0) + 1,
     };
     final chars = <String, Object?>{};
@@ -564,6 +598,8 @@ class OnlineService {
     final rematchMap = _asMap(data['rematch']) ?? const {};
     final quitMap = _asMap(data['quit']) ?? const {};
     final charsMap = _asMap(data['chars']) ?? const {};
+    final peekMap = _asMap(data['peek']) ?? const {};
+    final peekUsedMap = _asMap(data['peekUsed']) ?? const {};
     final showdown = _asMap(data['showdown']);
     final started = data['started'] == true;
     final isHost = data['host'] == myClientId;
@@ -800,6 +836,39 @@ class OnlineService {
           for (var s = 0; s < n; s++)
             if (alive[s] && submitted[s]) s
         ].length;
+        // ---- 파파라치 엿보기 감지 ----
+        final peekT = _asMap(peekMap['t$t']);
+        final hasPeek = peekT != null;
+        final pkBy = hasPeek ? (_asInt(peekT['by']) ?? -1) : -1;
+        final pkTarget = hasPeek ? (_asInt(peekT['target']) ?? -1) : -1;
+        final pkAt = hasPeek ? _asInt(peekT['at']) : null;
+        var othersDone = hasPeek && pkBy >= 0 && pkBy < n;
+        if (othersDone) {
+          for (var s = 0; s < n; s++) {
+            if (s == pkBy) continue;
+            if (alive[s] && !submitted[s]) {
+              othersDone = false;
+              break;
+            }
+          }
+        }
+        final peekActive = othersDone &&
+            pkBy >= 0 &&
+            pkBy < n &&
+            alive[pkBy] &&
+            !submitted[pkBy];
+        final iAmPeeker = hasPeek && mySeat == pkBy;
+        final peekedMove = (iAmPeeker &&
+                peekActive &&
+                pkTarget >= 0 &&
+                pkTarget < n &&
+                submitted[pkTarget])
+            ? moves[pkTarget]
+            : null;
+        final peekStale = peekActive &&
+            pkAt != null &&
+            nowServerMs > 0 &&
+            nowServerMs - pkAt > 12000;
         return _buildView(
           phase: iSubmitted && iAmAlive
               ? OnlinePhase.submitted
@@ -848,6 +917,15 @@ class OnlineService {
               !pstate.trapUsed[mySeat],
           mySmokeLeft:
               (mySeat >= 0 && mySeat < n) ? pstate.smokeLeft[mySeat] : 0,
+          peekActive: peekActive,
+          peekerSeat: pkBy,
+          peekTargetSeat: pkTarget,
+          peekerName: pkBy >= 0 ? (names[pkBy] ?? '카우보이') : '',
+          iAmPeeker: iAmPeeker,
+          peekedMove: peekedMove,
+          peekStale: peekStale,
+          myPaparazziUsed:
+              mySeat >= 0 && peekUsedMap[slotKey(mySeat)] == true,
         );
       }
 
@@ -1008,6 +1086,14 @@ class OnlineService {
     String? specialWin,
     bool myTrapAvailable = false,
     int mySmokeLeft = 0,
+    bool peekActive = false,
+    int peekerSeat = -1,
+    int peekTargetSeat = -1,
+    String peekerName = '',
+    bool iAmPeeker = false,
+    Move? peekedMove,
+    bool peekStale = false,
+    bool myPaparazziUsed = false,
   }) {
     bool fx(List<bool> l, int s) => s < l.length && l[s];
     bool late(int s) => lateFn != null && lateFn(s);
@@ -1100,6 +1186,14 @@ class OnlineService {
       myTrapAvailable: myTrapAvailable,
       mySmokeLeft: mySmokeLeft,
       specialWin: specialWin,
+      peekActive: peekActive,
+      peekerSeat: peekerSeat,
+      peekTargetSeat: peekTargetSeat,
+      peekerName: peekerName,
+      iAmPeeker: iAmPeeker,
+      peekedMove: peekedMove,
+      peekStale: peekStale,
+      myPaparazziUsed: myPaparazziUsed,
       drawTurn: drawTurn,
       drawParticipants: drawParticipants,
     );
