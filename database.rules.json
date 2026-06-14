@@ -5,6 +5,7 @@
 
     "rooms": {
       ".read": true,
+      ".indexOn": "createdAt",
       "$code": {
         ".write": true,
         "title": { ".validate": "newData.isString() && newData.val().length <= 24" },
