@@ -4,7 +4,15 @@
 > 구조: **신뢰-클라이언트**(서버 권위 없음, 클라가 턴 히스토리를 리플레이). 지시서: `SECURITY_REVIEW_PREP.md`.
 > 위험도 H(높음)/M(보통)/L(낮음). 코드 수정 없이 점검·문서화 위주(규칙 변경은 운영 영향 커서 **배포 보류**, 권고만).
 
-## 요약 (TL;DR)
+## 처리 현황 (2026-06-15 규칙 배포·REST 검증 완료)
+- ✅ **H2 (랭킹 위조) 차단** — `pts` 증가량 캡(≤60/스텝) 배포. REST 검증: 1,000,000 거부 / 정상 +50 허용 / 50→100000 거부 / 타인 uid 거부.
+- ✅ **M1 (통계 남용) 차단** — `build`·`stats` 쓰기 잠금, `charstats`는 숫자·단조 검증. REST 검증: 비로그인 쓰기·문자열 주입 모두 거부.
+- 🟡 **H1 (방 그리핑) 부분 완화** — `rooms` 쓰기에 **로그인 요구** + `createdAt` 불변 배포. 비로그인 드라이브-바이는 차단(REST 검증). **잔여**: 익명 토큰은 무료라 결정적 공격자는 토큰 받아 타 방 삭제 가능 → 완전 차단은 좌석↔uid 바인딩 또는 Functions 필요(아래 S9).
+- 🟡 **M2 (방 비번 노출)** — 규칙만으로 불가(공개 read 구조). 미해결, 권고만.
+- 🟡 **M3 (제보 공개 토픽)** — 안내 문구 권고. 미해결.
+- ✅ **시크릿/권한/전송/개인정보**: 양호(원래부터). 키스토어·plist 커밋 이력 없음, INTERNET만, 전부 HTTPS, data_safety 일치.
+
+## 요약 (TL;DR — 최초 발견 기준)
 - **H1** `rooms/$code` 가 **인증 없이 누구나 전체 쓰기**(`.write:true`, `auth` 무관) → 방 삭제/위변조로 **그리핑(서비스 방해)**·점수 위조 가능. 가장 큰 실위험.
 - **H2** `seasons/$sid/$uid/pts` 증가량 **상한 없음**(단조증가만 검사) → 로그인 유저가 자기 점수를 **임의 거대값으로 위조** → 랭킹 신뢰성 0.
 - **M1** `build`·`stats`·`charstats` **공개·무검증 쓰기** → 통계(특히 사이트에 노출되는 캐릭터 승률) 조작·쓰레기 주입·DB 남용.
@@ -110,8 +118,16 @@
 
 ---
 
-## 즉시 조치한 것
-- 없음(코드/규칙 무변경). 규칙 변경은 **온라인 가용성에 직접 영향**(특히 `auth != null` 요구는 익명 공급자 ON 선행 필요)·콘솔 시뮬레이터 검증 필요 → 본 검토는 **권고 diff 제시**로 한정. 배포 시 `firebase deploy --only database` 후 시뮬레이터로 무단 쓰기 거부 확인.
+## 즉시 조치한 것 (배포·검증 완료)
+1. **익명 로그인 활성화 확인** — REST(`accounts:signUp`)로 idToken 발급 확인 → `auth != null` 요구가 온라인을 깨지 않음을 입증 후 진행.
+2. **`database.rules.json` 하드닝 배포**(`firebase deploy --only database`, cowboy-party-doonghwi):
+   - `rooms/$code` `.write: true → "auth != null"`, `createdAt` 불변, `score/$slot` 숫자·단조.
+   - `seasons/$sid/$uid/pts` 증가량 캡(첫 ≤60, 이후 +60 이내).
+   - `build`·`stats` `.write: false`(이 DB 미사용 노드), `charstats` 숫자·단조 검증 + `$other:false`.
+3. **클라이언트 보강**(`lib/online/online_service.dart`) — `createRoom`/`joinRoom` 쓰기 전 `AuthService.I.tryAnonymous()` await로 로그인 보장(로그인 요구 규칙과 레이스 차단).
+4. **검증**: `flutter analyze` 0 / `flutter test` 76 통과 / REST로 무단·과도 쓰기 거부 + 정상 쓰기 허용 확인.
+
+> 잔여(미배포): H1 완전차단(좌석↔uid 바인딩/Functions), M2 비번 서버검증, M3 제보 안내 — S9 참고.
 
 ## 사용자(운영자) 수동 확인 액션
 1. **GCP 콘솔 → API 키 앱 제한** 적용 확인(Android 패키지+SHA-1 / iOS 번들 / 웹 도메인). (S4)

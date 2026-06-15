@@ -4,6 +4,7 @@ import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_database/firebase_database.dart';
 
 import '../game/party_logic.dart';
+import '../meta/auth_service.dart';
 
 /// Phase of an online room from one player's point of view.
 enum OnlinePhase { waiting, choosing, submitted, over }
@@ -291,6 +292,8 @@ class OnlineService {
       bool public = true,
       String password = '',
       bool match = false}) async {
+    // 보안 규칙이 방 쓰기에 로그인을 요구함(익명 폴백) — 쓰기 전에 보장.
+    await AuthService.I.tryAnonymous();
     await room(code).set({
       'host': clientId,
       'capacity': capacity.clamp(kMinSeats, kMaxSeats),
@@ -415,6 +418,8 @@ class OnlineService {
   /// the heartbeat + grace decides presence, so a brief blip never kicks you.
   Future<JoinResult> joinRoom(String code, String name,
       {int charIndex = 0, String password = ''}) async {
+    // 보안 규칙이 좌석 점유(쓰기)에 로그인을 요구함(익명 폴백) — 쓰기 전에 보장.
+    await AuthService.I.tryAnonymous();
     final snap = await room(code).get();
     if (!snap.exists) return JoinResult.notFound;
     final data = _asMap(snap.value) ?? const {};

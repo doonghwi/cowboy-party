@@ -7,10 +7,16 @@
       ".read": true,
       ".indexOn": "createdAt",
       "$code": {
-        ".write": true,
+        ".write": "auth != null",
         "title": { ".validate": "newData.isString() && newData.val().length <= 24" },
         "hostName": { ".validate": "newData.isString() && newData.val().length <= 16" },
         "capacity": { ".validate": "newData.isNumber() && newData.val() >= 2 && newData.val() <= 6" },
+        "createdAt": { ".validate": "newData.isNumber() && (!data.exists() || data.val() == newData.val())" },
+        "score": {
+          "$slot": {
+            ".validate": "newData.isNumber() && newData.val() >= 0 && (!data.exists() || newData.val() >= data.val())"
+          }
+        },
         "players": {
           "$slot": {
             "name": { ".validate": "newData.isString() && newData.val().length <= 16" }
@@ -37,7 +43,7 @@
         "$uid": {
           ".write": "newData.exists() && auth != null && auth.uid == $uid",
           "name": { ".validate": "newData.isString() && newData.val().length <= 24" },
-          "pts": { ".validate": "newData.isNumber() && newData.val() >= 0 && (!data.exists() || newData.val() >= data.val())" },
+          "pts": { ".validate": "newData.isNumber() && newData.val() >= 0 && (!data.exists() ? newData.val() <= 60 : (newData.val() >= data.val() && newData.val() <= data.val() + 60))" },
           "$other": { ".validate": false }
         }
       }
@@ -53,8 +59,16 @@
       }
     },
 
-    "build": { ".read": true, ".write": true },
-    "stats": { ".read": true, ".write": true },
-    "charstats": { ".read": true, ".write": true }
+    "build": { ".read": true, ".write": false },
+    "stats": { ".read": true, ".write": false },
+    "charstats": {
+      ".read": true,
+      ".write": true,
+      "$idx": {
+        "games": { ".validate": "newData.isNumber() && newData.val() >= 0 && (!data.exists() || newData.val() >= data.val())" },
+        "wins": { ".validate": "newData.isNumber() && newData.val() >= 0 && (!data.exists() || newData.val() >= data.val())" },
+        "$other": { ".validate": false }
+      }
+    }
   }
 }
