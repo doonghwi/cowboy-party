@@ -77,13 +77,17 @@ class CpuAi {
       return m;
     }
 
-    // 부두술사 봇: 활성 저주가 없고 라이벌이 있으면 가끔 저주를 건다.
-    if (myChar == CharId.voodoo &&
-        state != null &&
-        state.curseFuse == 0 &&
-        rivals.isNotEmpty &&
-        _r.nextDouble() < 0.35) {
-      return Move.voodoo(_pickTarget(threats.isNotEmpty ? threats : rivals, ammo));
+    // 부두술사 봇: 아직 저주에 안 걸린 라이벌이 있으면 가끔 저주를 건다.
+    // (저주는 좌석별로 독립 — 이미 저주받은 상대엔 다시 안 건다.)
+    if (myChar == CharId.voodoo && state != null && rivals.isNotEmpty) {
+      bool uncursed(int s) =>
+          s >= state.curseFuse.length || state.curseFuse[s] <= 0;
+      final freshThreats = [for (final s in threats) if (uncursed(s)) s];
+      final freshRivals = [for (final s in rivals) if (uncursed(s)) s];
+      final pool = freshThreats.isNotEmpty ? freshThreats : freshRivals;
+      if (pool.isNotEmpty && _r.nextDouble() < 0.35) {
+        return Move.voodoo(_pickTarget(pool, ammo));
+      }
     }
 
     // 쌍권총 봇: 총알 2발+ 라이벌 2명+ 이면 가끔 두 명을 동시에 노린다.

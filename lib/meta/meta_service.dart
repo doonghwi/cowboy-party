@@ -196,18 +196,25 @@ class Meta extends ChangeNotifier {
   }
 
   /// 닉네임 설정/변경(G2). 첫 설정은 무료, 이후 변경은 변경권 소모.
+  /// 닉네임은 **전역 유일** — 이미 존재하면 거절(변경권도 소모 안 함).
   /// 반환: (ok, message).
-  ({bool ok, String message}) changeNickname(String raw) {
+  Future<({bool ok, String message})> changeNickname(String raw) async {
     final n = raw.trim();
     if (n.isEmpty) return (ok: false, message: '닉네임을 입력해 주세요');
     if (n == _nickname) return (ok: false, message: '같은 닉네임이에요');
     if (Profanity.I.isProfane(n)) {
       return (ok: false, message: '닉네임에 부적절한 표현이 있어요');
     }
+    // 유일성 확보 — 이미 쓰는 사람이 있으면 여기서 거절(자원 소모 전).
+    final claimed = await OnlineService().claimNickname(n, previous: _nickname);
+    if (!claimed) {
+      return (ok: false, message: '이미 존재하는 닉네임이에요');
+    }
     if (!_nicknameSet) {
       _nickname = n;
       _nicknameSet = true;
       _save();
+      SeasonService.I.updateName(n);
       notifyListeners();
       return (ok: true, message: '닉네임을 정했어요!');
     }

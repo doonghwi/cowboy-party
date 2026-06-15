@@ -490,7 +490,7 @@ void main() {
       ammo: ammo, alive: alive, chars: chars, state: state, turn: 0,
     );
     expect(out.voodooCast[0], isTrue);
-    expect(out.stateAfter!.curseFuse, kCurseFuse);
+    expect(out.stateAfter!.curseFuse[1], kCurseFuse);
     state = out.stateAfter!;
     ammo = out.ammoAfter;
     alive = out.aliveAfter;
@@ -521,7 +521,7 @@ void main() {
       state: state, turn: 0,
     );
     state = out.stateAfter!;
-    expect(state.curseFuse, kCurseFuse);
+    expect(state.curseFuse[1], kCurseFuse);
     // 2가 부두술사(0)를 사살 → 저주 해제.
     out = run(
       moves: [const Move.reload(), const Move.reload(), Move.shoot(0)],
@@ -529,7 +529,32 @@ void main() {
       state: state, turn: 1,
     );
     expect(out.hit[0], isTrue, reason: '부두술사 사망');
-    expect(out.stateAfter!.curseFuse, 0, reason: '저주 해제');
+    expect(out.stateAfter!.curseFuse[1], 0, reason: '저주 해제');
+  });
+
+  test('부두 저주: 부두술사 둘이 서로 다른 대상을 동시에 저주(좌석별 독립)', () {
+    final chars = [CharId.voodoo, CharId.voodoo, CharId.none, CharId.none];
+    final state = PartyState.initial(chars);
+    // 0이 2를, 1이 3을 동시에 저주.
+    final out = run(
+      moves: [Move.voodoo(2), Move.voodoo(3), const Move.reload(),
+        const Move.reload()],
+      ammo: [0, 0, 0, 0],
+      alive: [true, true, true, true],
+      chars: chars,
+      state: state,
+      turn: 0,
+    );
+    expect(out.voodooCast[0], isTrue);
+    expect(out.voodooCast[1], isTrue);
+    // 두 대상 모두 각각 저주가 걸린다(예전엔 하나만 잡혔음).
+    expect(out.stateAfter!.curseFuse[2], kCurseFuse);
+    expect(out.stateAfter!.curseFuse[3], kCurseFuse);
+    expect(out.stateAfter!.curseCaster[2], 0);
+    expect(out.stateAfter!.curseCaster[3], 1);
+    // 저주 안 받은 좌석은 0.
+    expect(out.stateAfter!.curseFuse[0], 0);
+    expect(out.stateAfter!.curseFuse[1], 0);
   });
 
   test('mystery: 시드로 결정적으로 한 직업이 되고 풀 안에 든다', () {

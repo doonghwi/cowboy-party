@@ -58,6 +58,7 @@ class _OfflineGameScreenState extends State<OfflineGameScreen> {
   late List<bool> _fired;
   late List<bool> _superFired;
   late List<int> _firedTarget;
+  late List<int> _firedTarget2; // 더블 빵야 두 번째 대상(-1 없음)
   late List<bool> _hit;
 
   // 캐릭터 (좌석 0 = 내 장착 캐릭터, 봇은 랜덤).
@@ -183,6 +184,7 @@ class _OfflineGameScreenState extends State<OfflineGameScreen> {
       _fired = List<bool>.filled(_n, false);
       _superFired = List<bool>.filled(_n, false);
       _firedTarget = List<int>.filled(_n, -1);
+      _firedTarget2 = List<int>.filled(_n, -1);
       _hit = List<bool>.filled(_n, false);
       _turn = 0;
       _phase = _Phase.choosing;
@@ -315,6 +317,7 @@ class _OfflineGameScreenState extends State<OfflineGameScreen> {
       _fired = out.fired;
       _superFired = out.superFired;
       _firedTarget = out.firedTarget;
+      _firedTarget2 = out.dualTarget2;
       _hit = out.hit;
       _ammo = out.ammoAfter;
       _alive = out.aliveAfter;
@@ -374,6 +377,7 @@ class _OfflineGameScreenState extends State<OfflineGameScreen> {
       _fired = List<bool>.filled(_n, false);
       _superFired = List<bool>.filled(_n, false);
       _firedTarget = List<int>.filled(_n, -1);
+      _firedTarget2 = List<int>.filled(_n, -1);
       _turn++;
       _phase = _Phase.choosing;
       _banner = '${_turn + 1}번째 턴 · 행동을 골라요';
@@ -672,6 +676,7 @@ class _OfflineGameScreenState extends State<OfflineGameScreen> {
           fired: _fired[s],
           superFired: _superFired[s],
           firedTarget: _firedTarget[s],
+          firedTarget2: _firedTarget2[s],
           char: _chars[s],
           healedFx: fx(_lastOut?.healed, s),
           evadedFx: fx(_lastOut?.evaded, s),
@@ -679,8 +684,12 @@ class _OfflineGameScreenState extends State<OfflineGameScreen> {
           doubleLoadFx: fx(_lastOut?.doubleLoad, s),
           piercedFx: fx(_lastOut?.pierced, s),
           resetFx: fx(_lastOut?.resetActive, s),
-          abilityUses: abilityUsesLabel(_chars[s], _pstate, s),
-          curseTurnsLeft: _pstate.curseVictim == s ? _pstate.curseFuse : 0,
+          // 파파라치 엿보기는 _peekUsed로 추적(pstate엔 안 남음) — 사용 시 0으로.
+          abilityUses: _chars[s] == CharId.paparazzi
+              ? (s == 0 && _peekUsed ? '0' : '1')
+              : abilityUsesLabel(_chars[s], _pstate, s),
+          curseTurnsLeft:
+              s < _pstate.curseFuse.length ? _pstate.curseFuse[s] : 0,
           curseKillFx: fx(_lastOut?.curseKill, s),
           hideAmmo: shadowHide(s),
           hideAction: hideAct(s),

@@ -86,8 +86,14 @@ class _PlayTabState extends State<PlayTab> {
         messenger.showSnackBar(
             const SnackBar(content: Text('비공개 방이에요 — 초대 링크로 입장해 주세요')));
       case JoinResult.kicked:
-        messenger.showSnackBar(
-            const SnackBar(content: Text('이 방에서 내보내진 적이 있어요')));
+        messenger.showSnackBar(SnackBar(
+          content: const Text('이 방에서 내보내진 적이 있어요'),
+          duration: const Duration(seconds: 6),
+          action: SnackBarAction(
+            label: '확인',
+            onPressed: messenger.hideCurrentSnackBar,
+          ),
+        ));
     }
   }
 

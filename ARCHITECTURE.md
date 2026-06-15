@@ -42,9 +42,9 @@
 | 평화주의자 pacifist | 빵야 불가, 장전 6회 시 즉시 승리 | none | 5000 |
 | 그림자 shadow | 장전·방어·**탄약수가 상대에게 안 보임**(빵야·피격 시 방어는 드러남) | none(표시) | 5500 |
 | 러시안룰렛 roulette | **운명의 방아쇠**(상시): 50:50로 나/상대 사망, 상대 방어 시 내가 죽음. **연막 회피 적용(C1)** | alwaysRow | 6000 |
-| 쌍권총 dualgun | **더블 빵야**(상시): 총알 2발로 두 명 동시 저격 | alwaysRow | 6500 |
+| 쌍권총 dualgun | **더블 빵야**(상시): 총알 2발로 두 명 동시 저격. **두 대상 모두에 화살표 표시**(circular_table `_TracerPainter`가 firedTarget+firedTarget2 그림) | alwaysRow | 6500 |
 | 파파라치 paparazzi | **엿보기**(게임당 1회): 1명 행동 미리보고 내 행동 결정 (온라인은 대기 페이즈) | turnSlot | 7000 |
-| 부두술사 voodoo | **저주**(게임당 1회): 대상을 10턴(kCurseFuse) 뒤 사망. 부두술사 죽으면 해제. 남은 턴 모두에게 표시(C2) | turnSlot | 7500 |
+| 부두술사 voodoo | **저주**: 대상을 10턴(kCurseFuse) 뒤 사망. 부두술사 죽으면 해제. 남은 턴 모두에게 표시(C2). **저주는 대상 좌석별로 독립**(`PartyState.curseFuse/curseCaster`가 List) — 부두술사 여럿이 각자, 동시에 여러 명을 저주 가능 | turnSlot | 7500 |
 | ??? mystery | 미공개 시작, **능력 발동 시 정체 공개(B8)**. 직업은 매 게임 랜덤(resolveMystery, 일반인 제외). 전 캐릭터 보유 시 구매 | 메타 | 10000 |
 
 ### 특수행동 배치 규칙 (D3, SpecialSlot)
@@ -82,6 +82,15 @@ action_bar.dart가 이 분류대로 렌더하고, party_logic이 판정한다.
 - **online/online_service.dart**: RTDB 입출력 + `computeView(data, myClientId, …)→RoomView`
   (히스토리를 리플레이해 좌석/상태/배너 도출). `SeatView`(좌석 1개 렌더 정보),
   `RoomView`(내 관점 전체), `PublicRoomInfo`(로비 목록).
+  - **빠른 시작 매칭 `quickMatch`**: ① 모이는 중인 매칭 방이 있으면 합류 →
+    ② 없으면 **30초 버킷 결정 코드**(`'M'+bucket.toRadixString(36)`)로 *수렴* —
+    같은 시간대에 누른 사람은 같은 코드를 계산하고, `_createMatchRoomIfAbsent`
+    트랜잭션이 *한 명만* 만들고 나머지는 joinRoom으로 합류. (예전엔 각자 임의 코드로
+    방을 만들어 동시 탭 시 서로 못 만나던 버그 — "1명만 보이고 매칭 실패".)
+  - **닉네임 유일성 `claimNickname`**: `nicknames/<정규화키>`=uid 트랜잭션으로 전역
+    선점. 다른 uid가 점유 중이면 false. 정규화는 소문자+금지문자 치환(`_nickKey`).
+    서버 식별자 없으면(오프라인) 통과(강제 불가). meta `changeNickname`이 **async**로
+    호출 — 중복이면 "이미 존재하는 닉네임이에요"로 거절(변경권 미소모).
 
 ### 화면 (screens/)
 - **shell.dart**: 하단 4탭(플레이/캐릭터/랭킹/보상) + 코인칩 + 설정시트(닉네임/사운드/디스코드).
@@ -115,6 +124,7 @@ rooms/<code>: { host, capacity, started, public, title, hostName, game(게임번
                 turns/{t0:{p0:code…}…}, score/{p0:n}, scored, rematch, quit, react, showdown }
 users/<uid>:   { name, coins, unlocked[], equipped, dailyLast, dailyStreak }   (.write: 본인만)
 seasons/<sid>/<uid>: { name, pts }   (.indexOn: pts)
+nicknames/<정규화키>: uid   (닉네임 전역 유일성. .write: 빈칸이거나 내 uid일 때만)
 dailyapp_stats/cowboy_party: 사용량(중앙 대시보드)
 ```
 - 보안 규칙: `database.rules.json`. **orderByChild 쓰는 경로엔 반드시 `.indexOn`**

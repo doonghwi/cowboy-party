@@ -27,6 +27,7 @@ class SeatView {
   final bool fired;
   final bool superFired;
   final int firedTarget;
+  final int firedTarget2; // 더블 빵야 두 번째 대상(-1 없음)
   final bool hitThisTurn;
 
   final bool submittedThisTurn;
@@ -64,6 +65,7 @@ class SeatView {
     required this.fired,
     required this.superFired,
     required this.firedTarget,
+    this.firedTarget2 = -1,
     required this.hitThisTurn,
     required this.submittedThisTurn,
     required this.score,
@@ -286,6 +288,47 @@ class OnlineService {
   DatabaseReference room(String code) => _root.child('rooms/$code');
   Stream<DatabaseEvent> watch(String code) => room(code).onValue;
 
+  /// RTDB 키로 쓸 수 있게 닉네임 정규화(소문자 + 금지문자 제거). 대소문자
+  /// 구분 없이 유일성을 본다("총잡이"와 "총잡이"는 같음).
+  static String _nickKey(String name) => name
+      .trim()
+      .toLowerCase()
+      .replaceAll(RegExp(r'[.#$\[\]/\s]'), '_');
+
+  /// 닉네임 **전역 유일성** 확보(C: 같은 닉네임 두 개 금지). 이미 다른 사람이
+  /// 쓰고 있으면 false → 호출 측이 거절 안내. 성공하면 예전 닉네임은 비운다.
+  /// 서버 식별자(로그인/익명)가 없으면 강제할 수 없어 true(로컬 통과).
+  Future<bool> claimNickname(String name, {String? previous}) async {
+    await AuthService.I.tryAnonymous();
+    final uid = AuthService.I.cloudUid;
+    if (uid == null) return true; // 서버 식별자 없음 — 강제 불가(오프라인 등)
+    final key = _nickKey(name);
+    if (key.isEmpty) return true;
+    final TransactionResult res;
+    try {
+      res = await _root.child('nicknames/$key').runTransaction((cur) {
+        if (cur == null || cur == uid) return Transaction.success(uid);
+        return Transaction.abort(); // 다른 사람이 선점
+      });
+    } catch (_) {
+      return true; // 네트워크/권한 문제 — 강제 못 하니 막지 않는다(베스트에포트)
+    }
+    if (!res.committed || res.snapshot.value != uid) return false;
+    // 내 예전 닉네임 키 해제(이름이 바뀐 경우).
+    if (previous != null && previous.trim().isNotEmpty) {
+      final pk = _nickKey(previous);
+      if (pk.isNotEmpty && pk != key) {
+        try {
+          await _root.child('nicknames/$pk').runTransaction((cur) {
+            if (cur == uid) return Transaction.success(null);
+            return Transaction.abort();
+          });
+        } catch (_) {}
+      }
+    }
+    return true;
+  }
+
   Future<void> createRoom(String code, String name, int capacity,
       {int charIndex = 0,
       String title = '',
@@ -320,8 +363,41 @@ class OnlineService {
   /// 빠른 시작(#2): 모이는 중인 매칭 방이 있으면 합류, 없으면 새로 판다.
   /// 반환: (code, host=내가 만들었는지). 매칭 방은 public:false+match:true라
   /// 공개 목록·코드로는 접근 불가 — 빠른 시작끼리만 모인다.
+  ///
+  /// **동시 탭 수렴(버그 수정)**: 예전엔 방이 없으면 각자 *임의* 코드로 방을 만들어
+  /// 여러 명이 거의 동시에 누르면(=실제 테스트 상황) 서로 다른 방을 만들어 영영 못
+  /// 만났다("1명만 보이고 매칭 실패"). 이제는 같은 시간대(30초 버킷)는 같은 코드로
+  /// 수렴하고, 트랜잭션으로 *한 명만* 그 방을 만들고 나머지는 합류한다.
   Future<({String code, bool host})> quickMatch(String name,
       {int charIndex = 0}) async {
+    await AuthService.I.tryAnonymous();
+    // 1) 이미 모이는 중인 매칭 방이 있으면 합류(시차 탭·버킷 경계 처리).
+    final existing = await _findOpenMatchRoom();
+    if (existing != null) {
+      final res = await joinRoom(existing, name, charIndex: charIndex);
+      if (res == JoinResult.joined) return (code: existing, host: false);
+    }
+    // 2) 동시 탭 대비: 같은 30초 버킷은 같은 코드로 수렴. 트랜잭션으로 한 명만
+    //    생성하고 나머지는 합류. 꽉 차거나 이미 시작됐으면 다음 후보 코드로.
+    final bucket = _now ~/ 30000;
+    for (var i = 0; i < 4; i++) {
+      final code = 'M${bucket.toRadixString(36)}${i == 0 ? '' : i}';
+      final created =
+          await _createMatchRoomIfAbsent(code, name, charIndex: charIndex);
+      if (created) return (code: code, host: true);
+      final res = await joinRoom(code, name, charIndex: charIndex);
+      if (res == JoinResult.joined) return (code: code, host: false);
+      // full/started/notFound면 다음 후보 코드로.
+    }
+    // 최후: 임의 코드 새 방(거의 도달 안 함).
+    final code = generateRoomCode();
+    await createRoom(code, name, kMaxSeats,
+        charIndex: charIndex, public: false, match: true, title: '매칭 방');
+    return (code: code, host: true);
+  }
+
+  /// 모이는 중인(미시작·신선·자리 남은) 매칭 방 코드 — 없으면 null.
+  Future<String?> _findOpenMatchRoom() async {
     final snap = await _root
         .child('rooms')
         .orderByChild('createdAt')
@@ -351,15 +427,34 @@ class OnlineService {
         best = code.toString();
       }
     });
-    if (best != null) {
-      final res = await joinRoom(best!, name, charIndex: charIndex);
-      if (res == JoinResult.joined) return (code: best!, host: false);
-    }
-    // 없으면 새 매칭 방 생성(내가 방장).
-    final code = generateRoomCode();
-    await createRoom(code, name, kMaxSeats,
-        charIndex: charIndex, public: false, match: true, title: '매칭 방');
-    return (code: code, host: true);
+    return best;
+  }
+
+  /// 매칭 방을 *없을 때만* 만든다(트랜잭션). 내가 만들었으면 true(좌석0 방장),
+  /// 이미 존재하면 false(호출 측이 joinRoom으로 합류). 동시 생성 경합을 막는다.
+  Future<bool> _createMatchRoomIfAbsent(String code, String name,
+      {int charIndex = 0}) async {
+    final res = await room(code).runTransaction((current) {
+      if (current != null) return Transaction.abort();
+      return Transaction.success({
+        'host': clientId,
+        'capacity': kMaxSeats,
+        'started': false,
+        'public': false,
+        'pw': '',
+        'match': true,
+        'title': '매칭 방',
+        'hostName': name,
+        'game': 0,
+        'players': {
+          'p0': {'id': clientId, 'name': name, 'seen': _now, 'char': charIndex},
+        },
+        'createdAt': ServerValue.timestamp,
+      });
+    });
+    if (!res.committed) return false;
+    final v = _asMap(res.snapshot.value);
+    return v != null && _asMap(v['players']?['p0'])?['id'] == clientId;
   }
 
   /// 매칭 취소/무산 — 아직 시작 안 된 매칭 방을 방장이 정리.
@@ -955,6 +1050,13 @@ class OnlineService {
     // B8: ???(mystery)는 능력을 실제로 쓰기 전까지 상대에게 정체를 숨긴다.
     final origChars = <CharId>[for (var s = 0; s < n; s++) charAt(s)];
     final revealed = List<bool>.filled(n, false);
+    // ???가 준비자로 변신하면 시작 탄약(1발)이 곧 정체 — 숨길 능동 능력이 없어
+    // 영영 공개가 안 되던 버그. 시작하자마자 준비자로 드러낸다.
+    for (var s = 0; s < n; s++) {
+      if (origChars[s] == CharId.mystery && chars[s] == CharId.prepper) {
+        revealed[s] = true;
+      }
+    }
     List<CharId> displayCharsNow() => [
           for (var s = 0; s < n; s++)
             (origChars[s] == CharId.mystery && !revealed[s] && s != mySeat)
@@ -969,7 +1071,11 @@ class OnlineService {
         for (var s = 0; s < n; s++)
           disp[s] == CharId.mystery
               ? null
-              : abilityUsesLabel(chars[s], pstate, s)
+              // 파파라치 엿보기는 별도 페이즈(peekUsed)라 pstate에 안 남는다 —
+              // 사용량 라벨은 peekUsed 맵으로 직접 본다(안 그러면 영영 '1'로 고정).
+              : chars[s] == CharId.paparazzi
+                  ? (peekUsedMap[slotKey(s)] == true ? '0' : '1')
+                  : abilityUsesLabel(chars[s], pstate, s)
       ];
     }
 
@@ -979,6 +1085,7 @@ class OnlineService {
     var fired = List<bool>.filled(n, false);
     var superFired = List<bool>.filled(n, false);
     var firedTarget = List<int>.filled(n, -1);
+    var dualTarget2 = List<int>.filled(n, -1);
     var hit = List<bool>.filled(n, false);
     var healedFx = List<bool>.filled(n, false);
     var evadedFx = List<bool>.filled(n, false);
@@ -1148,6 +1255,7 @@ class OnlineService {
           fired: fired,
           superFired: superFired,
           firedTarget: firedTarget,
+          firedTarget2: dualTarget2,
           hit: hit,
           submitted: submitted,
           scoreFor: scoreFor,
@@ -1177,7 +1285,6 @@ class OnlineService {
           piercedFx: piercedFx,
           resetFx: resetFx,
           abilityUses: abilityUsesNow(),
-          curseVictim: pstate.curseVictim,
           curseFuse: pstate.curseFuse,
           myTrapAvailable: mySeat >= 0 &&
               mySeat < n &&
@@ -1217,6 +1324,7 @@ class OnlineService {
       fired = out.fired;
       superFired = out.superFired;
       firedTarget = out.firedTarget;
+      dualTarget2 = out.dualTarget2;
       hit = out.hit;
       healedFx = out.healed;
       evadedFx = out.evaded;
@@ -1317,6 +1425,7 @@ class OnlineService {
           fired: fired,
           superFired: superFired,
           firedTarget: firedTarget,
+          firedTarget2: dualTarget2,
           hit: hit,
           submitted: List<bool>.filled(n, false),
           scoreFor: scoreFor,
@@ -1360,7 +1469,6 @@ class OnlineService {
           piercedFx: piercedFx,
           resetFx: resetFx,
           abilityUses: abilityUsesNow(),
-          curseVictim: pstate.curseVictim,
           curseFuse: pstate.curseFuse,
           curseKillFx: out.curseKill,
           specialWin: specialWin,
@@ -1386,6 +1494,7 @@ class OnlineService {
     required List<bool> fired,
     required List<bool> superFired,
     required List<int> firedTarget,
+    List<int> firedTarget2 = const [],
     required List<bool> hit,
     required List<bool> submitted,
     required int Function(int) scoreFor,
@@ -1404,8 +1513,7 @@ class OnlineService {
     List<int> drawParticipants = const [],
     List<CharId> chars = const [],
     List<CharId> displayChars = const [],
-    int curseVictim = -1,
-    int curseFuse = 0,
+    List<int> curseFuse = const [],
     List<bool> curseKillFx = const [],
     bool Function(int)? lateFn,
     List<bool> healedFx = const [],
@@ -1463,6 +1571,7 @@ class OnlineService {
           fired: fired[s],
           superFired: superFired[s],
           firedTarget: firedTarget[s],
+          firedTarget2: s < firedTarget2.length ? firedTarget2[s] : -1,
           hitThisTurn: hit[s],
           submittedThisTurn: submitted[s],
           score: scoreFor(s),
@@ -1478,7 +1587,7 @@ class OnlineService {
           resetFx: fx(resetFx, s),
           abilityUses: s < abilityUses.length ? abilityUses[s] : null,
           curseKillFx: fx(curseKillFx, s),
-          curseTurnsLeft: s == curseVictim ? curseFuse : 0,
+          curseTurnsLeft: s < curseFuse.length ? curseFuse[s] : 0,
           late: late(s),
           hideAmmo: isShadowHidden(s),
           hideAction: hideActFor(s),

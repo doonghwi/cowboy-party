@@ -75,10 +75,12 @@ class _CharactersTabState extends State<CharactersTab> {
               onPressed: () => Navigator.pop(ctx), child: const Text('취소')),
           FilledButton(
             style: FilledButton.styleFrom(backgroundColor: CD.rust),
-            onPressed: () {
-              final r = Meta.I.changeNickname(ctl.text);
-              Navigator.pop(ctx);
-              ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+            onPressed: () async {
+              final messenger = ScaffoldMessenger.of(context);
+              final nav = Navigator.of(ctx);
+              final r = await Meta.I.changeNickname(ctl.text);
+              nav.pop();
+              messenger.showSnackBar(SnackBar(
                 content: Text(r.message),
                 behavior: SnackBarBehavior.floating,
               ));

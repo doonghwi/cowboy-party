@@ -630,6 +630,7 @@ class _OnlineGameScreenState extends State<OnlineGameScreen> {
             fired: sv.fired,
             superFired: sv.superFired,
             firedTarget: sv.firedTarget,
+            firedTarget2: sv.firedTarget2,
             char: sv.char,
             late: sv.late,
             healedFx: sv.healedFx,

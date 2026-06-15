@@ -21,6 +21,7 @@ class TableSeat {
   final bool fired;
   final bool superFired;
   final int firedTarget;
+  final int firedTarget2; // 더블 빵야 두 번째 대상(-1 없음)
   final CharId char;
   final bool late; // 게임 중 난입 — 다음 판부터 참여
 
@@ -58,6 +59,7 @@ class TableSeat {
     this.fired = false,
     this.superFired = false,
     this.firedTarget = -1,
+    this.firedTarget2 = -1,
     this.char = CharId.none,
     this.late = false,
     this.healedFx = false,
@@ -439,25 +441,31 @@ class _TracerPainter extends CustomPainter {
     for (final superPass in [false, true]) {
       for (var s = 0; s < seats.length; s++) {
         if (!seats[s].fired || seats[s].superFired != superPass) continue;
-        final t = seats[s].firedTarget;
-        if (t < 0 || t >= positions.length) continue;
-        final a = positions[s];
-        final b = positions[t];
-        final dir = (b - a);
-        final len = dir.distance;
-        if (len < 1) continue;
-        final unit = dir / len;
-        final start = a + unit * 52;
-        final end = b - unit * 52;
-        if (superPass) {
-          _superBolt(canvas, start, end, unit);
-        } else {
-          final line = Paint()
-            ..color = CD.danger.withValues(alpha: 0.85)
-            ..strokeWidth = 3
-            ..strokeCap = StrokeCap.round;
-          canvas.drawLine(start, end, line);
-          _arrow(canvas, end, unit, line, 11);
+        // 더블 빵야는 두 대상 모두에 화살표를 그린다(슈퍼는 단일 대상).
+        final targets = <int>[
+          seats[s].firedTarget,
+          if (!superPass) seats[s].firedTarget2,
+        ];
+        for (final t in targets) {
+          if (t < 0 || t >= positions.length) continue;
+          final a = positions[s];
+          final b = positions[t];
+          final dir = (b - a);
+          final len = dir.distance;
+          if (len < 1) continue;
+          final unit = dir / len;
+          final start = a + unit * 52;
+          final end = b - unit * 52;
+          if (superPass) {
+            _superBolt(canvas, start, end, unit);
+          } else {
+            final line = Paint()
+              ..color = CD.danger.withValues(alpha: 0.85)
+              ..strokeWidth = 3
+              ..strokeCap = StrokeCap.round;
+            canvas.drawLine(start, end, line);
+            _arrow(canvas, end, unit, line, 11);
+          }
         }
       }
     }

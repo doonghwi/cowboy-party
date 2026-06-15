@@ -295,6 +295,62 @@ void main() {
     });
   });
 
+  group('파파라치 엿보기 사용량 (#11)', () {
+    // paparazzi=12. peekUsed/{p0:true}면 사용량 라벨이 0이어야 한다.
+    Map<String, Object?> papaRoom({required bool used}) => {
+          'host': 'h',
+          'capacity': 6,
+          'started': true,
+          'seatCount': 2,
+          'game': 1,
+          'chars': {'p0': 12, 'p1': 0},
+          'players': {
+            'p0': {'id': 'h', 'name': '파파', 'char': 12},
+            'p1': {'id': 'g', 'name': 'B', 'char': 0},
+          },
+          'turns': const {},
+          if (used) 'peekUsed': {'p0': true},
+        };
+
+    test('엿보기 전엔 1, 쓰면 0으로 줄어든다(모두에게)', () {
+      final before = OnlineService.computeView(papaRoom(used: false), 'g');
+      expect(before.seats[0].abilityUses, '1', reason: '아직 안 씀');
+      final after = OnlineService.computeView(papaRoom(used: true), 'g');
+      expect(after.seats[0].abilityUses, '0', reason: '엿보기 사용 후 0');
+    });
+  });
+
+  group('??? → 준비자 즉시 공개', () {
+    // mystery=13, prepper=4. seat0 ???가 준비자로 변신하는 game 번호를 찾는다.
+    int prepperGame() {
+      for (var g = 0; g < 500; g++) {
+        if (resolveMystery('#$g', 0) == CharId.prepper) return g;
+      }
+      return -1;
+    }
+
+    test('준비자로 변신한 ???는 상대에게도 시작부터 준비자로 보인다', () {
+      final g = prepperGame();
+      expect(g, isNot(-1), reason: '준비자로 변신하는 game을 찾아야 함');
+      final room = {
+        'host': 'h',
+        'capacity': 6,
+        'started': true,
+        'seatCount': 2,
+        'game': g,
+        'chars': {'p0': 13, 'p1': 0},
+        'players': {
+          'p0': {'id': 'h', 'name': 'A', 'char': 13},
+          'p1': {'id': 'g', 'name': 'B', 'char': 0},
+        },
+        'turns': const {},
+      };
+      final theirs = OnlineService.computeView(room, 'g'); // 상대 시야
+      expect(theirs.seats[0].char, CharId.prepper,
+          reason: '준비자는 시작하자마자 정체 공개');
+    });
+  });
+
   group('방장 방 시스템 (F2)', () {
     Map<String, Object?> lobby({
       Map<String, Object?> blocked = const {},

@@ -59,6 +59,14 @@
       }
     },
 
+    "nicknames": {
+      ".read": true,
+      "$name": {
+        ".write": "auth != null && (!data.exists() || data.val() == auth.uid)",
+        ".validate": "!newData.exists() || newData.val() == auth.uid"
+      }
+    },
+
     "build": { ".read": true, ".write": false },
     "stats": { ".read": true, ".write": false },
     "charstats": {
