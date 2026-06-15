@@ -82,8 +82,13 @@ action_bar.dart가 이 분류대로 렌더하고, party_logic이 판정한다.
 - **online/online_service.dart**: RTDB 입출력 + `computeView(data, myClientId, …)→RoomView`
   (히스토리를 리플레이해 좌석/상태/배너 도출). `SeatView`(좌석 1개 렌더 정보),
   `RoomView`(내 관점 전체), `PublicRoomInfo`(로비 목록).
-  - **빠른 시작 매칭 `quickMatch`**: ① 모이는 중인 매칭 방이 있으면 합류 →
-    ② 없으면 **30초 버킷 결정 코드**(`'M'+bucket.toRadixString(36)`)로 *수렴* —
+  - **빠른 시작 매칭 `quickMatch`**: ⓪ **`_ensureTimeSync()`**(서버시계 오프셋
+    적용 대기, 최대 5초) — **기기 시계가 어긋난 두 사람**(친구폰끼리)이 서로의
+    `seen`/`createdAt`을 "오래됨"으로 오판해 같은 방을 못 찾던 **실기기 매칭 실패의
+    근본 원인**. createRoom/joinRoom도 동일하게 await(seen이 서버시계 기준). →
+    ① 모이는 중인 매칭 방이 있으면 합류(staleness 창 30초로 넉넉) →
+    ② 직전 버킷 방 합류 시도(경계 갈림 보정) →
+    ③ **30초 버킷 결정 코드**(`'M'+bucket.toRadixString(36)`)로 *수렴* —
     같은 시간대에 누른 사람은 같은 코드를 계산하고, `_createMatchRoomIfAbsent`
     트랜잭션이 *한 명만* 만들고 나머지는 joinRoom으로 합류. (예전엔 각자 임의 코드로
     방을 만들어 동시 탭 시 서로 못 만나던 버그 — "1명만 보이고 매칭 실패".)

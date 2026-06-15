@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:math';
 
 import 'package:firebase_core/firebase_core.dart';
@@ -222,11 +223,25 @@ class OnlineService {
     serverOffsetRef().onValue.listen((e) {
       final v = e.snapshot.value;
       if (v is num) _offset = v.toInt();
+      if (!_clockSynced.isCompleted) _clockSynced.complete();
     });
   }
 
   final String clientId;
   int _offset = 0;
+  final Completer<void> _clockSynced = Completer<void>();
+
+  /// 서버 시계 오프셋이 적용될 때까지 대기(최대 5초). 이게 없으면 기기 시계가
+  /// 어긋난 두 사람(친구폰끼리)이 서로의 `seen`/`createdAt`을 "오래됨"으로 잘못
+  /// 판정해 같은 매칭 방을 못 찾고 각자 방을 만들어 영영 안 잡히는 버그가 난다.
+  Future<void> _ensureTimeSync() async {
+    if (_clockSynced.isCompleted) return;
+    try {
+      await _clockSynced.future.timeout(const Duration(seconds: 5));
+    } on TimeoutException {
+      // 연결 지연 — 로컬 시계로라도 진행(완전 차단보다 낫다).
+    }
+  }
 
   static const String databaseUrl =
       'https://cowboy-party-doonghwi-default-rtdb.asia-southeast1.firebasedatabase.app';
@@ -337,6 +352,7 @@ class OnlineService {
       bool match = false}) async {
     // 보안 규칙이 방 쓰기에 로그인을 요구함(익명 폴백) — 쓰기 전에 보장.
     await AuthService.I.tryAnonymous();
+    await _ensureTimeSync(); // seen/createdAt이 서버시계 기준이 되도록
     await room(code).set({
       'host': clientId,
       'capacity': capacity.clamp(kMinSeats, kMaxSeats),
@@ -371,6 +387,7 @@ class OnlineService {
   Future<({String code, bool host})> quickMatch(String name,
       {int charIndex = 0}) async {
     await AuthService.I.tryAnonymous();
+    await _ensureTimeSync(); // 기기 시계 어긋나도 매칭이 깨지지 않도록 서버시계 동기화
     // 1) 이미 모이는 중인 매칭 방이 있으면 합류(시차 탭·버킷 경계 처리).
     final existing = await _findOpenMatchRoom();
     if (existing != null) {
@@ -380,6 +397,11 @@ class OnlineService {
     // 2) 동시 탭 대비: 같은 30초 버킷은 같은 코드로 수렴. 트랜잭션으로 한 명만
     //    생성하고 나머지는 합류. 꽉 차거나 이미 시작됐으면 다음 후보 코드로.
     final bucket = _now ~/ 30000;
+    // 버킷 경계(예: 29.9초/30.1초)에 갈린 두 사람도 만나도록 직전 버킷 방을
+    // 먼저 합류 시도(생성은 안 함 — 이미 있을 때만).
+    final prevCode = 'M${(bucket - 1).toRadixString(36)}';
+    final prevRes = await joinRoom(prevCode, name, charIndex: charIndex);
+    if (prevRes == JoinResult.joined) return (code: prevCode, host: false);
     for (var i = 0; i < 4; i++) {
       final code = 'M${bucket.toRadixString(36)}${i == 0 ? '' : i}';
       final created =
@@ -405,7 +427,9 @@ class OnlineService {
         .get();
     final rooms = _asMap(snap.value) ?? const {};
     final now = _now;
-    final staleBefore = now - kPresenceGraceMs;
+    // 매칭 방은 짧게 살고(60초) 버려지면 cancelMatch로 지워진다 — staleness는
+    // 게임용 14초보다 넉넉히(잔여 시계 오차 쿠션). 합류 자체는 빈 좌석에만 된다.
+    final staleBefore = now - 30000;
     String? best;
     int bestCreated = 1 << 62;
     rooms.forEach((code, raw) {
@@ -515,6 +539,7 @@ class OnlineService {
       {int charIndex = 0, String password = ''}) async {
     // 보안 규칙이 좌석 점유(쓰기)에 로그인을 요구함(익명 폴백) — 쓰기 전에 보장.
     await AuthService.I.tryAnonymous();
+    await _ensureTimeSync(); // seen이 서버시계 기준이 되도록(매칭 staleness 정확도)
     final snap = await room(code).get();
     if (!snap.exists) return JoinResult.notFound;
     final data = _asMap(snap.value) ?? const {};
