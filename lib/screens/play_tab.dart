@@ -83,7 +83,7 @@ class _PlayTabState extends State<PlayTab> {
       case JoinResult.wrongPassword:
         // 공개 방 목록에선 비밀번호가 없지만, 만약을 위해 안내.
         messenger.showSnackBar(
-            const SnackBar(content: Text('비공개 방이에요 — 코드로 입장해 주세요')));
+            const SnackBar(content: Text('비공개 방이에요 — 초대 링크로 입장해 주세요')));
       case JoinResult.kicked:
         messenger.showSnackBar(
             const SnackBar(content: Text('이 방에서 내보내진 적이 있어요')));
@@ -175,16 +175,6 @@ class _PlayTabState extends State<PlayTab> {
                 visualDensity: VisualDensity.compact,
                 onPressed: _refresh,
                 icon: const Icon(Icons.refresh, color: Colors.white, size: 20),
-              ),
-              TextButton(
-                onPressed: () => Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                        builder: (_) => const OnlineLobbyScreen(
-                            startOnJoinCard: true))),
-                child: const Text('코드로 입장',
-                    style: TextStyle(
-                        color: CD.gold, fontWeight: FontWeight.w800)),
               ),
             ],
           ),

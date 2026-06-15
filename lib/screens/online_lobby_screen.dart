@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 
 import '../game/party_logic.dart';
 import '../meta/meta_service.dart';
@@ -9,10 +8,7 @@ import '../widgets/desert_background.dart';
 import 'online_game_screen.dart';
 
 class OnlineLobbyScreen extends StatefulWidget {
-  /// true면 "코드로 입장" 카드를 맨 위로 (플레이 탭의 코드 입장 버튼용).
-  final bool startOnJoinCard;
-
-  const OnlineLobbyScreen({super.key, this.startOnJoinCard = false});
+  const OnlineLobbyScreen({super.key});
 
   @override
   State<OnlineLobbyScreen> createState() => _OnlineLobbyScreenState();
@@ -20,20 +16,16 @@ class OnlineLobbyScreen extends StatefulWidget {
 
 class _OnlineLobbyScreenState extends State<OnlineLobbyScreen> {
   final _service = OnlineService();
-  final _codeCtl = TextEditingController();
   final _titleCtl = TextEditingController();
   final _pwCtl = TextEditingController(); // 비공개 방 비밀번호(F3)
-  final _joinPwCtl = TextEditingController();
   bool _public = true;
   bool _busy = false;
   String? _error;
 
   @override
   void dispose() {
-    _codeCtl.dispose();
     _titleCtl.dispose();
     _pwCtl.dispose();
-    _joinPwCtl.dispose();
     super.dispose();
   }
 
@@ -67,41 +59,6 @@ class _OnlineLobbyScreenState extends State<OnlineLobbyScreen> {
       _open(code);
     } catch (e) {
       setState(() => _error = '방을 만들지 못했어요. 연결을 확인해 주세요.');
-    } finally {
-      if (mounted) setState(() => _busy = false);
-    }
-  }
-
-  Future<void> _join() async {
-    final code = _codeCtl.text.trim().toUpperCase();
-    if (code.length != 4) {
-      setState(() => _error = '4자리 방 코드를 입력해요.');
-      return;
-    }
-    setState(() {
-      _busy = true;
-      _error = null;
-    });
-    try {
-      final res = await _service.joinRoom(code, _name,
-          charIndex: Meta.I.equippedIndex, password: _joinPwCtl.text);
-      if (!mounted) return;
-      switch (res) {
-        case JoinResult.joined:
-          _open(code);
-        case JoinResult.notFound:
-          setState(() => _error = '그런 방이 없어요.');
-        case JoinResult.full:
-          setState(() => _error = '방이 꽉 찼어요.');
-        case JoinResult.alreadyStarted:
-          setState(() => _error = '이미 시작된 방이에요.');
-        case JoinResult.wrongPassword:
-          setState(() => _error = '비밀번호가 달라요.');
-        case JoinResult.kicked:
-          setState(() => _error = '이 방에서 내보내진 적이 있어요.');
-      }
-    } catch (e) {
-      setState(() => _error = '입장에 실패했어요. 연결을 확인해 주세요.');
     } finally {
       if (mounted) setState(() => _busy = false);
     }
@@ -144,10 +101,6 @@ class _OnlineLobbyScreenState extends State<OnlineLobbyScreen> {
                   ),
                 ),
                 const SizedBox(height: 16),
-                if (widget.startOnJoinCard) ...[
-                  _joinCard(),
-                  const SizedBox(height: 16),
-                ],
                 _card(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -203,10 +156,6 @@ class _OnlineLobbyScreenState extends State<OnlineLobbyScreen> {
                     ],
                   ),
                 ),
-                if (!widget.startOnJoinCard) ...[
-                  const SizedBox(height: 16),
-                  _joinCard(),
-                ],
                 if (_error != null) ...[
                   const SizedBox(height: 16),
                   Text(_error!,
@@ -224,45 +173,6 @@ class _OnlineLobbyScreenState extends State<OnlineLobbyScreen> {
       ),
     );
   }
-
-  Widget _joinCard() => _card(
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            Text('방 코드로 입장', style: posterTitle(18)),
-            const SizedBox(height: 10),
-            TextField(
-              controller: _codeCtl,
-              textCapitalization: TextCapitalization.characters,
-              maxLength: 4,
-              textAlign: TextAlign.center,
-              style: westernLatin(28, color: CD.leather, spacing: 8),
-              inputFormatters: [
-                FilteringTextInputFormatter.allow(RegExp('[A-Za-z0-9]')),
-                UpperCaseFormatter(),
-              ],
-              decoration: _dec('ABCD'),
-            ),
-            const SizedBox(height: 8),
-            TextField(
-              controller: _joinPwCtl,
-              maxLength: 12,
-              decoration: _dec('비공개 방이면 비밀번호'),
-            ),
-            const SizedBox(height: 6),
-            FilledButton.icon(
-              onPressed: _busy ? null : _join,
-              style: FilledButton.styleFrom(
-                backgroundColor: CD.sage,
-                padding: const EdgeInsets.symmetric(vertical: 14),
-              ),
-              icon: const Icon(Icons.login),
-              label:
-                  Text('입장하기', style: posterTitle(17, color: Colors.white)),
-            ),
-          ],
-        ),
-      );
 
   InputDecoration _dec(String hint) => InputDecoration(
         hintText: hint,
@@ -288,13 +198,4 @@ class _OnlineLobbyScreenState extends State<OnlineLobbyScreen> {
         ),
         child: child,
       );
-}
-
-/// Forces room-code input to upper case as the user types.
-class UpperCaseFormatter extends TextInputFormatter {
-  @override
-  TextEditingValue formatEditUpdate(
-      TextEditingValue oldValue, TextEditingValue newValue) {
-    return newValue.copyWith(text: newValue.text.toUpperCase());
-  }
 }

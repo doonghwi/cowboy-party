@@ -11,7 +11,6 @@ import '../theme.dart';
 import '../widgets/desert_background.dart';
 import 'characters_tab.dart';
 import 'online_game_screen.dart';
-import 'online_lobby_screen.dart';
 import 'how_to_play_screen.dart';
 import 'play_tab.dart';
 import 'ranking_tab.dart';
@@ -109,27 +108,56 @@ class _ShellScreenState extends State<ShellScreen> {
     );
   }
 
-  Future<void> _enterRoom(String code) async {
+  Future<void> _enterRoom(String code, {String password = ''}) async {
     final service = OnlineService();
     final name = Meta.I.nickname.isNotEmpty
         ? Meta.I.nickname
         : OnlineService.randomNickname();
     final res = await service.joinRoom(code, name,
-        charIndex: Meta.I.equippedIndex);
+        charIndex: Meta.I.equippedIndex, password: password);
     if (!mounted) return;
     if (res == JoinResult.joined) {
       Navigator.of(context).push(MaterialPageRoute(
           builder: (_) => OnlineGameScreen(service: service, code: code)));
     } else if (res == JoinResult.wrongPassword) {
-      // 비공개 방은 로비에서 코드+비번 입력으로 들어가도록 안내.
-      Navigator.of(context).push(MaterialPageRoute(
-          builder: (_) => const OnlineLobbyScreen(startOnJoinCard: true)));
+      // 비공개 방(초대 링크) → 비밀번호 입력 후 재시도.
+      _promptRoomPassword(code);
     } else {
       ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
         content: Text('초대받은 방에 들어갈 수 없어요 (사라졌거나 가득 참)'),
         behavior: SnackBarBehavior.floating,
       ));
     }
+  }
+
+  void _promptRoomPassword(String code) {
+    final ctl = TextEditingController();
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: CD.parchment,
+        title: const Text('비공개 방'),
+        content: TextField(
+          controller: ctl,
+          maxLength: 12,
+          autofocus: true,
+          decoration: const InputDecoration(
+              hintText: '방 비밀번호', border: OutlineInputBorder()),
+        ),
+        actions: [
+          TextButton(
+              onPressed: () => Navigator.pop(ctx), child: const Text('취소')),
+          FilledButton(
+            style: FilledButton.styleFrom(backgroundColor: CD.rust),
+            onPressed: () {
+              Navigator.pop(ctx);
+              _enterRoom(code, password: ctl.text);
+            },
+            child: const Text('입장'),
+          ),
+        ],
+      ),
+    );
   }
 
   @override

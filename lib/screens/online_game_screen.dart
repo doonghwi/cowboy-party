@@ -262,12 +262,12 @@ class _OnlineGameScreenState extends State<OnlineGameScreen> {
             icon: const Icon(Icons.arrow_back),
             onPressed: _leaveAndPop,
           ),
-          title: Text('방 ${widget.code}', style: posterTitle(20)),
+          title: Text('대결방', style: posterTitle(20)),
           actions: [
             IconButton(
-              tooltip: '방 코드 복사',
-              icon: const Icon(Icons.copy, size: 20),
-              onPressed: _copyCode,
+              tooltip: '초대 링크 공유',
+              icon: const Icon(Icons.share, size: 20),
+              onPressed: _shareInvite,
             ),
           ],
         ),
@@ -304,7 +304,7 @@ class _OnlineGameScreenState extends State<OnlineGameScreen> {
                   return _waiting(view);
                 }
                 if (view.iAmOut) {
-                  return _info('연결이 끊겨 방에서 나가졌어요.\n다시 입장하려면 방 코드로 들어오세요.',
+                  return _info('연결이 끊겨 방에서 나가졌어요.\n초대 링크로 다시 들어올 수 있어요.',
                       back: true);
                 }
                 if (view.status == GameStatus.draw && view.drawTurn >= 0) {
@@ -316,13 +316,6 @@ class _OnlineGameScreenState extends State<OnlineGameScreen> {
           ),
         ),
       ),
-    );
-  }
-
-  void _copyCode() {
-    Clipboard.setData(ClipboardData(text: widget.code));
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text('방 코드 ${widget.code} 복사됨')),
     );
   }
 
@@ -431,7 +424,7 @@ class _OnlineGameScreenState extends State<OnlineGameScreen> {
   // F4: 네이티브 공유 시트(카톡 등). 실패 시 링크 복사로 폴백.
   Future<void> _shareInvite() async {
     final link = OnlineService.inviteLink(widget.code);
-    final text = '카우보이 한 판 하자! 방 코드 ${widget.code}\n$link';
+    final text = '카우보이 한 판 하자!\n$link';
     try {
       await Share.share(text, subject: '카우보이 초대');
     } catch (_) {
@@ -508,24 +501,10 @@ class _OnlineGameScreenState extends State<OnlineGameScreen> {
   Widget _waiting(RoomView view) {
     return Column(
       children: [
-        const SizedBox(height: 10),
-        Text('방 코드', style: posterTitle(18)),
-        const SizedBox(height: 6),
-        GestureDetector(
-          onTap: _copyCode,
-          child: Container(
-            padding: const EdgeInsets.symmetric(horizontal: 26, vertical: 12),
-            decoration: BoxDecoration(
-              color: CD.parchment,
-              borderRadius: BorderRadius.circular(16),
-              border: Border.all(color: CD.rust, width: 3),
-            ),
-            child: Text(widget.code,
-                style: westernLatin(40, color: CD.leather, spacing: 10)),
-          ),
-        ),
-        const SizedBox(height: 6),
-        const Text('친구에게 코드를 알려주세요 (탭하면 복사)',
+        const SizedBox(height: 12),
+        Text('친구 초대', style: posterTitle(18)),
+        const SizedBox(height: 4),
+        const Text('아래 버튼으로 초대 링크를 공유하세요',
             style: TextStyle(color: CD.muted)),
         const SizedBox(height: 8),
         Row(
