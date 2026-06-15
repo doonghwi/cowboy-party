@@ -111,7 +111,7 @@ class _CharactersTabState extends State<CharactersTab> {
         title: Text('닉네임 변경권', style: posterTitle(20)),
         content: const Text(
             '$kNicknameTicketCost코인으로 닉네임 변경권 1장을 살까요?\n'
-            '설정 탭에서 닉네임을 바꿀 때 1장이 사용돼요.',
+            '여기 상점에서 닉네임을 바꿀 때 1장이 사용돼요.',
             style: TextStyle(height: 1.5)),
         actions: [
           TextButton(
@@ -148,17 +148,8 @@ class _CharactersTabState extends State<CharactersTab> {
                 style: TextStyle(color: CD.sand, fontSize: 12)),
           ),
         ),
-        SliverToBoxAdapter(
-          child: Padding(
-            padding: const EdgeInsets.fromLTRB(16, 0, 16, 4),
-            child: _NicknameTicketCard(
-              onBuy: () => _buyNicknameTicket(context),
-              onChange: () => _changeNickname(context),
-            ),
-          ),
-        ),
         SliverPadding(
-          padding: const EdgeInsets.fromLTRB(16, 8, 16, 20),
+          padding: const EdgeInsets.fromLTRB(16, 8, 16, 12),
           sliver: SliverGrid(
             gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
               crossAxisCount: 2,
@@ -169,6 +160,16 @@ class _CharactersTabState extends State<CharactersTab> {
             delegate: SliverChildBuilderDelegate(
               (context, i) => _CharCard(def: kCharacters[i]),
               childCount: kCharacters.length,
+            ),
+          ),
+        ),
+        // 닉네임 변경권은 모든 캐릭터 아래(맨 밑)에 배치.
+        SliverToBoxAdapter(
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(16, 4, 16, 24),
+            child: _NicknameTicketCard(
+              onBuy: () => _buyNicknameTicket(context),
+              onChange: () => _changeNickname(context),
             ),
           ),
         ),
@@ -218,7 +219,7 @@ class _NicknameTicketCard extends StatelessWidget {
                   ],
                 ),
                 const SizedBox(height: 2),
-                const Text('설정 탭에서 닉네임을 바꿀 때 1장 사용 (첫 설정은 무료)',
+                const Text('상점에서 닉네임을 바꿀 때 1장 사용 (첫 설정은 무료)',
                     style: TextStyle(fontSize: 11.5, color: CD.muted)),
               ],
             ),

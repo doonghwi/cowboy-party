@@ -38,9 +38,12 @@ class Profanity {
     _loaded = true;
   }
 
-  /// 비교용 정규화: 공백·특수문자 제거 + 소문자.
-  String _normalize(String s) =>
-      s.toLowerCase().replaceAll(RegExp(r'[\s\W_]+'), '');
+  /// 비교용 정규화: 공백·구두점·기호만 제거 + 소문자. **글자(한글 포함)는 유지**.
+  /// (예전엔 `\W`로 지웠는데 Dart의 `\W`는 유니코드를 모르는지라 한글을 통째로
+  /// 지워버려, "씨발" → "" 가 되며 한국어 비속어가 전혀 안 걸리던 버그가 있었다.)
+  String _normalize(String s) => s
+      .toLowerCase()
+      .replaceAll(RegExp(r'[\s\p{P}\p{S}]+', unicode: true), '');
 
   /// 닉네임에 비속어가 포함돼 있으면 true.
   bool isProfane(String nickname) {

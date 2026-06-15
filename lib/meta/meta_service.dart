@@ -202,6 +202,7 @@ class Meta extends ChangeNotifier {
     final n = raw.trim();
     if (n.isEmpty) return (ok: false, message: '닉네임을 입력해 주세요');
     if (n == _nickname) return (ok: false, message: '같은 닉네임이에요');
+    await Profanity.I.init(); // 비속어 목록 로드 보장(이미 로드됐으면 즉시 반환)
     if (Profanity.I.isProfane(n)) {
       return (ok: false, message: '닉네임에 부적절한 표현이 있어요');
     }

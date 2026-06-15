@@ -77,11 +77,10 @@ class _OnlineLobbyScreenState extends State<OnlineLobbyScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(title: Text('온라인 대전', style: posterTitle(20))),
-      // 배경이 항상 화면 끝까지 차도록 풀스크린 레이어로 깐다(내용이 짧아도 안 끊김).
-      body: Stack(
-        children: [
-          const Positioned.fill(child: DesertBackground()),
-          SafeArea(
+      // 배경 위젯이 BoxConstraints.expand로 body를 가득 채운다 — Stack(loose)이
+      // 짧은 내용 높이에 맞춰져 아래가 단색으로 끊기던 문제를 없앤다.
+      body: DesertBackground(
+        child: SafeArea(
           child: SingleChildScrollView(
             padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 20),
             child: Column(
@@ -173,8 +172,7 @@ class _OnlineLobbyScreenState extends State<OnlineLobbyScreen> {
               ],
             ),
           ),
-          ),
-        ],
+        ),
       ),
     );
   }
