@@ -27,8 +27,9 @@ Steinberger의 `maintainer-orchestrator`를 이 프로젝트에 맞춘 버전. "
    설계가 바뀌면 `ARCHITECTURE.md` 갱신, 새 함정은 `_make-new-app/LESSONS.md`.
 6. **커밋·배포**: 작성자 `doonghwi <ehdgnlans@gmail.com>`, Co-Authored-By 금지.
    - 커밋 → `git push origin main`(pre-push 시크릿 스캔 통과)
-   - 웹: `flutter build web --release --base-href "/cowboy-party/" --pwa-strategy=none`
-     → `build/web`에서 orphan `git init` 후 `gh-pages`로 force push
+   - 웹: **`bash deploy_web.sh`** (빌드 + 자가소멸 SW 덮어쓰기 + gh-pages force push).
+     ⚠️ 수동 배포 시 반드시 `build/web/flutter_service_worker.js`를 자가소멸 SW로 덮어쓸 것
+     — 빈 SW를 두면 옛 PWA가 흰 화면이 된다.
    - APK: `JAVA_HOME=/opt/homebrew/opt/openjdk@17 flutter build apk --release`
      → `dist/cowboy-party.apk`
    - RTDB 규칙 바꿨으면 `firebase deploy --only database --project cowboy-party-doonghwi`
