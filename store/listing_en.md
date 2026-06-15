@@ -29,7 +29,7 @@ perfect moment. The last one standing wins!
 • Super-shot: when fully loaded, a finishing blow that pierces defense
 Everyone reveals at the same time — it all comes down to reading who shoots and who blocks.
 
-**■ 17 distinct characters**
+**■ 16 distinct characters**
 Sniper (pierces defense), Doctor (survive one fatal hit), Hunter (reflecting trap),
 Pacifist (win by reloading alone), Russian Roulette, Dual Gun, Voodoo (curse), Shadow (hides
 info)… each one plays completely differently.
