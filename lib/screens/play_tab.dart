@@ -127,7 +127,7 @@ class _PlayTabState extends State<PlayTab> {
                       children: [
                         Text('빠른 시작',
                             style: posterTitle(22, color: Colors.white)),
-                        const Text('아무나 만나 바로 대결 (최대 10초 매칭)',
+                        const Text('아무나 만나 바로 대결 (최대 20초 매칭)',
                             style: TextStyle(
                                 color: Colors.white, fontSize: 12)),
                       ],

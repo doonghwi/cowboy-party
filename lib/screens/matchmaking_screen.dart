@@ -9,7 +9,7 @@ import '../theme.dart';
 import '../widgets/desert_background.dart';
 import 'online_game_screen.dart';
 
-/// 빠른 시작 매칭(#2). 최대 10초 탐색.
+/// 빠른 시작 매칭(#2). 최대 20초 탐색.
 /// - 모이는 중인 매칭 방 있으면 합류, 없으면 새로 판다(방장).
 /// - 6명 차면 즉시 시작. 10초 시점에 2~5명이면 시작, 1명뿐이면 "상대 없음".
 /// - 매칭 방은 비공개+match라 다른 사람은 보거나 들어올 수 없다.
