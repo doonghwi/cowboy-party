@@ -40,6 +40,65 @@ class _CharactersTabState extends State<CharactersTab> {
     ));
   }
 
+  // G2: 닉네임 변경(변경권 1장 소모, 첫 설정은 무료). 상점에서 진행.
+  void _changeNickname(BuildContext context) {
+    final meta = Meta.I;
+    final free = meta.canChangeNicknameFree;
+    if (!free && meta.nicknameTickets <= 0) {
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+        content: Text('닉네임 변경권이 없어요 — 먼저 구매해 주세요'),
+        behavior: SnackBarBehavior.floating,
+      ));
+      return;
+    }
+    final ctl = TextEditingController(text: meta.nickname);
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: CD.parchment,
+        title: Text(free ? '닉네임 정하기' : '닉네임 변경', style: posterTitle(20)),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            TextField(
+              controller: ctl,
+              maxLength: 8,
+              autofocus: true,
+              decoration: const InputDecoration(
+                counterText: '',
+                hintText: '닉네임 (최대 8자)',
+                border: UnderlineInputBorder(),
+              ),
+            ),
+            Text(
+              free
+                  ? '첫 설정은 무료예요.'
+                  : '변경권 ${meta.nicknameTickets}장 보유 — 변경 시 1장 사용',
+              style: const TextStyle(fontSize: 12, color: CD.muted),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+              onPressed: () => Navigator.pop(ctx), child: const Text('취소')),
+          FilledButton(
+            style: FilledButton.styleFrom(backgroundColor: CD.rust),
+            onPressed: () {
+              final r = Meta.I.changeNickname(ctl.text);
+              Navigator.pop(ctx);
+              ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+                content: Text(r.message),
+                behavior: SnackBarBehavior.floating,
+              ));
+            },
+            child: Text(free ? '저장' : '변경권 사용',
+                style: const TextStyle(fontWeight: FontWeight.w900)),
+          ),
+        ],
+      ),
+    );
+  }
+
   void _buyNicknameTicket(BuildContext context) {
     final meta = Meta.I;
     if (meta.coins < kNicknameTicketCost) {
@@ -97,7 +156,10 @@ class _CharactersTabState extends State<CharactersTab> {
         SliverToBoxAdapter(
           child: Padding(
             padding: const EdgeInsets.fromLTRB(16, 0, 16, 4),
-            child: _NicknameTicketCard(onBuy: () => _buyNicknameTicket(context)),
+            child: _NicknameTicketCard(
+              onBuy: () => _buyNicknameTicket(context),
+              onChange: () => _changeNickname(context),
+            ),
           ),
         ),
         SliverPadding(
@@ -166,10 +228,11 @@ class _TutorialCard extends StatelessWidget {
   }
 }
 
-/// 닉네임 변경권 판매 카드(E1/G2).
+/// 닉네임 변경권 판매 + 변경 카드(E1/G2).
 class _NicknameTicketCard extends StatelessWidget {
   final VoidCallback onBuy;
-  const _NicknameTicketCard({required this.onBuy});
+  final VoidCallback onChange;
+  const _NicknameTicketCard({required this.onBuy, required this.onChange});
 
   @override
   Widget build(BuildContext context) {
@@ -211,14 +274,27 @@ class _NicknameTicketCard extends StatelessWidget {
             ),
           ),
           const SizedBox(width: 8),
-          FilledButton.icon(
-            style: FilledButton.styleFrom(
-                backgroundColor: CD.leather,
-                visualDensity: VisualDensity.compact),
-            onPressed: onBuy,
-            icon: const Icon(Icons.monetization_on, color: CD.gold, size: 16),
-            label: const Text('$kNicknameTicketCost',
-                style: TextStyle(fontWeight: FontWeight.w900)),
+          Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              FilledButton.icon(
+                style: FilledButton.styleFrom(
+                    backgroundColor: CD.leather,
+                    visualDensity: VisualDensity.compact),
+                onPressed: onBuy,
+                icon:
+                    const Icon(Icons.monetization_on, color: CD.gold, size: 16),
+                label: const Text('$kNicknameTicketCost',
+                    style: TextStyle(fontWeight: FontWeight.w900)),
+              ),
+              TextButton(
+                onPressed: onChange,
+                style: TextButton.styleFrom(
+                    visualDensity: VisualDensity.compact),
+                child: Text(Meta.I.canChangeNicknameFree ? '닉네임 정하기' : '바꾸기',
+                    style: const TextStyle(fontSize: 12)),
+              ),
+            ],
           ),
         ],
       ),

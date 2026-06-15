@@ -84,6 +84,9 @@ class _PlayTabState extends State<PlayTab> {
         // 공개 방 목록에선 비밀번호가 없지만, 만약을 위해 안내.
         messenger.showSnackBar(
             const SnackBar(content: Text('비공개 방이에요 — 코드로 입장해 주세요')));
+      case JoinResult.kicked:
+        messenger.showSnackBar(
+            const SnackBar(content: Text('이 방에서 내보내진 적이 있어요')));
     }
   }
 

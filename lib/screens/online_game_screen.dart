@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:firebase_database/firebase_database.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:share_plus/share_plus.dart';
 
 import '../audio/sfx.dart';
 import '../game/party_logic.dart';
@@ -292,6 +293,9 @@ class _OnlineGameScreenState extends State<OnlineGameScreen> {
                 _maybeReward(view);
                 _manageTurnTimer(view);
                 _maybePeekUnblock(view);
+                if (view.iWasKicked) {
+                  return _info('방장이 당신을 내보냈어요.', back: true);
+                }
                 if (view.phase == OnlinePhase.waiting) {
                   if (view.mySeat < 0) {
                     return _info('방에서 나왔어요.', back: true);
@@ -319,6 +323,49 @@ class _OnlineGameScreenState extends State<OnlineGameScreen> {
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(content: Text('방 코드 ${widget.code} 복사됨')),
     );
+  }
+
+  // F2: 방장 좌석 관리 — 빈 자리 열기/닫기, 들어온 사람 추방. (크레이지아케이드식)
+  void _hostSeatAction(RoomView view, int s) {
+    if (s == view.mySeat) return; // 방장 자신
+    if (s >= view.seats.length) return;
+    final sv = view.seats[s];
+    if (sv.joined) {
+      // 추방 확인.
+      showDialog(
+        context: context,
+        builder: (ctx) => AlertDialog(
+          backgroundColor: CD.parchment,
+          title: const Text('내보내기'),
+          content: Text('${sv.name} 님을 방에서 내보낼까요? 다시 들어올 수 없어요.'),
+          actions: [
+            TextButton(
+                onPressed: () => Navigator.pop(ctx), child: const Text('취소')),
+            FilledButton(
+              style: FilledButton.styleFrom(backgroundColor: CD.danger),
+              onPressed: () {
+                Navigator.pop(ctx);
+                widget.service.kickSeat(widget.code, s);
+              },
+              child: const Text('내보내기',
+                  style: TextStyle(fontWeight: FontWeight.w900)),
+            ),
+          ],
+        ),
+      );
+      return;
+    }
+    // 빈 자리: 닫기/열기 토글. 열린 자리가 2개 미만이 되지 않게.
+    final openCount = view.seats.where((x) => !x.blocked).length;
+    if (!sv.blocked && openCount <= 2) {
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+        content: Text('최소 2자리는 열려 있어야 해요'),
+        behavior: SnackBarBehavior.floating,
+      ));
+      return;
+    }
+    Sfx.click();
+    widget.service.setSeatBlocked(widget.code, s, !sv.blocked);
   }
 
   // F1: 대기실에서 내 캐릭터 변경(보유한 캐릭터 중에서). 시작 전만.
@@ -380,16 +427,22 @@ class _OnlineGameScreenState extends State<OnlineGameScreen> {
     );
   }
 
-  // F4: 초대 링크 복사 — 카톡 등에 붙여넣어 공유. 링크로 들어오면 이 방에 입장.
-  void _shareInvite() {
+  // F4: 네이티브 공유 시트(카톡 등). 실패 시 링크 복사로 폴백.
+  Future<void> _shareInvite() async {
     final link = OnlineService.inviteLink(widget.code);
-    Clipboard.setData(ClipboardData(text: link));
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text('초대 링크 복사됨 — 카톡 등에 붙여넣어 친구를 초대하세요'),
-        behavior: SnackBarBehavior.floating,
-      ),
-    );
+    final text = '카우보이 한 판 하자! 방 코드 ${widget.code}\n$link';
+    try {
+      await Share.share(text, subject: '카우보이 초대');
+    } catch (_) {
+      Clipboard.setData(ClipboardData(text: link));
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('초대 링크 복사됨 — 카톡 등에 붙여넣어 초대하세요'),
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
+    }
   }
 
   void _maybeReset(RoomView view, bool scored) {
@@ -503,12 +556,21 @@ class _OnlineGameScreenState extends State<OnlineGameScreen> {
             ),
           ],
         ),
+        if (view.isHost)
+          const Padding(
+            padding: EdgeInsets.only(top: 6),
+            child: Text('방장: 빈 자리를 탭해 닫기/열기, 들어온 사람을 탭해 내보내기',
+                textAlign: TextAlign.center,
+                style: TextStyle(color: CD.muted, fontSize: 11.5)),
+          ),
         Expanded(
           child: Padding(
             padding: const EdgeInsets.all(10),
             child: CircularTable(
               seats: _seatsOf(view, false),
               mySeat: view.mySeat < 0 ? 0 : view.mySeat,
+              onSeatInfo:
+                  view.isHost ? (s) => _hostSeatAction(view, s) : null,
               center: Container(
                 padding:
                     const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
@@ -582,6 +644,7 @@ class _OnlineGameScreenState extends State<OnlineGameScreen> {
             doubleLoadFx: sv.doubleLoadFx,
             piercedFx: sv.piercedFx,
             resetFx: sv.resetFx,
+            blocked: sv.blocked,
             curseTurnsLeft: sv.curseTurnsLeft,
             curseKillFx: sv.curseKillFx,
             hideAmmo: sv.hideAmmo,

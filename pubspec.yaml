@@ -21,6 +21,7 @@ dependencies:
   url_launcher: ^6.3.2
   audioplayers: ^6.7.1
   http: ^1.2.0
+  share_plus: ^10.1.0
 
 dev_dependencies:
   flutter_test:

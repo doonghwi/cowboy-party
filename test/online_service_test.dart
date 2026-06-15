@@ -295,6 +295,44 @@ void main() {
     });
   });
 
+  group('방장 방 시스템 (F2)', () {
+    Map<String, Object?> lobby({
+      Map<String, Object?>? blocked,
+      Map<String, Object?>? kicked,
+    }) =>
+        {
+          'host': 'h',
+          'capacity': 6,
+          'started': false,
+          'public': true,
+          'players': {
+            'p0': {'id': 'h', 'name': '방장'},
+            'p1': {'id': 'g', 'name': 'B'},
+          },
+          if (blocked != null) 'blocked': blocked,
+          if (kicked != null) 'kicked': kicked,
+        };
+
+    test('방장이 닫은 빈 자리는 blocked로 표시', () {
+      final v = OnlineService.computeView(lobby(blocked: {'p3': true}), 'h');
+      expect(v.seats[3].blocked, isTrue);
+      expect(v.seats[2].blocked, isFalse);
+    });
+
+    test('사람이 있는 자리는 blocked로 안 뜬다', () {
+      final v = OnlineService.computeView(lobby(blocked: {'p1': true}), 'h');
+      expect(v.seats[1].blocked, isFalse, reason: '점유 중이면 닫힘 표시 안 함');
+      expect(v.seats[1].joined, isTrue);
+    });
+
+    test('추방된 사람은 iWasKicked', () {
+      final v = OnlineService.computeView(lobby(kicked: {'g': true}), 'g');
+      expect(v.iWasKicked, isTrue);
+      final host = OnlineService.computeView(lobby(kicked: {'g': true}), 'h');
+      expect(host.iWasKicked, isFalse);
+    });
+  });
+
   group('파파라치 온라인 엿보기 (computeView)', () {
     // p0=파파라치(12), p1·p2=일반. p0가 p1을 엿보기. p1·p2만 제출.
     Map<String, Object?> peekRoom() => {

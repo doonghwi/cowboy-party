@@ -40,6 +40,9 @@ class TableSeat {
   final bool hideAmmo;
   final bool hideAction;
 
+  /// 방장이 닫은 자리(F2) — 대기실에서 자물쇠 표시.
+  final bool blocked;
+
   const TableSeat({
     required this.name,
     required this.ammo,
@@ -64,6 +67,7 @@ class TableSeat {
     this.curseKillFx = false,
     this.hideAmmo = false,
     this.hideAction = false,
+    this.blocked = false,
   });
 }
 
@@ -159,6 +163,7 @@ class CircularTable extends StatelessWidget {
                   fired: seats[s].fired,
                   char: seats[s].char,
                   late: seats[s].late,
+                  blocked: seats[s].blocked,
                   curseTurnsLeft: seats[s].curseTurnsLeft,
                   abilityFx: reveal ? _fxLabel(seats[s]) : null,
                   scale: 0,

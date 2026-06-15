@@ -42,6 +42,9 @@ class SeatCard extends StatelessWidget {
   /// 부두 저주(C2): 남은 턴(0=없음)을 좌석에 상시 표시 — 모두에게 보임.
   final int curseTurnsLeft;
 
+  /// 방장이 닫은 자리(F2) — 자물쇠 아바타.
+  final bool blocked;
+
   const SeatCard({
     super.key,
     required this.name,
@@ -62,6 +65,7 @@ class SeatCard extends StatelessWidget {
     this.late = false,
     this.abilityFx,
     this.curseTurnsLeft = 0,
+    this.blocked = false,
   });
 
   @override
@@ -103,13 +107,16 @@ class SeatCard extends StatelessWidget {
           Stack(
             clipBehavior: Clip.none,
             children: [
-              Opacity(
-                opacity: alive ? 1 : 0.55,
-                child: Emo(
-                  !joined ? 'person' : (alive ? 'cowboy' : 'skull'),
-                  size: avatar,
-                ),
-              ),
+              blocked
+                  ? Icon(Icons.lock,
+                      size: avatar, color: CD.muted.withValues(alpha: 0.6))
+                  : Opacity(
+                      opacity: alive ? 1 : 0.55,
+                      child: Emo(
+                        !joined ? 'person' : (alive ? 'cowboy' : 'skull'),
+                        size: avatar,
+                      ),
+                    ),
               if (submitted && alive)
                 Positioned(
                   right: -6,

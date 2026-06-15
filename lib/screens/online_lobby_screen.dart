@@ -25,7 +25,6 @@ class _OnlineLobbyScreenState extends State<OnlineLobbyScreen> {
   final _titleCtl = TextEditingController();
   final _pwCtl = TextEditingController(); // 비공개 방 비밀번호(F3)
   final _joinPwCtl = TextEditingController();
-  int _capacity = 6; // F2: 기본 6명
   bool _public = true;
   bool _busy = false;
   String? _error;
@@ -67,7 +66,8 @@ class _OnlineLobbyScreenState extends State<OnlineLobbyScreen> {
     }
     try {
       final code = OnlineService.generateRoomCode();
-      await _service.createRoom(code, _name, _capacity,
+      // F2: 항상 6인 방으로 생성 — 방장이 대기실에서 빈 자리를 닫아 인원 조절.
+      await _service.createRoom(code, _name, kMaxSeats,
           charIndex: Meta.I.equippedIndex,
           title: _titleCtl.text,
           public: _public,
@@ -106,6 +106,8 @@ class _OnlineLobbyScreenState extends State<OnlineLobbyScreen> {
           setState(() => _error = '이미 시작된 방이에요.');
         case JoinResult.wrongPassword:
           setState(() => _error = '비밀번호가 달라요.');
+        case JoinResult.kicked:
+          setState(() => _error = '이 방에서 내보내진 적이 있어요.');
       }
     } catch (e) {
       setState(() => _error = '입장에 실패했어요. 연결을 확인해 주세요.');
@@ -158,7 +160,8 @@ class _OnlineLobbyScreenState extends State<OnlineLobbyScreen> {
                     children: [
                       Text('새 방 만들기', style: posterTitle(18)),
                       const SizedBox(height: 6),
-                      const Text('최대 인원을 고르고, 2명 이상 모이면 시작해요.',
+                      const Text('6인 방이 만들어져요. 방장이 빈 자리를 닫아 인원을 정하고, '
+                          '2명 이상이면 시작해요.',
                           style: TextStyle(color: CD.muted, fontSize: 12.5)),
                       const SizedBox(height: 12),
                       TextField(
@@ -192,37 +195,6 @@ class _OnlineLobbyScreenState extends State<OnlineLobbyScreen> {
                           decoration: _dec('방 비밀번호 (입장 시 필요)'),
                         ),
                       ],
-                      const SizedBox(height: 6),
-                      const Text('최대 인원',
-                          style: TextStyle(
-                              color: CD.leather, fontWeight: FontWeight.w700)),
-                      const SizedBox(height: 8),
-                      Wrap(
-                        spacing: 8,
-                        children: [
-                          for (var c = kMinSeats; c <= kMaxSeats; c++)
-                            GestureDetector(
-                              onTap: () => setState(() => _capacity = c),
-                              child: Container(
-                                width: 46,
-                                height: 46,
-                                alignment: Alignment.center,
-                                decoration: BoxDecoration(
-                                  color: _capacity == c ? CD.sage : CD.sand,
-                                  borderRadius: BorderRadius.circular(12),
-                                  border: Border.all(
-                                      color: CD.sage,
-                                      width: _capacity == c ? 2.5 : 1.5),
-                                ),
-                                child: Text('$c',
-                                    style: posterTitle(20,
-                                        color: _capacity == c
-                                            ? Colors.white
-                                            : CD.leather)),
-                              ),
-                            ),
-                        ],
-                      ),
                       const SizedBox(height: 14),
                       FilledButton.icon(
                         onPressed: _busy ? null : _create,
@@ -231,7 +203,7 @@ class _OnlineLobbyScreenState extends State<OnlineLobbyScreen> {
                           padding: const EdgeInsets.symmetric(vertical: 14),
                         ),
                         icon: const Icon(Icons.add),
-                        label: Text('방 만들기 ($_capacity인)',
+                        label: Text('방 만들기 (6인)',
                             style: posterTitle(17, color: Colors.white)),
                       ),
                     ],

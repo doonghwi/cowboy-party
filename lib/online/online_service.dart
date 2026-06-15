@@ -48,6 +48,9 @@ class SeatView {
   final bool hideAmmo; // 탄약 수 숨김
   final bool hideAction; // 이번 턴 행동 숨김(장전/방어/가만히)
 
+  /// 방장이 닫은 자리(F2, 크레이지아케이드식). 대기실에서만 의미.
+  final bool blocked;
+
   const SeatView({
     required this.seat,
     required this.joined,
@@ -75,6 +78,7 @@ class SeatView {
     this.late = false,
     this.hideAmmo = false,
     this.hideAction = false,
+    this.blocked = false,
   });
 }
 
@@ -132,6 +136,7 @@ class RoomView {
 
   /// I joined while a game was running — spectating until the next round.
   final bool iAmLate;
+  final bool iWasKicked; // F2: 방장에게 추방됨 — 화면에서 내보낸다.
 
   /// 내 캐릭터 능력 잔여량 (게임 화면의 버튼 상태용).
   final bool myTrapAvailable;
@@ -180,6 +185,7 @@ class RoomView {
     this.reapSeats = const [],
     this.iAmOut = false,
     this.iAmLate = false,
+    this.iWasKicked = false,
     this.myTrapAvailable = false,
     this.myResetAvailable = false,
     this.mySmokeLeft = 0,
@@ -201,7 +207,7 @@ class RoomView {
   bool get iWon => status == GameStatus.won && winnerSeat == mySeat;
 }
 
-enum JoinResult { joined, notFound, full, alreadyStarted, wrongPassword }
+enum JoinResult { joined, notFound, full, alreadyStarted, wrongPassword, kicked }
 
 class OnlineService {
   OnlineService() : clientId = _genClientId() {
@@ -363,6 +369,11 @@ class OnlineService {
       if (password.trim() != roomPw) return JoinResult.wrongPassword;
     }
 
+    // F2: 방장에게 추방당한 사람은 다시 못 들어옴.
+    final kicked = _asMap(data['kicked']) ?? const {};
+    if (kicked[clientId] == true && !alreadySeated) return JoinResult.kicked;
+    final blocked = _asMap(data['blocked']) ?? const {};
+
     // Already hold a seat? Reclaim it (refresh heartbeat; keep the original
     // character — mid-game swaps would corrupt the deterministic replay).
     for (final e in players.entries) {
@@ -384,6 +395,7 @@ class OnlineService {
         started ? (_asInt(data['seatCount']) ?? capacity) : capacity;
     final staleBefore = _now - kPresenceGraceMs;
     for (var s = 1; s < seatLimit; s++) {
+      if (blocked[slotKey(s)] == true) continue; // 방장이 닫은 자리는 건너뜀
       final claim = {
         'id': clientId,
         'name': name,
@@ -438,6 +450,38 @@ class OnlineService {
     final data = _asMap(snap.value) ?? const {};
     if (data['started'] == true) return;
     await room(code).child('players/${slotKey(seat)}/char').set(charIndex);
+  }
+
+  /// F2: 방장이 빈 자리 열기/닫기(크레이지아케이드식). 시작 전·자리가 비어 있을 때만.
+  /// 최소 2자리(방장 자리 포함)는 열려 있어야 하므로 닫기 한도는 호출 측에서 검사.
+  Future<void> setSeatBlocked(String code, int seat, bool blocked) async {
+    final snap = await room(code).get();
+    final data = _asMap(snap.value) ?? const {};
+    if (data['started'] == true) return;
+    if (data['host'] != clientId) return; // 방장만
+    if (seat == 0) return; // 방장 자리는 못 닫음
+    final players = _asMap(data['players']) ?? const {};
+    if (players.containsKey(slotKey(seat))) return; // 사람이 있으면 닫지 않음(추방 먼저)
+    await room(code)
+        .child('blocked/${slotKey(seat)}')
+        .set(blocked ? true : null);
+  }
+
+  /// F2: 방장이 특정 자리 플레이어 추방. 그 자리를 비우고 다시 못 들어오게 표시.
+  Future<void> kickSeat(String code, int seat) async {
+    final snap = await room(code).get();
+    final data = _asMap(snap.value) ?? const {};
+    if (data['started'] == true) return;
+    if (data['host'] != clientId) return; // 방장만
+    if (seat == 0) return; // 방장 자신은 못 내보냄
+    final players = _asMap(data['players']) ?? const {};
+    final v = _asMap(players[slotKey(seat)]);
+    final kickedId = v?['id'];
+    final updates = <String, Object?>{
+      'players/${slotKey(seat)}': null,
+      if (kickedId is String) 'kicked/$kickedId': true,
+    };
+    await room(code).update(updates);
   }
 
   Future<void> startGame(String code) async {
@@ -653,6 +697,10 @@ class OnlineService {
     final peekMap = _asMap(data['peek']) ?? const {};
     final peekUsedMap = _asMap(data['peekUsed']) ?? const {};
     final showdown = _asMap(data['showdown']);
+    final blockedMap = _asMap(data['blocked']) ?? const {};
+    bool seatBlocked(int s) => blockedMap[slotKey(s)] == true;
+    final kickedMap = _asMap(data['kicked']) ?? const {};
+    final iWasKicked = kickedMap[myClientId] == true;
     final started = data['started'] == true;
     final isHost = data['host'] == myClientId;
     final capacity =
@@ -716,7 +764,9 @@ class OnlineService {
           SeatView(
             seat: s,
             joined: present(s),
-            name: present(s) ? (names[s] ?? '카우보이') : '빈자리',
+            name: present(s)
+                ? (names[s] ?? '카우보이')
+                : (seatBlocked(s) ? '닫힘' : '빈자리'),
             ammo: 0,
             alive: true,
             isMe: s == mySeat,
@@ -728,6 +778,7 @@ class OnlineService {
             submittedThisTurn: false,
             score: scoreFor(s),
             char: present(s) ? charFromIndex(seatCharIdx[s]) : CharId.none,
+            blocked: seatBlocked(s) && !present(s),
           ),
       ];
       return RoomView(
@@ -753,6 +804,7 @@ class OnlineService {
         justResolved: false,
         iRequestedRematch: false,
         rematchCount: 0,
+        iWasKicked: iWasKicked,
       );
     }
 
