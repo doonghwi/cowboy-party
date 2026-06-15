@@ -376,6 +376,7 @@ TurnOutcome resolvePartyTurn({
   final smoked = List<bool>.filled(n, false);
   final doubleLoad = List<bool>.filled(n, false);
   final rouletteFired = List<bool>.filled(n, false);
+  final rouletteSelf = List<bool>.filled(n, false); // 운빵이 자신을 겨눔(자해)
   final dualFired = List<bool>.filled(n, false);
   final dualTarget2 = List<int>.filled(n, -1);
   final voodooCast = List<bool>.filled(n, false);
@@ -434,6 +435,19 @@ TurnOutcome resolvePartyTurn({
           normalAt[t].add([i, 0]);
         }
       }
+    } else if (m.kind == ActKind.roulette &&
+        chars[i] == CharId.roulette &&
+        targetOk(i, m.target)) {
+      // 운명의 방아쇠: 50:50으로 상대 또는 나에게 총알을 날린다.
+      // 상대를 향하면 **일반 총알 판정**(방어로 막힘·덫으로 반사·연막 회피).
+      // 나를 향하면 자해(자기 총이라 못 막음).
+      rouletteFired[i] = true;
+      firedTarget[i] = m.target;
+      if (roll(i, 'roulette') < 0.5) {
+        normalAt[m.target].add([i, 0]); // 상대에게 일반 총알
+      } else {
+        rouletteSelf[i] = true; // 나에게 — step 2 뒤 자해
+      }
     }
   }
 
@@ -473,23 +487,9 @@ TurnOutcome resolvePartyTurn({
     if (reflectKill[i]) hit[i] = true;
   }
 
-  // 3) 운명의 방아쇠 (러시안룰렛): 50:50 나/상대. 상대가 방어하면 반사돼 내가 죽음.
+  // 3) 운명의 방아쇠 자해(50%): 자기 총이라 방어로 못 막는다.
   for (var i = 0; i < n; i++) {
-    if (!aliveBefore[i] || chars[i] != CharId.roulette) continue;
-    final m = moves[i];
-    if (m.kind != ActKind.roulette || !targetOk(i, m.target)) continue;
-    rouletteFired[i] = true;
-    firedTarget[i] = m.target;
-    final intendedTarget = roll(i, 'roulette') < 0.5;
-    final victim = (intendedTarget && moves[m.target].kind != ActKind.defend)
-        ? m.target
-        : i; // 상대 사망, 아니면(자기 차례 or 상대 방어) 내가 사망
-    // C1: 운명의 방아쇠도 '총알이 날아가는' 판정 — 상대를 향하면 연막으로 회피 가능.
-    if (victim == m.target && smoked[victim] && roll(victim, 'evR$i') < 0.50) {
-      evaded[victim] = true;
-    } else {
-      hit[victim] = true;
-    }
+    if (rouletteSelf[i]) hit[i] = true;
   }
 
   // 4) 저주 발동 (이번 턴 만료되는가). caster가 이 턴까지 살아있어야 함.

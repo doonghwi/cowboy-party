@@ -25,14 +25,14 @@ Widget _bar(CharId char, {int ammo = 3, int smokeLeft = 0}) => MaterialApp(
     );
 
 void main() {
-  testWidgets('러시안룰렛: 운명의 방아쇠 버튼 표시', (t) async {
+  testWidgets('러시안룰렛: 운빵 4번째 칸 표시(turnSlot)', (t) async {
     await t.pumpWidget(_bar(CharId.roulette));
-    expect(find.text('운명의 방아쇠'), findsOneWidget);
+    expect(find.text('운빵'), findsOneWidget);
   });
 
-  testWidgets('쌍권총: 더블 빵야 버튼 표시', (t) async {
+  testWidgets('쌍권총: 더블 4번째 칸 표시(turnSlot, 사냥꾼식)', (t) async {
     await t.pumpWidget(_bar(CharId.dualgun));
-    expect(find.text('더블 빵야'), findsOneWidget);
+    expect(find.text('더블'), findsOneWidget);
   });
 
   testWidgets('부두술사: 저주 버튼 표시', (t) async {

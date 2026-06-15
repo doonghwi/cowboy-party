@@ -314,8 +314,8 @@ void main() {
     throw StateError('seed 못 찾음');
   }
 
-  test('운명의 방아쇠: roll<0.5면 상대 사망, 상대가 방어하면 내가 사망', () {
-    final hitTargetSeed = seedFor('roulette', 0, true); // 상대 지목
+  test('운명의 방아쇠: roll<0.5면 상대에게 총알 — 일반탄처럼 날아간다', () {
+    final hitTargetSeed = seedFor('roulette', 0, true); // 상대 지목(총알이 상대로)
     final out = run(
       moves: [Move.roulette(1), const Move.reload()],
       ammo: [0, 0],
@@ -327,20 +327,35 @@ void main() {
     expect(out.hit[1], isTrue, reason: '상대 사망');
     expect(out.hit[0], isFalse);
     expect(out.ammoAfter[0], 0, reason: '총알 소모 없음');
+  });
 
-    // 같은 시드(상대 지목)인데 상대가 방어 → 반사돼 내가 죽음
-    final reflect = run(
+  test('운명의 방아쇠: 상대를 향했어도 상대가 방어하면 막힌다(아무도 안 죽음)', () {
+    final hitTargetSeed = seedFor('roulette', 0, true);
+    final out = run(
       moves: [Move.roulette(1), const Move.defend()],
       ammo: [0, 0],
       alive: [true, true],
       chars: [CharId.roulette, CharId.none],
       seed: hitTargetSeed,
     );
-    expect(reflect.hit[0], isTrue, reason: '상대 방어 → 내가 죽음');
-    expect(reflect.hit[1], isFalse);
+    expect(out.hit[1], isFalse, reason: '방어로 막힘');
+    expect(out.hit[0], isFalse, reason: '내가 죽지 않음 — 일반탄 판정');
   });
 
-  test('운명의 방아쇠: roll>=0.5면 내가 사망', () {
+  test('운명의 방아쇠: 상대를 향했는데 상대가 덫이면 반사돼 내가 죽음', () {
+    final hitTargetSeed = seedFor('roulette', 0, true);
+    final out = run(
+      moves: [Move.roulette(1), const Move.trap()],
+      ammo: [0, 0],
+      alive: [true, true],
+      chars: [CharId.roulette, CharId.hunter],
+      seed: hitTargetSeed,
+    );
+    expect(out.hit[1], isFalse, reason: '사냥꾼은 덫으로 무사');
+    expect(out.hit[0], isTrue, reason: '덫 반사로 내가 죽음');
+  });
+
+  test('운명의 방아쇠: roll>=0.5면 자해 — 내가 죽음', () {
     final selfSeed = seedFor('roulette', 0, false);
     final out = run(
       moves: [Move.roulette(1), const Move.reload()],
@@ -354,12 +369,12 @@ void main() {
   });
 
   test('운명의 방아쇠 + 연막(C1): 상대가 연막으로 회피하면 아무도 안 죽는다', () {
-    // roulette roll<0.5(상대 지목) & evR0 roll<0.5(회피) 둘 다 만족하는 시드 탐색.
+    // roulette roll<0.5(상대 지목) & evade0 roll<0.5(상대 연막 회피) 둘 다 만족.
     String? seed;
     for (var i = 0; i < 2000; i++) {
       final s = 'R$i';
       if (seededRoll('$s|0|0|roulette') < 0.5 &&
-          seededRoll('$s|0|1|evR0') < 0.5) {
+          seededRoll('$s|0|1|evade0') < 0.5) {
         seed = s;
         break;
       }
@@ -374,7 +389,7 @@ void main() {
     );
     expect(out.rouletteFired[0], isTrue);
     expect(out.hit[1], isFalse, reason: '연막으로 회피');
-    expect(out.hit[0], isFalse, reason: '상대가 회피했으니 나도 안 죽음');
+    expect(out.hit[0], isFalse);
     expect(out.evaded[1], isTrue);
   });
 

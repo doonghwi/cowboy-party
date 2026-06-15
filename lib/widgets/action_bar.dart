@@ -58,33 +58,80 @@ class ActionBar extends StatelessWidget {
   bool get _pacifist => myChar == CharId.pacifist;
   bool get _canShoot => myAmmo > 0 && !_pacifist;
   bool get _canSuper => myAmmo >= kMaxAmmo && !_pacifist;
-  bool get _showTrap => myChar == CharId.hunter;
-  bool get _showReset => myChar == CharId.resetter;
-  bool get _showSmoke => myChar == CharId.smoker;
 
-  /// 캐릭터 전용 '상시' 액션(있으면 별도 줄에 표시). 파파라치 엿보기는 Stage 4.
-  ActKind? get _specialKind {
+  // ── 특수행동 UI 규칙(2틀): ───────────────────────────────────────────────
+  // 1) parallel(스모커 연막·파파라치 엿보기): 기본 행동 줄 **위**에 얇게 둔다.
+  // 2) turnSlot(덫·무효·저주·운빵·더블): 장전/방어/빵야와 같은 한 턴을 쓰므로
+  //    기본 3칸을 줄이고 **4번째 칸**으로 둔다.
+  // 패시브/기본형은 장전·방어·빵야만. 새 로직 없이는 이 틀을 벗어나지 않는다.
+  bool get _showSmoke => myChar == CharId.smoker;
+  bool get _showPeek => showPeek; // 파파라치 — parallel 위치(위)
+
+  /// 한 턴 소모형 특수행동(4번째 칸). 없으면 null.
+  ActKind? get _turnSlotKind {
     switch (myChar) {
+      case CharId.hunter:
+        return ActKind.trap;
+      case CharId.resetter:
+        return ActKind.reset;
+      case CharId.voodoo:
+        return ActKind.voodoo;
       case CharId.roulette:
         return ActKind.roulette;
       case CharId.dualgun:
         return ActKind.dualShoot;
-      case CharId.voodoo:
-        return ActKind.voodoo;
       default:
         return null;
     }
   }
 
-  bool get _specialEnabled {
-    switch (_specialKind) {
+  bool get _turnSlotEnabled {
+    switch (_turnSlotKind) {
+      case ActKind.trap:
+        return trapAvailable;
+      case ActKind.reset:
+        return resetAvailable;
       case ActKind.dualShoot:
-        return myAmmo >= 2; // 2발 필요
-      case ActKind.roulette:
+        return myAmmo >= 2;
       case ActKind.voodoo:
-        return true; // 상시
+      case ActKind.roulette:
+        return true;
       default:
         return false;
+    }
+  }
+
+  String get _turnSlotLabel {
+    switch (_turnSlotKind) {
+      case ActKind.trap:
+        return '덫';
+      case ActKind.reset:
+        return '무효';
+      case ActKind.voodoo:
+        return '저주';
+      case ActKind.roulette:
+        return '운빵';
+      case ActKind.dualShoot:
+        return '더블';
+      default:
+        return '';
+    }
+  }
+
+  String get _turnSlotSub {
+    switch (_turnSlotKind) {
+      case ActKind.trap:
+        return trapAvailable ? '일반탄 반사' : '사용함';
+      case ActKind.reset:
+        return resetAvailable ? '모두 무효화' : '사용함';
+      case ActKind.voodoo:
+        return '$kCurseFuse턴 뒤';
+      case ActKind.roulette:
+        return '50:50';
+      case ActKind.dualShoot:
+        return _turnSlotEnabled ? '2발·두명' : '2발 필요';
+      default:
+        return '';
     }
   }
 
@@ -128,8 +175,8 @@ class ActionBar extends StatelessWidget {
         return '덫 — 이번 턴 나를 쏜 일반탄을 전부 반사! (게임당 1번)';
       case ActKind.roulette:
         return selectedTarget < 0
-            ? '운명의 방아쇠 — 상대를 탭! 50:50로 나/상대 중 한 명 사망'
-            : '운명의 방아쇠 → ${targetName ?? ""} (상대 방어 시 내가 죽음)';
+            ? '운명의 방아쇠 — 상대를 탭! 50:50로 나/상대에게 총알'
+            : '운명의 방아쇠 → ${targetName ?? ""} (상대 향하면 방어로 막힘·덫 반사)';
       case ActKind.dualShoot:
         if (selectedTarget < 0) return '더블 빵야 — 첫 번째 상대를 탭! (총알 2발)';
         if (selectedTarget2 < 0) {
@@ -152,41 +199,31 @@ class ActionBar extends StatelessWidget {
     return Column(
       mainAxisSize: MainAxisSize.min,
       children: [
+        // ── parallel 슬롯(위): 스모커 연막 토글 / 파파라치 엿보기 버튼 ──
         if (_showSmoke && smokeLeft > 0) ...[
-          GestureDetector(
+          _parallelBar(
+            on: smokeOn,
+            color: const Color(0xFF6B7A8F),
+            icon: Icons.cloud,
+            label: smokeOn
+                ? '연막 켜짐 — 이번 턴 50% 회피 (남은 $smokeLeft번)'
+                : '연막 쓰기 (남은 $smokeLeft번, 행동과 함께)',
             onTap: () => onSmokeToggle?.call(!smokeOn),
-            child: AnimatedContainer(
-              duration: const Duration(milliseconds: 120),
-              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-              decoration: BoxDecoration(
-                color: smokeOn
-                    ? const Color(0xFF6B7A8F)
-                    : CD.parchment.withValues(alpha: 0.9),
-                borderRadius: BorderRadius.circular(20),
-                border: Border.all(color: const Color(0xFF6B7A8F), width: 2),
-              ),
-              child: Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Icon(Icons.cloud,
-                      size: 16,
-                      color: smokeOn ? Colors.white : const Color(0xFF6B7A8F)),
-                  const SizedBox(width: 6),
-                  Text(
-                    smokeOn
-                        ? '연막 켜짐 — 이번 턴 50% 회피 (남은 $smokeLeft번)'
-                        : '연막 쓰기 (남은 $smokeLeft번, 행동과 함께)',
-                    style: TextStyle(
-                        fontSize: 12,
-                        fontWeight: FontWeight.w800,
-                        color: smokeOn ? Colors.white : CD.leather),
-                  ),
-                ],
-              ),
-            ),
+          ),
+          const SizedBox(height: 8),
+        ] else if (_showPeek) ...[
+          _parallelBar(
+            on: false,
+            color: const Color(0xFF4A6FA5),
+            icon: Icons.photo_camera,
+            label: peekEnabled
+                ? '엿보기 — 한 명 행동 미리보기 (게임당 1번)'
+                : '엿보기 (준비 중)',
+            onTap: peekEnabled ? onPeek : null,
           ),
           const SizedBox(height: 8),
         ],
+        // ── 기본 3칸(+ turnSlot 4번째) ──
         Row(
           children: [
             if (_canSuper)
@@ -200,53 +237,13 @@ class ActionBar extends StatelessWidget {
             _opt(ActKind.shoot, '빵야',
                 _pacifist ? '사용 불가' : (_canShoot ? '한 명 저격' : '총알 필요'),
                 _canShoot),
-            if (_showTrap) ...[
+            if (_turnSlotKind != null) ...[
               const SizedBox(width: 10),
-              _opt(ActKind.trap, '덫',
-                  trapAvailable ? '일반탄 반사' : '사용함', trapAvailable),
-            ],
-            if (_showReset) ...[
-              const SizedBox(width: 10),
-              _opt(ActKind.reset, '무효',
-                  resetAvailable ? '모두 무효화' : '사용함', resetAvailable),
+              _opt(_turnSlotKind!, _turnSlotLabel, _turnSlotSub,
+                  _turnSlotEnabled),
             ],
           ],
         ),
-        if (showPeek) ...[
-          const SizedBox(height: 10),
-          SizedBox(
-            width: double.infinity,
-            child: OutlinedButton.icon(
-              onPressed: onPeek,
-              style: OutlinedButton.styleFrom(
-                foregroundColor: const Color(0xFF4A6FA5),
-                side: const BorderSide(color: Color(0xFF4A6FA5), width: 2),
-                padding: const EdgeInsets.symmetric(vertical: 12),
-              ),
-              icon: const Icon(Icons.photo_camera, size: 18),
-              label: Text(
-                  peekEnabled ? '엿보기 — 1명 행동 미리보기 (게임당 1번)' : '엿보기 (온라인 준비 중)',
-                  style: const TextStyle(fontWeight: FontWeight.w800)),
-            ),
-          ),
-        ],
-        if (_specialKind != null) ...[
-          const SizedBox(height: 10),
-          Row(children: [
-            _opt(
-              _specialKind!,
-              _specialKind!.ko,
-              switch (_specialKind!) {
-                ActKind.roulette => '운빵 50:50',
-                ActKind.dualShoot =>
-                  _specialEnabled ? '2발·두 명' : '총알 2발 필요',
-                ActKind.voodoo => '$kCurseFuse턴 뒤 사망',
-                _ => '',
-              },
-              _specialEnabled,
-            ),
-          ]),
-        ],
         const SizedBox(height: 8),
         Text(
           _hint,
@@ -317,6 +314,44 @@ class ActionBar extends StatelessWidget {
               ],
             ),
           ),
+        ),
+      ),
+    );
+  }
+
+  /// parallel 슬롯(위) — 행동과 병행하는 토글/버튼(연막·엿보기) 공통 모양.
+  Widget _parallelBar({
+    required bool on,
+    required Color color,
+    required IconData icon,
+    required String label,
+    required VoidCallback? onTap,
+  }) {
+    return GestureDetector(
+      onTap: onTap,
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 120),
+        width: double.infinity,
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
+        decoration: BoxDecoration(
+          color: on ? color : CD.parchment.withValues(alpha: 0.9),
+          borderRadius: BorderRadius.circular(20),
+          border: Border.all(color: color, width: 2),
+        ),
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(icon, size: 16, color: on ? Colors.white : color),
+            const SizedBox(width: 6),
+            Flexible(
+              child: Text(label,
+                  textAlign: TextAlign.center,
+                  style: TextStyle(
+                      fontSize: 12,
+                      fontWeight: FontWeight.w800,
+                      color: on ? Colors.white : CD.leather)),
+            ),
+          ],
         ),
       ),
     );
