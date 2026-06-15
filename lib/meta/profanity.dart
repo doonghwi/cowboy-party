@@ -5,6 +5,7 @@
 /// 닉네임 검사 시 공백/특수문자를 제거하고 부분일치로 막는다.
 library;
 
+import 'dart:async';
 import 'dart:convert';
 
 import 'package:flutter/services.dart' show rootBundle;
@@ -20,7 +21,9 @@ class Profanity {
   Future<void> init() async {
     if (_loaded) return;
     try {
-      final raw = await rootBundle.loadString('assets/badwords_ko.json');
+      final raw = await rootBundle
+          .loadString('assets/badwords_ko.json')
+          .timeout(const Duration(seconds: 8));
       final data = jsonDecode(raw);
       final list = (data is Map ? data['words'] : data) as List?;
       if (list != null) {

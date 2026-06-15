@@ -33,10 +33,19 @@ Future<void> main() async {
     // Firebase is optional — the offline vs-CPU game works without it.
   }
   // 메타(코인·캐릭터·출석)는 로컬 우선이라 Firebase 실패와 무관하게 항상 초기화.
-  await Meta.I.init();
-  await AuthService.I.init();
-  await Sfx.init();
-  await Profanity.I.init(); // 닉네임 비속어 필터 단어 로드(#1)
+  // ⚠️ 어떤 초기화가 멈춰도 화면이 흰 채로 굳지 않도록 타임아웃으로 감싼다
+  //   (예전에 비속어 목록 로드가 막혀 흰 화면이 됐던 회귀 방지).
+  try {
+    await Future.wait([
+      Meta.I.init(),
+      AuthService.I.init(),
+      Sfx.init(),
+    ]).timeout(const Duration(seconds: 6));
+  } catch (_) {
+    // 일부 초기화가 느리거나 실패해도 게임은 떠야 한다.
+  }
+  // 닉네임 비속어 필터는 백그라운드 로드 — 절대 시작(runApp)을 막지 않는다(#1).
+  Profanity.I.init();
   // 익명 로그인이 콘솔에서 켜져 있으면 게스트도 랭킹에 오를 수 있다(베스트에포트).
   AuthService.I.tryAnonymous();
   runApp(const CowboyPartyApp());
