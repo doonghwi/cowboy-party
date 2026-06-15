@@ -289,7 +289,8 @@ class OnlineService {
       {int charIndex = 0,
       String title = '',
       bool public = true,
-      String password = ''}) async {
+      String password = '',
+      bool match = false}) async {
     await room(code).set({
       'host': clientId,
       'capacity': capacity.clamp(kMinSeats, kMaxSeats),
@@ -297,6 +298,8 @@ class OnlineService {
       'public': public,
       // F3: 비공개 방은 비밀번호로 보호(공개 방은 비번 무시).
       'pw': public ? '' : password.trim(),
+      // 매칭 전용 방(#2): 목록에 안 뜨고 빠른 시작끼리만 모임.
+      'match': match,
       'title': title.trim().isEmpty ? '$name의 결투장' : title.trim(),
       'hostName': name,
       'game': 0,
@@ -309,6 +312,61 @@ class OnlineService {
       'quit': null,
       'createdAt': ServerValue.timestamp,
     });
+  }
+
+  /// 빠른 시작(#2): 모이는 중인 매칭 방이 있으면 합류, 없으면 새로 판다.
+  /// 반환: (code, host=내가 만들었는지). 매칭 방은 public:false+match:true라
+  /// 공개 목록·코드로는 접근 불가 — 빠른 시작끼리만 모인다.
+  Future<({String code, bool host})> quickMatch(String name,
+      {int charIndex = 0}) async {
+    final snap = await _root
+        .child('rooms')
+        .orderByChild('createdAt')
+        .limitToLast(30)
+        .get();
+    final rooms = _asMap(snap.value) ?? const {};
+    final now = _now;
+    final staleBefore = now - kPresenceGraceMs;
+    String? best;
+    int bestCreated = 1 << 62;
+    rooms.forEach((code, raw) {
+      final r = _asMap(raw);
+      if (r == null) return;
+      if (r['match'] != true || r['started'] == true) return;
+      final created = _asInt(r['createdAt']) ?? 0;
+      if (created < now - 60000) return; // 1분 지난 매칭 방은 유령 취급
+      final players = _asMap(r['players']) ?? const {};
+      var joined = 0;
+      for (final v in players.values) {
+        final m = _asMap(v);
+        final seen = _asInt(m?['seen']);
+        if (m != null && (seen == null || seen >= staleBefore)) joined++;
+      }
+      if (joined == 0 || joined >= kMaxSeats) return;
+      if (created < bestCreated) {
+        bestCreated = created;
+        best = code.toString();
+      }
+    });
+    if (best != null) {
+      final res = await joinRoom(best!, name, charIndex: charIndex);
+      if (res == JoinResult.joined) return (code: best!, host: false);
+    }
+    // 없으면 새 매칭 방 생성(내가 방장).
+    final code = generateRoomCode();
+    await createRoom(code, name, kMaxSeats,
+        charIndex: charIndex, public: false, match: true, title: '매칭 방');
+    return (code: code, host: true);
+  }
+
+  /// 매칭 취소/무산 — 아직 시작 안 된 매칭 방을 방장이 정리.
+  Future<void> cancelMatch(String code) async {
+    try {
+      final snap = await room(code).get();
+      final data = _asMap(snap.value) ?? const {};
+      if (data['started'] == true) return; // 이미 시작됐으면 그대로 둠
+      await room(code).remove();
+    } catch (_) {}
   }
 
   /// Recent open public rooms for the lobby browser (fresh, not started, has

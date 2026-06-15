@@ -7,6 +7,7 @@ import '../online/online_service.dart';
 import '../theme.dart';
 import '../widgets/emo.dart';
 import 'how_to_play_screen.dart';
+import 'matchmaking_screen.dart';
 import 'offline_game_screen.dart';
 import 'online_game_screen.dart';
 import 'online_lobby_screen.dart';
@@ -99,6 +100,44 @@ class _PlayTabState extends State<PlayTab> {
         physics: const AlwaysScrollableScrollPhysics(),
         padding: const EdgeInsets.fromLTRB(16, 4, 16, 16),
         children: [
+          // #2 빠른 시작 매칭 — 가장 눈에 띄게.
+          InkWell(
+            borderRadius: BorderRadius.circular(16),
+            onTap: () => Navigator.push(context,
+                MaterialPageRoute(builder: (_) => const MatchmakingScreen())),
+            child: Container(
+              margin: const EdgeInsets.only(bottom: 10),
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+              decoration: BoxDecoration(
+                borderRadius: BorderRadius.circular(16),
+                gradient: const LinearGradient(
+                    colors: [CD.rust, Color(0xFFB5642A)]),
+                boxShadow: [
+                  BoxShadow(
+                      color: CD.rust.withValues(alpha: 0.45), blurRadius: 12)
+                ],
+              ),
+              child: Row(
+                children: [
+                  const Icon(Icons.bolt, color: Colors.white, size: 30),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text('빠른 시작',
+                            style: posterTitle(22, color: Colors.white)),
+                        const Text('아무나 만나 바로 대결 (최대 10초 매칭)',
+                            style: TextStyle(
+                                color: Colors.white, fontSize: 12)),
+                      ],
+                    ),
+                  ),
+                  const Icon(Icons.chevron_right, color: Colors.white),
+                ],
+              ),
+            ),
+          ),
           Row(
             children: [
               Expanded(

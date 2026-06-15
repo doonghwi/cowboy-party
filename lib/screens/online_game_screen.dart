@@ -24,10 +24,14 @@ class OnlineGameScreen extends StatefulWidget {
   final OnlineService service;
   final String code;
 
+  /// 매칭(#2)으로 들어온 방: 게임 끝나면 '다시하기' 없이 '나가기'만.
+  final bool matchMode;
+
   const OnlineGameScreen({
     super.key,
     required this.service,
     required this.code,
+    this.matchMode = false,
   });
 
   @override
@@ -1032,39 +1036,55 @@ class _OnlineGameScreenState extends State<OnlineGameScreen> {
               textAlign: TextAlign.center,
               style: posterTitle(26, color: iWon ? CD.rust : CD.danger)),
           const SizedBox(height: 12),
-          Text('다시하기 ${view.rematchCount}/${view.presentCount}',
-              style: const TextStyle(color: CD.muted)),
-          const SizedBox(height: 10),
-          Row(
-            children: [
-              Expanded(
-                child: OutlinedButton(
-                  onPressed: _leaveAndPop,
-                  style: OutlinedButton.styleFrom(
-                    foregroundColor: CD.leather,
-                    side: const BorderSide(color: CD.leather),
-                    padding: const EdgeInsets.symmetric(vertical: 13),
-                  ),
-                  child: const Text('나가기'),
+          // 매칭 방(#2)은 다시하기 없이 나가기만.
+          if (widget.matchMode)
+            SizedBox(
+              width: double.infinity,
+              child: FilledButton(
+                onPressed: _leaveAndPop,
+                style: FilledButton.styleFrom(
+                  backgroundColor: CD.rust,
+                  padding: const EdgeInsets.symmetric(vertical: 13),
                 ),
+                child: const Text('나가기'),
               ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: FilledButton(
-                  onPressed: (!view.seated || view.iRequestedRematch)
-                      ? null
-                      : () => widget.service
-                          .requestRematch(widget.code, view.mySeat),
-                  style: FilledButton.styleFrom(
-                    backgroundColor: CD.rust,
-                    disabledBackgroundColor: CD.muted.withValues(alpha: 0.4),
-                    padding: const EdgeInsets.symmetric(vertical: 13),
+            )
+          else ...[
+            Text('다시하기 ${view.rematchCount}/${view.presentCount}',
+                style: const TextStyle(color: CD.muted)),
+            const SizedBox(height: 10),
+            Row(
+              children: [
+                Expanded(
+                  child: OutlinedButton(
+                    onPressed: _leaveAndPop,
+                    style: OutlinedButton.styleFrom(
+                      foregroundColor: CD.leather,
+                      side: const BorderSide(color: CD.leather),
+                      padding: const EdgeInsets.symmetric(vertical: 13),
+                    ),
+                    child: const Text('나가기'),
                   ),
-                  child: Text(view.iRequestedRematch ? '대기 중...' : '다시하기'),
                 ),
-              ),
-            ],
-          ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: FilledButton(
+                    onPressed: (!view.seated || view.iRequestedRematch)
+                        ? null
+                        : () => widget.service
+                            .requestRematch(widget.code, view.mySeat),
+                    style: FilledButton.styleFrom(
+                      backgroundColor: CD.rust,
+                      disabledBackgroundColor:
+                          CD.muted.withValues(alpha: 0.4),
+                      padding: const EdgeInsets.symmetric(vertical: 13),
+                    ),
+                    child: Text(view.iRequestedRematch ? '대기 중...' : '다시하기'),
+                  ),
+                ),
+              ],
+            ),
+          ],
         ],
       ),
     );
