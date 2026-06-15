@@ -86,7 +86,7 @@ class _ShellScreenState extends State<ShellScreen> {
         actions: [
           TextButton(
             onPressed: () {
-              if (ctl.text.trim().isNotEmpty) Meta.I.setNickname(ctl.text);
+              if (!_applyOnboardName(ctx, ctl.text)) return;
               Navigator.pop(ctx);
             },
             child: const Text('게스트로 시작'),
@@ -94,7 +94,7 @@ class _ShellScreenState extends State<ShellScreen> {
           FilledButton.icon(
             style: FilledButton.styleFrom(backgroundColor: CD.rust),
             onPressed: () async {
-              if (ctl.text.trim().isNotEmpty) Meta.I.setNickname(ctl.text);
+              if (!_applyOnboardName(ctx, ctl.text)) return;
               final ok = await AuthService.I.signInWithGoogle();
               if (ok) await Meta.I.mergeFromCloud();
               if (ctx.mounted) Navigator.pop(ctx);
@@ -106,6 +106,19 @@ class _ShellScreenState extends State<ShellScreen> {
         ],
       ),
     );
+  }
+
+  // 온보딩 닉네임 적용. 비속어면 막고 false 반환(다이얼로그 유지). 빈 값은 통과.
+  bool _applyOnboardName(BuildContext dialogCtx, String raw) {
+    final n = raw.trim();
+    if (n.isEmpty) return true;
+    final r = Meta.I.changeNickname(n);
+    if (!r.ok) {
+      ScaffoldMessenger.of(dialogCtx).showSnackBar(SnackBar(
+        content: Text(r.message), behavior: SnackBarBehavior.floating));
+      return false;
+    }
+    return true;
   }
 
   Future<void> _enterRoom(String code, {String password = ''}) async {

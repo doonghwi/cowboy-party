@@ -9,6 +9,7 @@ import '../game/characters.dart';
 import '../online/online_service.dart' show OnlineService;
 import 'auth_service.dart';
 import 'gift_codes.dart';
+import 'profanity.dart';
 import 'season_service.dart';
 
 /// 일일 출석 보상 사이클 (7일).
@@ -106,7 +107,7 @@ class Meta extends ChangeNotifier {
   /// 설정 탭의 '변경'은 [changeNickname](변경권 게이트)을 쓴다.
   void setNickname(String n) {
     final t = n.trim();
-    if (t.isEmpty) return;
+    if (t.isEmpty || Profanity.I.isProfane(t)) return; // 비속어 차단(#1)
     _nickname = t;
     _nicknameSet = true;
     _save();
@@ -129,6 +130,9 @@ class Meta extends ChangeNotifier {
     final n = raw.trim();
     if (n.isEmpty) return (ok: false, message: '닉네임을 입력해 주세요');
     if (n == _nickname) return (ok: false, message: '같은 닉네임이에요');
+    if (Profanity.I.isProfane(n)) {
+      return (ok: false, message: '닉네임에 부적절한 표현이 있어요');
+    }
     if (!_nicknameSet) {
       _nickname = n;
       _nicknameSet = true;

@@ -7,6 +7,7 @@ import 'audio/sfx.dart';
 import 'firebase_options.dart';
 import 'meta/auth_service.dart';
 import 'meta/meta_service.dart';
+import 'meta/profanity.dart';
 import 'online/online_service.dart';
 import 'screens/shell.dart';
 import 'theme.dart';
@@ -35,6 +36,7 @@ Future<void> main() async {
   await Meta.I.init();
   await AuthService.I.init();
   await Sfx.init();
+  await Profanity.I.init(); // 닉네임 비속어 필터 단어 로드(#1)
   // 익명 로그인이 콘솔에서 켜져 있으면 게스트도 랭킹에 오를 수 있다(베스트에포트).
   AuthService.I.tryAnonymous();
   runApp(const CowboyPartyApp());

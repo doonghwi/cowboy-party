@@ -38,6 +38,7 @@ flutter:
   assets:
     - assets/emoji/
     - assets/sounds/
+    - assets/badwords_ko.json
 
   # Bundled fonts (no runtime fetch) so Korean text never flashes as tofu.
   fonts:
