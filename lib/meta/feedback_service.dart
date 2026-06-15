@@ -27,14 +27,13 @@ class FeedbackService {
     final text = message.trim();
     if (text.isEmpty) return false;
     try {
+      // ntfy 제목/태그 헤더는 ASCII만 가능 → 한글은 본문에만 둔다(헤더 한글이
+      // 전송 실패의 원인이었음). 본문은 UTF-8로 안전하게 전송된다.
+      // 웹 CORS 프리플라이트를 피하려고 커스텀 헤더는 쓰지 않는다.
       final res = await http
           .post(
             Uri.parse('https://ntfy.sh/$kFeedbackNtfyTopic'),
-            headers: const {
-              'Title': 'Cowboy 제보',
-              'Tags': 'cowboy_hat_face',
-            },
-            body: '[#$_anonId] $text',
+            body: 'Cowboy 제보 [#$_anonId]\n$text',
           )
           .timeout(const Duration(seconds: 10));
       return res.statusCode >= 200 && res.statusCode < 300;

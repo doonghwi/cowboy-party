@@ -32,14 +32,6 @@ class _CharactersTabState extends State<CharactersTab> {
     if (mounted) setState(() {});
   }
 
-  void _startTutorial() {
-    Sfx.confirm();
-    // E3: 캐릭터를 사지 않아도 일반인으로 봇 튜토리얼 가능.
-    Navigator.of(context).push(MaterialPageRoute(
-      builder: (_) => const OfflineGameScreen(forcedChar: CharId.commoner),
-    ));
-  }
-
   // G2: 닉네임 변경(변경권 1장 소모, 첫 설정은 무료). 상점에서 진행.
   void _changeNickname(BuildContext context) {
     final meta = Meta.I;
@@ -147,10 +139,11 @@ class _CharactersTabState extends State<CharactersTab> {
   Widget build(BuildContext context) {
     return CustomScrollView(
       slivers: [
-        SliverToBoxAdapter(
+        const SliverToBoxAdapter(
           child: Padding(
-            padding: const EdgeInsets.fromLTRB(16, 4, 16, 4),
-            child: _TutorialCard(onStart: _startTutorial),
+            padding: EdgeInsets.fromLTRB(16, 8, 16, 4),
+            child: Text('카드를 누르면 능력 설명 + 체험(6명 봇전)을 할 수 있어요',
+                style: TextStyle(color: CD.sand, fontSize: 12)),
           ),
         ),
         SliverToBoxAdapter(
@@ -183,51 +176,6 @@ class _CharactersTabState extends State<CharactersTab> {
 }
 
 /// 상점 상단 튜토리얼 진입 카드(E1/E3) — 일반인으로 vs 컴퓨터.
-class _TutorialCard extends StatelessWidget {
-  final VoidCallback onStart;
-  const _TutorialCard({required this.onStart});
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      decoration: BoxDecoration(
-        color: CD.parchment.withValues(alpha: 0.96),
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: CD.sage, width: 2),
-      ),
-      padding: const EdgeInsets.all(14),
-      child: Row(
-        children: [
-          const Icon(Icons.school, color: CD.sage, size: 30),
-          const SizedBox(width: 12),
-          const Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text('튜토리얼',
-                    style: TextStyle(
-                        fontWeight: FontWeight.w900, fontSize: 15)),
-                SizedBox(height: 2),
-                Text('캐릭터를 사지 않아도 일반인으로 컴퓨터와 연습할 수 있어요',
-                    style: TextStyle(fontSize: 11.5, color: CD.muted)),
-              ],
-            ),
-          ),
-          const SizedBox(width: 8),
-          FilledButton(
-            style: FilledButton.styleFrom(
-                backgroundColor: CD.sage,
-                visualDensity: VisualDensity.compact),
-            onPressed: onStart,
-            child: const Text('시작',
-                style: TextStyle(fontWeight: FontWeight.w900)),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
 /// 닉네임 변경권 판매 + 변경 카드(E1/G2).
 class _NicknameTicketCard extends StatelessWidget {
   final VoidCallback onBuy;
@@ -306,13 +254,56 @@ class _CharCard extends StatelessWidget {
   final CharDef def;
   const _CharCard({required this.def});
 
+  // E2/E3: 카드 탭 → 능력 전문(잘림 없음) + '체험'(6명 봇전, 미보유도 가능).
+  void _showDetail(BuildContext context) {
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: CD.parchment,
+        title: Row(
+          children: [
+            CircleAvatar(
+                radius: 18,
+                backgroundColor: def.color,
+                child: Icon(def.icon, color: Colors.white, size: 20)),
+            const SizedBox(width: 10),
+            Expanded(child: Text(def.name, style: posterTitle(20))),
+          ],
+        ),
+        content: Text(def.ability,
+            style: const TextStyle(fontSize: 14, height: 1.5)),
+        actions: [
+          TextButton(
+              onPressed: () => Navigator.pop(ctx), child: const Text('닫기')),
+          FilledButton.icon(
+            style: FilledButton.styleFrom(backgroundColor: CD.sage),
+            onPressed: () {
+              Navigator.pop(ctx);
+              Sfx.confirm();
+              // 미보유여도 그 직업으로 6명 봇전 체험.
+              Navigator.of(context).push(MaterialPageRoute(
+                builder: (_) =>
+                    OfflineGameScreen(forcedChar: def.id, forcedBots: 5),
+              ));
+            },
+            icon: const Icon(Icons.sports_esports, size: 18),
+            label: const Text('체험 (6명 봇전)',
+                style: TextStyle(fontWeight: FontWeight.w900)),
+          ),
+        ],
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final meta = Meta.I;
     final unlocked = meta.isUnlocked(def.id);
     final equipped = meta.equipped == def.id;
 
-    return AnimatedContainer(
+    return GestureDetector(
+      onTap: () => _showDetail(context),
+      child: AnimatedContainer(
       duration: const Duration(milliseconds: 180),
       decoration: BoxDecoration(
         color: CD.parchment.withValues(alpha: unlocked ? 0.96 : 0.78),
@@ -436,6 +427,7 @@ class _CharCard extends StatelessWidget {
           ],
         ),
       ),
+    ),
     );
   }
 

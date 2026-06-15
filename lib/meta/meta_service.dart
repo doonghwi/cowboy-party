@@ -9,6 +9,7 @@ import '../game/characters.dart';
 import '../online/online_service.dart' show OnlineService;
 import 'auth_service.dart';
 import 'gift_codes.dart';
+import 'season_service.dart';
 
 /// 일일 출석 보상 사이클 (7일).
 const List<int> kDailyCycle = [20, 20, 30, 30, 40, 40, 60];
@@ -109,6 +110,7 @@ class Meta extends ChangeNotifier {
     _nickname = t;
     _nicknameSet = true;
     _save();
+    SeasonService.I.updateName(t); // 랭킹 표시 이름도 동기화(있으면)
     notifyListeners();
   }
 
@@ -140,6 +142,7 @@ class Meta extends ChangeNotifier {
     _nicknameTickets -= 1;
     _nickname = n;
     _save();
+    SeasonService.I.updateName(n); // 랭킹 표시 이름 동기화
     notifyListeners();
     return (ok: true, message: '닉네임을 변경했어요 (변경권 1장 사용)');
   }

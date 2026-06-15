@@ -57,6 +57,21 @@ class SeasonService {
     }).catchError((_) {});
   }
 
+  /// 닉네임 변경 시 호출 — 이번 시즌 랭킹에 이미 올라 있으면 표시 이름을 갱신.
+  /// (랭킹에 없으면 새로 만들지 않는다 — 안 한 사람이 0점으로 끼지 않게.)
+  Future<void> updateName(String name) async {
+    if (!AuthService.I.isGoogle) return;
+    final uid = AuthService.I.cloudUid;
+    final ref = _ref;
+    if (uid == null || ref == null) return;
+    try {
+      final node = ref.child(uid);
+      final snap = await node.get();
+      if (!snap.exists) return; // 이번 시즌 기록 없음 → 갱신할 것 없음
+      await node.update({'name': name}).catchError((_) {});
+    } catch (_) {}
+  }
+
   /// 상위 [limit]명 (포인트 내림차순).
   Future<List<RankEntry>> fetchTop({int limit = 50}) async {
     final ref = _ref;

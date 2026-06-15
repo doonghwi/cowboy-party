@@ -123,6 +123,43 @@ class _RankingTabState extends State<RankingTab> {
     );
   }
 
+  // 랭킹에서 플레이어 탭 → 프로필(닉네임·순위·점수, 개인정보 없음).
+  void _showProfile(int rank, RankEntry e, bool isMe) {
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: CD.parchment,
+        title: Row(
+          children: [
+            const Icon(Icons.person, color: CD.rust),
+            const SizedBox(width: 8),
+            Expanded(child: Text(e.name, style: posterTitle(20))),
+          ],
+        ),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text('${SeasonService.seasonLabel} · $rank위',
+                style: const TextStyle(
+                    fontWeight: FontWeight.w800, color: CD.leather)),
+            const SizedBox(height: 6),
+            Text('시즌 점수 ${e.pts}점',
+                style: const TextStyle(fontSize: 14)),
+            if (isMe) ...[
+              const SizedBox(height: 6),
+              const Text('(나)', style: TextStyle(color: CD.muted)),
+            ],
+          ],
+        ),
+        actions: [
+          TextButton(
+              onPressed: () => Navigator.pop(ctx), child: const Text('닫기')),
+        ],
+      ),
+    );
+  }
+
   Widget _rankRow(int rank, RankEntry e, bool isMe) {
     final medal = switch (rank) {
       1 => '🥇',
@@ -130,7 +167,9 @@ class _RankingTabState extends State<RankingTab> {
       3 => '🥉',
       _ => null,
     };
-    return Container(
+    return GestureDetector(
+      onTap: () => _showProfile(rank, e, isMe),
+      child: Container(
       margin: const EdgeInsets.only(bottom: 6),
       padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
       decoration: BoxDecoration(
@@ -172,6 +211,7 @@ class _RankingTabState extends State<RankingTab> {
                   fontWeight: FontWeight.w900, color: CD.leather)),
         ],
       ),
+    ),
     );
   }
 }

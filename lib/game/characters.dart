@@ -200,10 +200,10 @@ const List<CharDef> kCharacters = [
 const int kCurseFuse = 10;
 
 /// ???(mystery)가 매 게임 무작위로 변신할 수 있는 직업 풀
-/// (mystery·commoner 제외 — 즉 실제 능력이 있는 모든 직업).
+/// (mystery 본인만 제외 — 일반인 포함, 즉 ???는 일반인으로도 변신 가능).
 List<CharId> get kMysteryPool => [
       for (final c in kCharacters)
-        if (c.id != CharId.mystery && c.id != CharId.commoner) c.id
+        if (c.id != CharId.mystery) c.id
     ];
 
 /// ???(mystery)를 좌석/게임 시드로 결정적으로 한 직업으로 변신시킨다.

@@ -20,7 +20,6 @@ class OnlineLobbyScreen extends StatefulWidget {
 
 class _OnlineLobbyScreenState extends State<OnlineLobbyScreen> {
   final _service = OnlineService();
-  final _nameCtl = TextEditingController();
   final _codeCtl = TextEditingController();
   final _titleCtl = TextEditingController();
   final _pwCtl = TextEditingController(); // 비공개 방 비밀번호(F3)
@@ -30,14 +29,7 @@ class _OnlineLobbyScreenState extends State<OnlineLobbyScreen> {
   String? _error;
 
   @override
-  void initState() {
-    super.initState();
-    _nameCtl.text = Meta.I.nickname; // 마지막 닉네임 기억
-  }
-
-  @override
   void dispose() {
-    _nameCtl.dispose();
     _codeCtl.dispose();
     _titleCtl.dispose();
     _pwCtl.dispose();
@@ -45,11 +37,10 @@ class _OnlineLobbyScreenState extends State<OnlineLobbyScreen> {
     super.dispose();
   }
 
+  // 닉네임은 계정 닉네임(상점/온보딩에서만 변경). 로비에서 자유롭게 못 바꾼다.
   String get _name {
-    final n = _nameCtl.text.trim();
-    final picked = n.isEmpty ? OnlineService.randomNickname() : n;
-    if (n.isNotEmpty && n != Meta.I.nickname) Meta.I.setNickname(n);
-    return picked;
+    final n = Meta.I.nickname.trim();
+    return n.isEmpty ? OnlineService.randomNickname() : n;
   }
 
   Future<void> _create() async {
@@ -136,16 +127,19 @@ class _OnlineLobbyScreenState extends State<OnlineLobbyScreen> {
             child: Column(
               children: [
                 _card(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
+                  child: Row(
                     children: [
-                      Text('닉네임', style: posterTitle(18)),
-                      const SizedBox(height: 8),
-                      TextField(
-                        controller: _nameCtl,
-                        maxLength: 8,
-                        decoration: _dec('비워두면 랜덤 이름'),
+                      const Icon(Icons.badge, color: CD.rust, size: 22),
+                      const SizedBox(width: 10),
+                      Expanded(
+                        child: Text(
+                          '닉네임: ${Meta.I.nickname.isEmpty ? "(미설정)" : Meta.I.nickname}',
+                          style: const TextStyle(
+                              fontWeight: FontWeight.w800, fontSize: 15),
+                        ),
                       ),
+                      const Text('상점에서 변경',
+                          style: TextStyle(fontSize: 11.5, color: CD.muted)),
                     ],
                   ),
                 ),

@@ -21,9 +21,12 @@ enum _Phase { setup, choosing, reveal, over, showdown, peeking }
 enum _SdStage { prep, go, result }
 
 class OfflineGameScreen extends StatefulWidget {
-  /// 튜토리얼 진입 시 장착과 무관하게 강제할 캐릭터(예: 일반인). null = 내 장착.
+  /// 체험/튜토리얼 진입 시 장착과 무관하게 강제할 캐릭터. null = 내 장착.
   final CharId? forcedChar;
-  const OfflineGameScreen({super.key, this.forcedChar});
+
+  /// 체험 모드: 셋업 화면을 건너뛰고 이 봇 수로 바로 시작(예: 5 → 6명전). null = 셋업.
+  final int? forcedBots;
+  const OfflineGameScreen({super.key, this.forcedChar, this.forcedBots});
 
   @override
   State<OfflineGameScreen> createState() => _OfflineGameScreenState();
@@ -31,6 +34,16 @@ class OfflineGameScreen extends StatefulWidget {
 
 class _OfflineGameScreenState extends State<OfflineGameScreen> {
   CharId get _myChar => widget.forcedChar ?? Meta.I.equipped;
+
+  @override
+  void initState() {
+    super.initState();
+    if (widget.forcedBots != null) {
+      _botCount = widget.forcedBots!.clamp(1, 5);
+      WidgetsBinding.instance.addPostFrameCallback((_) => _start());
+    }
+  }
+
   static const _botNames = ['잭', '빌', '한스', '로사', '듀크'];
   final _cpu = CpuAi();
   final _rand = Random();
