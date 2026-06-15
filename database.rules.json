@@ -71,7 +71,7 @@
     "stats": { ".read": true, ".write": false },
     "charstats": {
       ".read": true,
-      ".write": true,
+      ".write": "auth != null",
       "$idx": {
         "games": { ".validate": "newData.isNumber() && newData.val() >= 0 && (!data.exists() || newData.val() >= data.val())" },
         "wins": { ".validate": "newData.isNumber() && newData.val() >= 0 && (!data.exists() || newData.val() >= data.val())" },
