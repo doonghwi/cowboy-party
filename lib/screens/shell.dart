@@ -91,6 +91,19 @@ class _ShellScreenState extends State<ShellScreen> {
             },
             child: const Text('게스트로 시작'),
           ),
+          if (AuthService.I.showAppleButton)
+            FilledButton.icon(
+              style: FilledButton.styleFrom(backgroundColor: Colors.black),
+              onPressed: () async {
+                if (!_applyOnboardName(ctx, ctl.text)) return;
+                final ok = await AuthService.I.signInWithApple();
+                if (ok) await Meta.I.mergeFromCloud();
+                if (ctx.mounted) Navigator.pop(ctx);
+              },
+              icon: const Icon(Icons.apple, size: 20),
+              label: const Text('Apple로 로그인',
+                  style: TextStyle(fontWeight: FontWeight.w900)),
+            ),
           FilledButton.icon(
             style: FilledButton.styleFrom(backgroundColor: CD.rust),
             onPressed: () async {
@@ -573,11 +586,11 @@ class _AccountRowState extends State<_AccountRow> {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Text(
-                google ? (auth.displayName ?? 'Google 계정') : '게스트로 플레이 중',
+                google ? (auth.displayName ?? '로그인됨') : '게스트로 플레이 중',
                 style: const TextStyle(fontWeight: FontWeight.w900),
               ),
               Text(
-                google ? '랭킹 등록 · 기기 간 코인 연동 중' : 'Google 로그인하면 랭킹에 등록돼요',
+                google ? '랭킹 등록 · 기기 간 코인 연동 중' : '로그인하면 랭킹에 등록돼요',
                 style: const TextStyle(fontSize: 11.5, color: CD.muted),
               ),
             ],
@@ -594,25 +607,47 @@ class _AccountRowState extends State<_AccountRow> {
                       if (mounted) setState(() {});
                     },
                     child: const Text('로그아웃'))
-                : FilledButton.icon(
-                    style: FilledButton.styleFrom(backgroundColor: CD.sage),
-                    onPressed: () async {
-                      setState(() => _busy = true);
-                      final ok = await AuthService.I.signInWithGoogle();
-                      if (ok) await Meta.I.mergeFromCloud();
-                      if (!mounted) return;
-                      setState(() => _busy = false);
-                      if (!ok && AuthService.I.lastError != null) {
-                        ScaffoldMessenger.of(this.context).showSnackBar(
-                            SnackBar(
-                                content: Text(AuthService.I.lastError!)));
-                      }
-                      widget.onChanged();
-                    },
-                    icon: const Icon(Icons.login, size: 18),
-                    label: const Text('Google 로그인'),
+                : Column(
+                    mainAxisSize: MainAxisSize.min,
+                    crossAxisAlignment: CrossAxisAlignment.end,
+                    children: [
+                      FilledButton.icon(
+                        style: FilledButton.styleFrom(
+                            backgroundColor: CD.sage,
+                            visualDensity: VisualDensity.compact),
+                        onPressed: () => _signIn(AuthService.I.signInWithGoogle),
+                        icon: const Icon(Icons.login, size: 18),
+                        label: const Text('Google'),
+                      ),
+                      if (AuthService.I.showAppleButton) ...[
+                        const SizedBox(height: 6),
+                        FilledButton.icon(
+                          style: FilledButton.styleFrom(
+                              backgroundColor: Colors.black,
+                              visualDensity: VisualDensity.compact),
+                          onPressed: () =>
+                              _signIn(AuthService.I.signInWithApple),
+                          icon: const Icon(Icons.apple, size: 20),
+                          label: const Text('Apple'),
+                        ),
+                      ],
+                    ],
                   ),
       ],
     );
+  }
+
+  /// 로그인 공통 처리(Google/Apple) — busy 토글 + 클라우드 머지 + 에러 토스트.
+  Future<void> _signIn(Future<bool> Function() signInFn) async {
+    setState(() => _busy = true);
+    final ok = await signInFn();
+    if (ok) await Meta.I.mergeFromCloud();
+    if (!mounted) return;
+    setState(() => _busy = false);
+    if (!ok && AuthService.I.lastError != null) {
+      ScaffoldMessenger.of(context)
+          .showSnackBar(SnackBar(content: Text(AuthService.I.lastError!)));
+    }
+    widget.onChanged();
   }
 }

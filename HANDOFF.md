@@ -1,10 +1,19 @@
 # 카우보이 파티 — 세션 이어가기 (HANDOFF)
 
-> 새 세션에서 이 파일을 먼저 읽고 이어서 진행. 모든 작업물은 디스크에 있고 main에 커밋됨(커밋 423ed86 기준).
+> 새 세션에서 이 파일을 먼저 읽고 이어서 진행. 모든 작업물은 디스크에 있고 main에 커밋됨.
+> ⚠️ 아래 좌표 일부는 구 Windows 경로(C:\dev\…) — 현재는 Mac `/Users/doonghwi/Documents/dailyapp/`.
 
-## 한 줄 요약
+## 2026-06-15 스토어 출시 준비 (STORE_RELEASE_PREP.md 실행 완료)
+세션이 **계정/결제/제출 없이 가능한 모든 것**을 준비함. 상세·남은 사용자 액션은 `STORE_RELEASE_PREP.md` 하단.
+- **개인정보처리방침**: cowboy.gg repo `privacy.html`(한/영) 작성·푸시 → https://doonghwi.github.io/cowboy.gg/privacy.html
+- **store/ 폴더 신규**: 문안(listing_ko/en), data_safety, ios_release, README, icon_512.png, feature_graphic.png(1024×500), screenshots/android 5장(현재 빌드 캡처).
+- **Sign in with Apple 구현**(F1): `sign_in_with_apple`+`crypto` 추가, `auth_service.signInWithApple()`(nonce+Firebase apple.com), 온보딩·설정에 버튼(iOS/macOS/웹만 노출). 공지 1건 추가.
+- **Android 출시 서명**(E): `build.gradle.kts` release signingConfig(key.properties 읽기, 없으면 디버그 폴백) + `key.properties.example` + .gitignore(key.properties/*.jks/*.keystore). `flutter build appbundle --release` 통과(app-release.aab 57.5MB).
+- 검증: analyze 0 · 74 테스트 통과 · 에뮬에서 현재 빌드 설치·홈/상점/랭킹/보상/6인 게임플레이 스크린샷 확인.
+- **남은 사용자 액션**: Play/Apple 계정 등록, 업로드 키스토어 생성, Firebase Apple 공급자 켜기, Xcode Apple capability, iOS 스크린샷, 최종 제출 — STORE_RELEASE_PREP.md "남은 사용자 액션" 참고.
+
+## (이전) 한 줄 요약
 앱은 **빌드·검증·배포 완료**되어 라이브로 동작 중. 사용자 피드백 **4건 수정도 2026-06-04 배포 완료(LIVE)**.
-→ 남은 할 일 없음. 새 피드백이 오면 아래 "배포 절차" 그대로 반복.
 
 ## 2026-06-04 (4차) 결투 승자 생존·멘트 2건 배포 완료
 - **반응결투 승자 해골 버그**: 마지막 동시 탈락 후 결투에서 이겨도 승자까지 `alive=false`(해골)로 뜸 → `online_service.computeView`의 sdWinner 분기에서 `alive[sdWinner]=true; hit[sdWinner]=false`로 승자 생존 표시. (오프라인은 결투결과가 standalone 카드라 무관.)

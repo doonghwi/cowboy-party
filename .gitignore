@@ -44,6 +44,11 @@ app.*.map.json
 /android/app/profile
 /android/app/release
 
+# Android 업로드 서명 시크릿 — 절대 커밋 금지 (key.properties.example만 커밋)
+/android/key.properties
+**/*.jks
+**/*.keystore
+
 # OMC orchestration state
 .omc/
 

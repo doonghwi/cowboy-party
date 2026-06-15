@@ -1,0 +1,16 @@
+# Android 업로드 키스토어 설정 예시.
+# 이 파일을 복사해 android/key.properties 로 만들고 실제 값으로 채운다.
+#   cp android/key.properties.example android/key.properties
+# key.properties 와 *.jks 는 .gitignore 에 있음(시크릿 — 절대 커밋 금지).
+#
+# 1) 업로드 키스토어 생성 (한 번만, 비밀번호·파일은 사장님이 안전 보관):
+#   keytool -genkey -v -keystore ~/cowboy-upload.jks \
+#     -keyalg RSA -keysize 2048 -validity 10000 -alias upload
+#   (질문에 이름/조직 등 입력, 키스토어/키 비밀번호 기억할 것)
+#
+# 2) 아래 값 채우기:
+storePassword=<키스토어 비밀번호>
+keyPassword=<키 비밀번호>
+keyAlias=upload
+# storeFile: .jks 절대경로 권장 (예: /Users/doonghwi/cowboy-upload.jks)
+storeFile=/Users/doonghwi/cowboy-upload.jks
