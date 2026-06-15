@@ -8,6 +8,7 @@ import 'package:share_plus/share_plus.dart';
 import '../audio/sfx.dart';
 import '../game/party_logic.dart';
 import '../meta/meta_service.dart';
+import '../meta/char_stats.dart';
 import '../meta/season_service.dart';
 import '../online/online_service.dart';
 import '../theme.dart';
@@ -474,6 +475,10 @@ class _OnlineGameScreenState extends State<OnlineGameScreen> {
     final iWon = view.winnerSeat == view.mySeat;
     final coins = iWon ? Meta.I.grantWin(players) : Meta.I.grantPlay();
     if (iWon) SeasonService.I.recordWin(players);
+    // #12 승률 트래커: 내 캐릭터의 승/패 1건 기록(밸런스용).
+    if (view.mySeat >= 0 && view.mySeat < view.seats.length) {
+      CharStats.I.record(view.seats[view.mySeat].char, won: iWon);
+    }
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted) return;
       TopToast.show(

@@ -54,6 +54,7 @@
     },
 
     "build": { ".read": true, ".write": true },
-    "stats": { ".read": true, ".write": true }
+    "stats": { ".read": true, ".write": true },
+    "charstats": { ".read": true, ".write": true }
   }
 }
