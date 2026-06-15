@@ -7,7 +7,6 @@ import '../meta/meta_service.dart';
 import '../online/online_service.dart';
 import '../theme.dart';
 import '../widgets/desert_background.dart';
-import 'offline_game_screen.dart';
 import 'online_game_screen.dart';
 
 /// 빠른 시작 매칭(#2). 최대 10초 탐색.
@@ -22,7 +21,7 @@ class MatchmakingScreen extends StatefulWidget {
 }
 
 class _MatchmakingScreenState extends State<MatchmakingScreen> {
-  static const int _searchSeconds = 10;
+  static const int _searchSeconds = 20;
 
   final _service = OnlineService();
   String? _code;
@@ -129,16 +128,6 @@ class _MatchmakingScreenState extends State<MatchmakingScreen> {
     ));
   }
 
-  // 매칭 상대가 없을 때: 내 장착 캐릭터로 봇 6인전 바로 시작.
-  void _startWithBots() {
-    _tick?.cancel();
-    _heartbeat?.cancel();
-    _sub?.cancel();
-    Navigator.of(context).pushReplacement(MaterialPageRoute(
-      builder: (_) => const OfflineGameScreen(forcedBots: 5),
-    ));
-  }
-
   void _fail(String msg) {
     if (_failed || _navigated) return;
     setState(() {
@@ -202,27 +191,14 @@ class _MatchmakingScreenState extends State<MatchmakingScreen> {
                       textAlign: TextAlign.center,
                       style: posterTitle(20, color: Colors.white)),
                   const SizedBox(height: 6),
-                  const Text('지금 매칭을 찾는 사람이 없어요. 봇과 바로 할 수도 있어요.',
+                  const Text('같은 시간에 빠른 시작을 누른 사람이 있어야 매칭돼요.',
                       textAlign: TextAlign.center,
                       style: TextStyle(color: CD.sand, fontSize: 12)),
                 ],
                 const SizedBox(height: 28),
-                if (_failed)
-                  FilledButton.icon(
-                    style: FilledButton.styleFrom(
-                      backgroundColor: CD.rust,
-                      padding: const EdgeInsets.symmetric(
-                          horizontal: 28, vertical: 13),
-                    ),
-                    onPressed: _startWithBots,
-                    icon: const Icon(Icons.smart_toy, size: 18),
-                    label: const Text('봇과 바로 시작',
-                        style: TextStyle(fontWeight: FontWeight.w900)),
-                  ),
-                const SizedBox(height: 10),
                 FilledButton(
                   style: FilledButton.styleFrom(
-                    backgroundColor: _failed ? CD.leather : CD.leather,
+                    backgroundColor: _failed ? CD.rust : CD.leather,
                     padding: const EdgeInsets.symmetric(
                         horizontal: 32, vertical: 13),
                   ),

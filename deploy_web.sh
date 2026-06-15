@@ -22,6 +22,34 @@ self.addEventListener('activate', function (e) {
 });
 SW
 
+# --- 흰 화면 스모크 테스트(배포 전) ---
+# 빌드한 웹을 헤드리스 크롬으로 띄워 Flutter 뷰가 렌더되는지 확인.
+# 안 뜨면(흰 화면) 배포를 중단한다 — 흰 화면 회귀가 사용자에게 안 나가게.
+CHROME="/Applications/Google Chrome.app/Contents/MacOS/Google Chrome"
+if [ -x "$CHROME" ] && command -v node >/dev/null 2>&1; then
+  SMOKE_DIR="$(mktemp -d)"
+  ln -s "$ROOT/build/web" "$SMOKE_DIR/cowboy-party"
+  ( cd "$SMOKE_DIR" && python3 -m http.server 8769 >/dev/null 2>&1 & echo $! > "$SMOKE_DIR/srv.pid" )
+  "$CHROME" --headless=new --remote-debugging-port=9251 --disable-gpu \
+    --no-first-run --user-data-dir="$SMOKE_DIR/cdp" about:blank >/dev/null 2>&1 &
+  CHROME_PID=$!
+  sleep 4
+  set +e
+  node "$ROOT/tool/web_smoke.mjs" "http://localhost:8769/cowboy-party/" 9251
+  SMOKE=$?
+  set -e
+  kill "$CHROME_PID" 2>/dev/null || true
+  kill "$(cat "$SMOKE_DIR/srv.pid" 2>/dev/null)" 2>/dev/null || true
+  rm -rf "$SMOKE_DIR"
+  if [ "$SMOKE" -ne 0 ]; then
+    echo "❌ 스모크 실패: 빌드가 흰 화면입니다. 배포 중단."
+    exit 1
+  fi
+  echo "✅ 스모크 통과(렌더 확인)"
+else
+  echo "⚠️  크롬/노드 없음 — 스모크 건너뜀(흰 화면 자동검증 불가)"
+fi
+
 cd build/web
 rm -rf .git
 git init -q

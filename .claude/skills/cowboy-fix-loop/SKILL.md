@@ -27,9 +27,13 @@ Steinberger의 `maintainer-orchestrator`를 이 프로젝트에 맞춘 버전. "
    설계가 바뀌면 `ARCHITECTURE.md` 갱신, 새 함정은 `_make-new-app/LESSONS.md`.
 6. **커밋·배포**: 작성자 `doonghwi <ehdgnlans@gmail.com>`, Co-Authored-By 금지.
    - 커밋 → `git push origin main`(pre-push 시크릿 스캔 통과)
-   - 웹: **`bash deploy_web.sh`** (빌드 + 자가소멸 SW 덮어쓰기 + gh-pages force push).
-     ⚠️ 수동 배포 시 반드시 `build/web/flutter_service_worker.js`를 자가소멸 SW로 덮어쓸 것
-     — 빈 SW를 두면 옛 PWA가 흰 화면이 된다.
+   - 웹: **반드시 `bash deploy_web.sh`** 로 배포한다. 이 스크립트는 (1)빌드 (2)자가소멸 SW
+     덮어쓰기 (3)**흰 화면 스모크 테스트**(헤드리스 크롬으로 렌더 확인, 실패 시 배포 중단)
+     (4)gh-pages push 를 모두 한다. 손으로 `flutter build web` + push 하지 말 것.
+   - ⚠️ **흰 화면 회귀 금지 규칙**: `main()`의 `runApp()` 앞에서 **무엇도 무한정 await 하지 말 것**.
+     자산 로드·네트워크 등은 백그라운드(`Future`)로 돌리거나 `.timeout()`으로 감싼다.
+     (과거 `Profanity.init()`이 runApp을 막아 웹이 흰 화면이 됐다 — `_make-new-app/LESSONS.md` 참고.)
+     deploy_web.sh 스모크가 이 부류를 자동으로 잡는다.
    - APK: `JAVA_HOME=/opt/homebrew/opt/openjdk@17 flutter build apk --release`
      → `dist/cowboy-party.apk`
    - RTDB 규칙 바꿨으면 `firebase deploy --only database --project cowboy-party-doonghwi`
