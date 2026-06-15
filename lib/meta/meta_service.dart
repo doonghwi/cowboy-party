@@ -12,12 +12,32 @@ import 'gift_codes.dart';
 import 'profanity.dart';
 import 'season_service.dart';
 
-/// 일일 출석 보상 사이클 (7일).
-const List<int> kDailyCycle = [20, 20, 30, 30, 40, 40, 60];
+/// 일일 출석 보상 사이클 (7일). (#9: 상향)
+const List<int> kDailyCycle = [100, 100, 150, 150, 200, 200, 400];
 
-/// 승리 보상: 30 + (인원-2)×8  → 2인 30 ~ 6인 62. 참가 보상 5.
-int winCoins(int players) => 30 + (players.clamp(2, 6) - 2) * 8;
-const int kPlayCoins = 5;
+/// 승리 보상: 80 + (인원-2)×15 → 2인 80 ~ 6인 140. 참가 보상 30. (#9: 상향)
+/// LoL/배그처럼 "플레이 자체"와 "데일리 미션"으로 통화가 의미있게 쌓이게 한다.
+int winCoins(int players) => 80 + (players.clamp(2, 6) - 2) * 15;
+const int kPlayCoins = 30;
+
+/// 데일리 미션(매일 0시 리셋). key → (목표 판수 또는 승수, 보상, 라벨, 승리미션 여부).
+/// 활동 유저 하루 합계 ≈ 1,250골드 + 판당 보상 → 중간 캐릭터 며칠, 최고가 1~2주.
+class DailyMission {
+  final String key;
+  final int need; // 필요 횟수
+  final int gold;
+  final String label;
+  final bool winMission; // true면 승수, false면 플레이 판수
+  const DailyMission(this.key, this.need, this.gold, this.label,
+      {this.winMission = false});
+}
+
+const List<DailyMission> kDailyMissions = [
+  DailyMission('play1', 1, 100, '오늘 1판 플레이'),
+  DailyMission('firstwin', 1, 300, '오늘 첫 승리', winMission: true),
+  DailyMission('play3', 3, 250, '오늘 3판 플레이'),
+  DailyMission('play5', 5, 600, '오늘 5판 플레이'),
+];
 
 /// 닉네임 변경권 가격(G2). 첫 닉네임 설정은 무료, 이후 변경은 변경권 소모.
 const int kNicknameTicketCost = 10000;
@@ -44,6 +64,11 @@ class Meta extends ChangeNotifier {
   String _nickname = '';
   Set<String> _redeemed = {}; // 사용한 선물 코드(계정당 1회)
   int _nicknameTickets = 0; // 닉네임 변경권 보유 수(G2)
+  // 데일리 미션 진행(매일 리셋) (#9)
+  String _dDay = '';
+  int _dGames = 0;
+  int _dWins = 0;
+  Set<String> _dClaimed = {};
   bool _nicknameSet = false; // 첫 닉네임 설정 여부(첫 설정은 무료)
 
   int get coins => _coins;
@@ -82,8 +107,24 @@ class Meta extends ChangeNotifier {
     _redeemed = (sp.getStringList('redeemed') ?? []).toSet();
     _nicknameTickets = sp.getInt('nick_tickets') ?? 0;
     _nicknameSet = sp.getBool('nick_set') ?? _nickname.isNotEmpty;
+    _dDay = sp.getString('d_day') ?? '';
+    _dGames = sp.getInt('d_games') ?? 0;
+    _dWins = sp.getInt('d_wins') ?? 0;
+    _dClaimed = (sp.getStringList('d_claimed') ?? []).toSet();
+    _rollDailyMissions(); // 날짜 바뀌었으면 리셋
     if (brandNew) _save();
     notifyListeners();
+  }
+
+  /// 날짜가 바뀌면 데일리 미션 진행을 리셋한다.
+  void _rollDailyMissions() {
+    final today = _today();
+    if (_dDay != today) {
+      _dDay = today;
+      _dGames = 0;
+      _dWins = 0;
+      _dClaimed = {};
+    }
   }
 
   Future<void> _save() async {
@@ -100,7 +141,37 @@ class Meta extends ChangeNotifier {
     await sp.setStringList('redeemed', _redeemed.toList());
     await sp.setInt('nick_tickets', _nicknameTickets);
     await sp.setBool('nick_set', _nicknameSet);
+    await sp.setString('d_day', _dDay);
+    await sp.setInt('d_games', _dGames);
+    await sp.setInt('d_wins', _dWins);
+    await sp.setStringList('d_claimed', _dClaimed.toList());
     _mirrorToCloud();
+  }
+
+  // ── 데일리 미션 (#9) ──────────────────────────────────────────────────
+  int get dailyGames => _dGames;
+  int get dailyWins => _dWins;
+  bool missionClaimed(DailyMission m) => _dClaimed.contains(m.key);
+  int missionProgress(DailyMission m) => m.winMission ? _dWins : _dGames;
+
+  /// 게임 1판 종료 시 호출(온/오프 공통). 데일리 카운트를 올리고, 새로 달성한
+  /// 미션 보상을 즉시 지급한다. 반환: 이번에 달성한 미션 목록(토스트용).
+  List<DailyMission> noteGamePlayed({required bool won}) {
+    _rollDailyMissions();
+    _dGames += 1;
+    if (won) _dWins += 1;
+    final newly = <DailyMission>[];
+    for (final m in kDailyMissions) {
+      if (_dClaimed.contains(m.key)) continue;
+      if (missionProgress(m) >= m.need) {
+        _dClaimed.add(m.key);
+        _coins += m.gold;
+        newly.add(m);
+      }
+    }
+    _save();
+    notifyListeners();
+    return newly;
   }
 
   /// 저수준 닉네임 설정 — 첫 진입/로비에서 직접 정할 때만 사용(첫 설정 무료).

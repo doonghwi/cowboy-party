@@ -11,6 +11,7 @@ import '../theme.dart';
 import '../widgets/action_bar.dart';
 import '../widgets/circular_table.dart';
 import '../widgets/seat_profile.dart';
+import '../widgets/top_toast.dart';
 import '../widgets/desert_background.dart';
 import '../widgets/emoji_bar.dart';
 import '../widgets/reaction_panel.dart';
@@ -71,6 +72,7 @@ class _OfflineGameScreenState extends State<OfflineGameScreen> {
   _Phase _phase = _Phase.setup;
   String _banner = '';
   GameStatus _status = GameStatus.ongoing;
+  bool _offlineRewarded = false; // #9 데일리 미션 1회 지급 가드
   int? _winner;
 
   ActKind? _selKind;
@@ -189,6 +191,7 @@ class _OfflineGameScreenState extends State<OfflineGameScreen> {
           : '첫 턴! 아직 총알이 없어요 — 장전부터.';
       _status = GameStatus.ongoing;
       _winner = null;
+      _offlineRewarded = false;
       _selKind = null;
       _selTarget = -1;
       _selTarget2 = -1;
@@ -883,7 +886,23 @@ class _OfflineGameScreenState extends State<OfflineGameScreen> {
           ),
         );
       case _Phase.over:
+        _endReward();
         return _resultCard();
+    }
+  }
+
+  // #9 오프라인 게임 종료 1회: 데일리 미션 진행/보상(달성 시 토스트).
+  void _endReward() {
+    if (_offlineRewarded) return;
+    _offlineRewarded = true;
+    final missions = Meta.I.noteGamePlayed(won: _winner == 0);
+    final bonus = missions.fold<int>(0, (a, m) => a + m.gold);
+    if (bonus > 0) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) {
+          TopToast.show(context, message: '데일리 미션 +$bonus 코인!');
+        }
+      });
     }
   }
 

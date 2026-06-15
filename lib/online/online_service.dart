@@ -456,7 +456,10 @@ class OnlineService {
     final seatLimit =
         started ? (_asInt(data['seatCount']) ?? capacity) : capacity;
     final staleBefore = _now - kPresenceGraceMs;
-    for (var s = 1; s < seatLimit; s++) {
+    // 시작된 게임은 좌석0(방장)을 보존하지만, **대기실(미시작)**에서는 방장이
+    // 나가 비어 있으면 좌석0도 가져갈 수 있어야 한다(안 그러면 1/6인데 "꽉 참" 버그).
+    final firstSeat = started ? 1 : 0;
+    for (var s = firstSeat; s < seatLimit; s++) {
       if (blocked[slotKey(s)] == true) continue; // 방장이 닫은 자리는 건너뜀
       final claim = {
         'id': clientId,
@@ -683,7 +686,9 @@ class OnlineService {
   /// Clear the board for a fresh round (score is kept; it was already recorded
   /// at win time). Late joiners' markers clear here — they play from this
   /// round — and the character snapshot is rebuilt to include them.
-  Future<void> resetBoard(String code) async {
+  /// 보드 초기화. [toLobby]=true면 started:false로 되돌려 **대기실**로 보낸다
+  /// (#1: 게임 끝나고 다시하기 대신 대기실에서 초대·캐릭터변경·시작).
+  Future<void> resetBoard(String code, {bool toLobby = false}) async {
     final snap = await room(code).get();
     final data = _asMap(snap.value) ?? const {};
     final players = _asMap(data['players']) ?? const {};
@@ -696,6 +701,7 @@ class OnlineService {
       'react': null,
       'peek': null,
       'peekUsed': null,
+      if (toLobby) 'started': false,
       'game': (_asInt(data['game']) ?? 0) + 1,
     };
     final chars = <String, Object?>{};

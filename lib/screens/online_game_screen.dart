@@ -479,11 +479,16 @@ class _OnlineGameScreenState extends State<OnlineGameScreen> {
     if (view.mySeat >= 0 && view.mySeat < view.seats.length) {
       CharStats.I.record(view.seats[view.mySeat].char, won: iWon);
     }
+    // #9 데일리 미션 진행 + 달성 보상.
+    final missions = Meta.I.noteGamePlayed(won: iWon);
+    final bonus = missions.fold<int>(0, (a, m) => a + m.gold);
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted) return;
       TopToast.show(
         context,
-        message: iWon ? '승리 보상 +$coins 코인!' : '참가 보상 +$coins 코인',
+        message: bonus > 0
+            ? '${iWon ? "승리" : "참가"} +$coins · 데일리 미션 +$bonus 코인!'
+            : (iWon ? '승리 보상 +$coins 코인!' : '참가 보상 +$coins 코인'),
       );
     });
   }
@@ -1055,8 +1060,10 @@ class _OnlineGameScreenState extends State<OnlineGameScreen> {
               ),
             )
           else ...[
-            Text('다시하기 ${view.rematchCount}/${view.presentCount}',
-                style: const TextStyle(color: CD.muted)),
+            // #1 게임 끝나면 대기실로 — 거기서 초대·캐릭터 변경 후 다시 시작.
+            const Text('대기실로 돌아가면 캐릭터를 바꾸거나 다시 시작할 수 있어요',
+                textAlign: TextAlign.center,
+                style: TextStyle(color: CD.muted, fontSize: 12)),
             const SizedBox(height: 10),
             Row(
               children: [
@@ -1073,18 +1080,15 @@ class _OnlineGameScreenState extends State<OnlineGameScreen> {
                 ),
                 const SizedBox(width: 12),
                 Expanded(
+                  flex: 2,
                   child: FilledButton(
-                    onPressed: (!view.seated || view.iRequestedRematch)
-                        ? null
-                        : () => widget.service
-                            .requestRematch(widget.code, view.mySeat),
+                    onPressed: () =>
+                        widget.service.resetBoard(widget.code, toLobby: true),
                     style: FilledButton.styleFrom(
                       backgroundColor: CD.rust,
-                      disabledBackgroundColor:
-                          CD.muted.withValues(alpha: 0.4),
                       padding: const EdgeInsets.symmetric(vertical: 13),
                     ),
-                    child: Text(view.iRequestedRematch ? '대기 중...' : '다시하기'),
+                    child: const Text('대기실로 돌아가기'),
                   ),
                 ),
               ],

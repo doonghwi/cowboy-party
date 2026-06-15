@@ -143,15 +143,16 @@ class _OnlineLobbyScreenState extends State<OnlineLobbyScreen> {
                         ),
                       ],
                       const SizedBox(height: 14),
-                      FilledButton.icon(
+                      FilledButton(
                         onPressed: _busy ? null : _create,
                         style: FilledButton.styleFrom(
                           backgroundColor: CD.rust,
                           padding: const EdgeInsets.symmetric(vertical: 14),
                         ),
-                        icon: const Icon(Icons.add),
-                        label: Text('방 만들기 (6인)',
-                            style: posterTitle(17, color: Colors.white)),
+                        child: Text('방 만들기',
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: posterTitle(18, color: Colors.white)),
                       ),
                     ],
                   ),

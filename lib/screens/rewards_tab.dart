@@ -116,6 +116,29 @@ class _RewardsTabState extends State<RewardsTab> {
           ),
         ),
         const SizedBox(height: 14),
+        // #9 데일리 미션 — 게임을 하면 자동 달성·지급. 여기선 진행만 보여줌.
+        _card(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Row(
+                children: [
+                  Text('데일리 미션', style: posterTitle(19)),
+                  const Spacer(),
+                  const Text('매일 0시 초기화',
+                      style:
+                          TextStyle(color: CD.muted, fontWeight: FontWeight.w700)),
+                ],
+              ),
+              const SizedBox(height: 10),
+              for (final m in kDailyMissions) _missionRow(m),
+              const SizedBox(height: 4),
+              const Text('게임을 끝내면 자동으로 달성·지급돼요.',
+                  style: TextStyle(fontSize: 11.5, color: CD.muted)),
+            ],
+          ),
+        ),
+        const SizedBox(height: 14),
         _card(
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -188,6 +211,32 @@ class _RewardsTabState extends State<RewardsTab> {
           ),
         ),
       ],
+    );
+  }
+
+  Widget _missionRow(DailyMission m) {
+    final done = Meta.I.missionClaimed(m);
+    final prog = Meta.I.missionProgress(m).clamp(0, m.need);
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 5),
+      child: Row(
+        children: [
+          Icon(done ? Icons.check_circle : Icons.radio_button_unchecked,
+              size: 18, color: done ? CD.sage : CD.muted),
+          const SizedBox(width: 8),
+          Expanded(
+            child: Text('${m.label}  ($prog/${m.need})',
+                style: TextStyle(
+                    fontWeight: FontWeight.w700,
+                    color: done ? CD.muted : CD.leather,
+                    decoration: done ? TextDecoration.lineThrough : null)),
+          ),
+          Text('+${m.gold}',
+              style: TextStyle(
+                  fontWeight: FontWeight.w900,
+                  color: done ? CD.muted : CD.gold)),
+        ],
+      ),
     );
   }
 

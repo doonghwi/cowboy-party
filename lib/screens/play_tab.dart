@@ -158,7 +158,7 @@ class _PlayTabState extends State<PlayTab> {
                   icon: Icons.add_circle,
                   color: CD.sage,
                   title: '방 만들기',
-                  sub: '공개/비공개 2~6인',
+                  sub: '공개/비공개 6인방',
                   onTap: () => Navigator.push(
                       context,
                       MaterialPageRoute(
