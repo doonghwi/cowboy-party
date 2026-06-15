@@ -1238,7 +1238,7 @@ class OnlineService {
           revealed[s] = true;
         }
       }
-      banner = _turnBanner(out, names, moves, aliveBefore, seed, t);
+      banner = _turnBanner(out, names, moves, aliveBefore, seed, t, chars);
 
       if (out.status != GameStatus.ongoing) {
         var status = out.status;
@@ -1275,6 +1275,14 @@ class OnlineService {
             winner = duelists.first;
             specialWin = 'duelist';
             final w = duelists.first;
+            alive[w] = true;
+            hit[w] = false;
+          } else if (parts.where(present).length == 1) {
+            // #5: 결투(showdown) 도중 상대가 나가면 남은 한 명이 승리.
+            // (예전엔 떠난 사람을 기다리며 무한 로딩)
+            final w = parts.firstWhere(present);
+            status = GameStatus.won;
+            winner = w;
             alive[w] = true;
             hit[w] = false;
           } else {
@@ -1524,8 +1532,16 @@ class OnlineService {
   }
 
   static String _turnBanner(TurnOutcome out, Map<int, String> names,
-      List<Move> moves, List<bool> aliveBefore, String seed, int turn) {
+      List<Move> moves, List<bool> aliveBefore, String seed, int turn,
+      List<CharId> chars) {
     String nameOf(int s) => names[s] ?? '카우보이';
+    bool isShadow(int s) => s < chars.length && chars[s] == CharId.shadow;
+    // #10: 그림자가 살아 있으면 '둘 다 장전/방어' 같은 멘트로 행동이 유추되지 않게
+    // 구체적 표현을 숨긴다(가만히 멘트도 그림자는 이름 노출 안 함).
+    final shadowAlive = [
+      for (var s = 0; s < aliveBefore.length; s++)
+        if (aliveBefore[s] && isShadow(s)) s
+    ].isNotEmpty;
     // 캐릭터 능력이 만든 드라마가 우선 — 평범한 결과 문구에 묻히지 않게.
     final reflected = <String>[
       for (var s = 0; s < out.reflectKill.length; s++)
@@ -1574,10 +1590,13 @@ class OnlineService {
             moves[s].kind == ActKind.idle)
           s
     ];
-    if (idlers.isNotEmpty) {
-      final s = idlers.first;
+    // 그림자가 아닌 idler만 이름을 노출(그림자 idle은 숨김).
+    final visibleIdler = idlers.where((s) => !isShadow(s)).toList();
+    if (visibleIdler.isNotEmpty) {
+      final s = visibleIdler.first;
       return '${nameOf(s)}, ${idleFlavor(seed, turn, s)}...';
     }
+    if (shadowAlive) return '조용한 한 턴이 지나갔다...';
     return _quietBanner(moves, aliveBefore);
   }
 
