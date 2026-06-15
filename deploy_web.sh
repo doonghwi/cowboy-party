@@ -27,20 +27,26 @@ SW
 # 안 뜨면(흰 화면) 배포를 중단한다 — 흰 화면 회귀가 사용자에게 안 나가게.
 CHROME="/Applications/Google Chrome.app/Contents/MacOS/Google Chrome"
 if [ -x "$CHROME" ] && command -v node >/dev/null 2>&1; then
+  # 이전 실행이 남긴 좀비 정리(포트 충돌 방지).
+  pkill -f "remote-debugging-port=9251" 2>/dev/null || true
+  pkill -f "http.server 8769" 2>/dev/null || true
+  sleep 1
   SMOKE_DIR="$(mktemp -d)"
   ln -s "$ROOT/build/web" "$SMOKE_DIR/cowboy-party"
-  ( cd "$SMOKE_DIR" && python3 -m http.server 8769 >/dev/null 2>&1 & echo $! > "$SMOKE_DIR/srv.pid" )
+  python3 -m http.server 8769 --directory "$SMOKE_DIR" >/dev/null 2>&1 &
+  SRV_PID=$!
   "$CHROME" --headless=new --remote-debugging-port=9251 --disable-gpu \
     --no-first-run --user-data-dir="$SMOKE_DIR/cdp" about:blank >/dev/null 2>&1 &
   CHROME_PID=$!
-  sleep 4
+  sleep 5
   set +e
   node "$ROOT/tool/web_smoke.mjs" "http://localhost:8769/cowboy-party/" 9251
   SMOKE=$?
   set -e
-  kill "$CHROME_PID" 2>/dev/null || true
-  kill "$(cat "$SMOKE_DIR/srv.pid" 2>/dev/null)" 2>/dev/null || true
-  rm -rf "$SMOKE_DIR"
+  kill "$CHROME_PID" "$SRV_PID" 2>/dev/null || true
+  pkill -f "remote-debugging-port=9251" 2>/dev/null || true
+  sleep 1
+  rm -rf "$SMOKE_DIR" 2>/dev/null || true
   if [ "$SMOKE" -ne 0 ]; then
     echo "❌ 스모크 실패: 빌드가 흰 화면입니다. 배포 중단."
     exit 1
