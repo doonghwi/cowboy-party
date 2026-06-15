@@ -7,6 +7,7 @@ import '../meta/meta_service.dart';
 import '../online/online_service.dart';
 import '../theme.dart';
 import '../widgets/desert_background.dart';
+import 'offline_game_screen.dart';
 import 'online_game_screen.dart';
 
 /// 빠른 시작 매칭(#2). 최대 10초 탐색.
@@ -25,7 +26,8 @@ class _MatchmakingScreenState extends State<MatchmakingScreen> {
 
   final _service = OnlineService();
   String? _code;
-  bool _isHost = false;
+  bool _isLeader = false; // 현재 가장 낮은 좌석(시작/취소 결정권)
+  bool _failScheduled = false;
   int _mySeat = -1;
   int _joined = 1;
   int _secondsLeft = _searchSeconds;
@@ -49,10 +51,9 @@ class _MatchmakingScreenState extends State<MatchmakingScreen> {
         : OnlineService.randomNickname();
     final r = await _service.quickMatch(name, charIndex: Meta.I.equippedIndex);
     if (!mounted) return;
-    setState(() {
-      _code = r.code;
-      _isHost = r.host;
-    });
+    // host=true(내가 만든 방)면 좌석0이라 첫 리더. 이후 리더는 _onRoom이 좌석으로 판단.
+    _isLeader = r.host;
+    setState(() => _code = r.code);
     _sub = _service.watch(r.code).listen(_onRoom);
     _heartbeat = Timer.periodic(const Duration(seconds: 3), (_) {
       if (_mySeat >= 0) _service.heartbeat(r.code, _mySeat);
@@ -72,41 +73,42 @@ class _MatchmakingScreenState extends State<MatchmakingScreen> {
       _goToGame();
       return;
     }
-    // 내 좌석 찾기(하트비트용) + 인원 카운트.
+    // 내 좌석 + 인원 + '리더'(가장 낮은 좌석) 계산.
+    // 시작/취소는 리더가 몰아서 결정 — 방장이 나가도 다음 좌석이 이어받아 멈추지 않음.
     final players = (data['players'] is Map) ? data['players'] as Map : const {};
     var joined = 0;
+    var lowest = 1 << 30;
     players.forEach((k, v) {
       if (v is Map) {
-        if (v['id'] == _service.clientId) {
-          _mySeat = OnlineService.seatOf(k.toString());
-        }
+        final s = OnlineService.seatOf(k.toString());
+        if (v['id'] == _service.clientId) _mySeat = s;
+        if (s < lowest) lowest = s;
         joined++;
       }
     });
+    _isLeader = _mySeat >= 0 && _mySeat == lowest;
     setState(() => _joined = joined.clamp(1, 6));
-    // 6명 다 차면 방장이 즉시 시작.
-    if (_isHost && joined >= 6) _start();
+    // 6명 다 차면 리더가 즉시 시작.
+    if (_isLeader && joined >= 6) _start();
   }
 
   void _onTick() {
     if (!mounted || _navigated || _failed) return;
     setState(() => _secondsLeft = (_secondsLeft - 1).clamp(0, _searchSeconds));
     if (_secondsLeft > 0) return;
-    // 10초 종료.
-    if (_isHost) {
+    // 10초 종료 — 리더가 결정.
+    if (_isLeader) {
       if (_joined >= 2) {
         _start();
       } else {
         _service.cancelMatch(_code!);
         _fail('지금은 매칭 상대가 없어요');
       }
-    }
-    // 비방장은 방장의 시작/취소를 _onRoom에서 받는다. 단 안전상 12초까지 무응답이면 실패.
-    else if (_secondsLeft == 0) {
-      Timer(const Duration(seconds: 3), () {
-        if (mounted && !_navigated && !_failed) {
-          _fail('매칭이 성사되지 않았어요');
-        }
+    } else if (!_failScheduled) {
+      // 리더가 못 살리면(없어졌으면) 잠시 뒤 실패 처리.
+      _failScheduled = true;
+      Timer(const Duration(seconds: 4), () {
+        if (mounted && !_navigated && !_failed) _fail('매칭이 성사되지 않았어요');
       });
     }
   }
@@ -127,6 +129,16 @@ class _MatchmakingScreenState extends State<MatchmakingScreen> {
     ));
   }
 
+  // 매칭 상대가 없을 때: 내 장착 캐릭터로 봇 6인전 바로 시작.
+  void _startWithBots() {
+    _tick?.cancel();
+    _heartbeat?.cancel();
+    _sub?.cancel();
+    Navigator.of(context).pushReplacement(MaterialPageRoute(
+      builder: (_) => const OfflineGameScreen(forcedBots: 5),
+    ));
+  }
+
   void _fail(String msg) {
     if (_failed || _navigated) return;
     setState(() {
@@ -143,7 +155,8 @@ class _MatchmakingScreenState extends State<MatchmakingScreen> {
     await _sub?.cancel();
     if (_code != null && _mySeat >= 0 && !_navigated) {
       await _service.leave(_code!, _mySeat);
-      if (_isHost) await _service.cancelMatch(_code!);
+      // 나만 있던 방이면 정리(다른 사람이 있으면 남겨둬서 그들끼리 잡히게).
+      if (_joined <= 1) await _service.cancelMatch(_code!);
     }
     if (mounted) Navigator.of(context).pop();
   }
@@ -188,11 +201,28 @@ class _MatchmakingScreenState extends State<MatchmakingScreen> {
                   Text(_statusMsg,
                       textAlign: TextAlign.center,
                       style: posterTitle(20, color: Colors.white)),
+                  const SizedBox(height: 6),
+                  const Text('지금 매칭을 찾는 사람이 없어요. 봇과 바로 할 수도 있어요.',
+                      textAlign: TextAlign.center,
+                      style: TextStyle(color: CD.sand, fontSize: 12)),
                 ],
                 const SizedBox(height: 28),
+                if (_failed)
+                  FilledButton.icon(
+                    style: FilledButton.styleFrom(
+                      backgroundColor: CD.rust,
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 28, vertical: 13),
+                    ),
+                    onPressed: _startWithBots,
+                    icon: const Icon(Icons.smart_toy, size: 18),
+                    label: const Text('봇과 바로 시작',
+                        style: TextStyle(fontWeight: FontWeight.w900)),
+                  ),
+                const SizedBox(height: 10),
                 FilledButton(
                   style: FilledButton.styleFrom(
-                    backgroundColor: _failed ? CD.rust : CD.leather,
+                    backgroundColor: _failed ? CD.leather : CD.leather,
                     padding: const EdgeInsets.symmetric(
                         horizontal: 32, vertical: 13),
                   ),
