@@ -101,7 +101,12 @@ action_bar.dart가 이 분류대로 렌더하고, party_logic이 판정한다.
 - **shell.dart**: 하단 4탭(플레이/캐릭터/랭킹/보상) + 코인칩 + 설정시트(닉네임/사운드/디스코드).
   `kDiscordUrl`, `kShowAdPlaceholder`.
 - **play_tab.dart**: 모드 버튼 + 공개방 목록(폴링).
-- **online_lobby_screen.dart**: 방 만들기/코드 입장.
+- **online_lobby_screen.dart**: 방 만들기/코드 입장. 배경은 `DesertBackground`를
+  **body 래퍼**(BoxConstraints.expand)로 깐다 — Stack(loose)으로 깔면 짧은 내용
+  높이에 맞춰져 아래가 단색으로 끊긴다(주의).
+- **닉네임 비속어 필터(`meta/profanity.dart`)**: `assets/badwords_ko.json` 로드.
+  정규화는 `\p{P}\p{S}`(유니코드)만 제거 — **`\W`는 한글을 통째로 지워 한국어가
+  전혀 안 걸리니 금지**. `changeNickname`은 검사 전 `Profanity.init` await.
 - **online_game_screen.dart** / **offline_game_screen.dart**: 실제 게임 진행(공유 위젯 사용).
 - **characters_tab.dart**: 캐릭터 카드(해금/장착). **rewards_tab.dart**: 출석. **ranking_tab.dart**: 시즌 랭킹.
 - **how_to_play_screen.dart**: 규칙·캐릭터 설명(캐릭터 추가 시 자동 반영 — kCharacters 순회).
