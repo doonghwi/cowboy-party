@@ -62,7 +62,7 @@
     "nicknames": {
       ".read": true,
       "$name": {
-        ".write": "auth != null && (!data.exists() || data.val() == auth.uid)",
+        ".write": "auth != null && $name.length <= 32 && (!data.exists() || data.val() == auth.uid)",
         ".validate": "!newData.exists() || newData.val() == auth.uid"
       }
     },
