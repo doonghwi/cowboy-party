@@ -45,8 +45,8 @@ class SeatCard extends StatelessWidget {
   /// 방장이 닫은 자리(F2) — 자물쇠 아바타.
   final bool blocked;
 
-  /// 스모커 연막 잔여(D2) — 0이면 표시 안 함.
-  final int smokeLeft;
+  /// 유한 능력 사용량 '사용/총'(#11) — null이면 표시 안 함. 모두에게 보임.
+  final String? abilityUses;
 
   const SeatCard({
     super.key,
@@ -69,7 +69,7 @@ class SeatCard extends StatelessWidget {
     this.abilityFx,
     this.curseTurnsLeft = 0,
     this.blocked = false,
-    this.smokeLeft = 0,
+    this.abilityUses,
   });
 
   @override
@@ -163,8 +163,8 @@ class SeatCard extends StatelessWidget {
                         size: 11, color: Colors.white),
                   ),
                 ),
-              // D2: 연막 잔여 — 작은 구름 배지.
-              if (smokeLeft > 0 && alive)
+              // #11: 유한 능력 사용량 '사용/총' — 모든 플레이어에게 보임.
+              if (abilityUses != null && alive && joined)
                 Positioned(
                   left: -10,
                   bottom: -6,
@@ -172,16 +172,16 @@ class SeatCard extends StatelessWidget {
                     padding: const EdgeInsets.symmetric(
                         horizontal: 5, vertical: 2),
                     decoration: BoxDecoration(
-                      color: const Color(0xFF6B7A8F),
+                      color: charDef(char).color,
                       borderRadius: BorderRadius.circular(9),
                       border: Border.all(color: Colors.white, width: 1.2),
                     ),
                     child: Row(
                       mainAxisSize: MainAxisSize.min,
                       children: [
-                        const Icon(Icons.cloud, size: 9, color: Colors.white),
+                        Icon(charDef(char).icon, size: 9, color: Colors.white),
                         const SizedBox(width: 2),
-                        Text('$smokeLeft',
+                        Text(abilityUses!,
                             style: const TextStyle(
                                 color: Colors.white,
                                 fontSize: 10,

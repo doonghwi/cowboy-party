@@ -646,7 +646,7 @@ class _OnlineGameScreenState extends State<OnlineGameScreen> {
             piercedFx: sv.piercedFx,
             resetFx: sv.resetFx,
             blocked: sv.blocked,
-            smokeLeft: sv.isMe ? view.mySmokeLeft : 0,
+            abilityUses: sv.abilityUses,
             curseTurnsLeft: sv.curseTurnsLeft,
             curseKillFx: sv.curseKillFx,
             hideAmmo: sv.hideAmmo,

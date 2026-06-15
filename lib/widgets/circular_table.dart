@@ -43,8 +43,8 @@ class TableSeat {
   /// 방장이 닫은 자리(F2) — 대기실에서 자물쇠 표시.
   final bool blocked;
 
-  /// 스모커 연막 잔여 횟수(D2) — 0이면 표시 안 함.
-  final int smokeLeft;
+  /// 유한 능력 사용량 '사용/총'(#11) — null이면 표시 안 함. 모두에게 보임.
+  final String? abilityUses;
 
   const TableSeat({
     required this.name,
@@ -71,7 +71,7 @@ class TableSeat {
     this.hideAmmo = false,
     this.hideAction = false,
     this.blocked = false,
-    this.smokeLeft = 0,
+    this.abilityUses,
   });
 }
 
@@ -168,7 +168,7 @@ class CircularTable extends StatelessWidget {
                   char: seats[s].char,
                   late: seats[s].late,
                   blocked: seats[s].blocked,
-                  smokeLeft: seats[s].smokeLeft,
+                  abilityUses: seats[s].abilityUses,
                   curseTurnsLeft: seats[s].curseTurnsLeft,
                   abilityFx: reveal ? _fxLabel(seats[s]) : null,
                   scale: 0,

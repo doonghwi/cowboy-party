@@ -233,6 +233,26 @@ class PartyState {
 /// Starting ammo for a seat given its character (준비자 = 1).
 int startAmmoFor(CharId c) => c == CharId.prepper ? 1 : 0;
 
+/// 유한 사용 능력의 사용량 라벨 '사용/총' (모든 플레이어에게 표시, #11).
+/// 해당 캐릭터가 횟수 제한 능력이 없으면 null.
+String? abilityUsesLabel(CharId c, PartyState st, int seat) {
+  if (seat < 0 || seat >= st.smokeLeft.length) return null;
+  switch (c) {
+    case CharId.smoker:
+      return '${2 - st.smokeLeft[seat]}/2'; // 연막 2회
+    case CharId.hunter:
+      return '${st.trapUsed[seat] ? 1 : 0}/1'; // 덫 1회
+    case CharId.resetter:
+      return '${st.resetterUsed[seat] ? 1 : 0}/1'; // 무효 1회
+    case CharId.doctor:
+      return '${st.doctorUsed[seat] ? 1 : 0}/1'; // 자힐 1회
+    case CharId.paparazzi:
+      return '${st.paparazziUsed[seat] ? 1 : 0}/1'; // 엿보기 1회
+    default:
+      return null;
+  }
+}
+
 /// Immutable result of resolving one simultaneous turn for every seat.
 class TurnOutcome {
   final List<int> ammoAfter;

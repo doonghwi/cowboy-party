@@ -40,6 +40,7 @@ class SeatView {
   final bool doubleLoadFx; // 스피드로더 +2
   final bool piercedFx; // 스나이퍼 관통 발동(D1)
   final bool resetFx; // 리셋터 무효 발동(D4)
+  final String? abilityUses; // 유한 능력 사용량 '사용/총'(#11, 모두에게 표시)
   final bool curseKillFx; // 저주 만료로 이 턴 사망
   final int curseTurnsLeft; // 부두 저주 남은 턴(0=저주 없음) — 모두에게 표시(C2)
   final bool late; // 게임 중 난입 — 다음 판부터 참여(관전)
@@ -73,6 +74,7 @@ class SeatView {
     this.doubleLoadFx = false,
     this.piercedFx = false,
     this.resetFx = false,
+    this.abilityUses,
     this.curseKillFx = false,
     this.curseTurnsLeft = 0,
     this.late = false,
@@ -891,6 +893,16 @@ class OnlineService {
                 : chars[s]
         ];
     var pstate = PartyState.initial(chars);
+    // #11 유한 능력 사용량(모두에게). ???로 숨겨진 좌석은 표시 안 함.
+    List<String?> abilityUsesNow() {
+      final disp = displayCharsNow();
+      return [
+        for (var s = 0; s < n; s++)
+          disp[s] == CharId.mystery
+              ? null
+              : abilityUsesLabel(chars[s], pstate, s)
+      ];
+    }
 
     var ammo = <int>[for (var s = 0; s < n; s++) startAmmoFor(chars[s])];
     var alive = List<bool>.filled(n, true);
@@ -1095,6 +1107,7 @@ class OnlineService {
           doubleLoadFx: doubleLoadFx,
           piercedFx: piercedFx,
           resetFx: resetFx,
+          abilityUses: abilityUsesNow(),
           curseVictim: pstate.curseVictim,
           curseFuse: pstate.curseFuse,
           myTrapAvailable: mySeat >= 0 &&
@@ -1269,6 +1282,7 @@ class OnlineService {
           doubleLoadFx: doubleLoadFx,
           piercedFx: piercedFx,
           resetFx: resetFx,
+          abilityUses: abilityUsesNow(),
           curseVictim: pstate.curseVictim,
           curseFuse: pstate.curseFuse,
           curseKillFx: out.curseKill,
@@ -1324,6 +1338,7 @@ class OnlineService {
     List<bool> doubleLoadFx = const [],
     List<bool> piercedFx = const [],
     List<bool> resetFx = const [],
+    List<String?> abilityUses = const [],
     String? specialWin,
     bool myTrapAvailable = false,
     bool myResetAvailable = false,
@@ -1384,6 +1399,7 @@ class OnlineService {
           doubleLoadFx: fx(doubleLoadFx, s),
           piercedFx: fx(piercedFx, s),
           resetFx: fx(resetFx, s),
+          abilityUses: s < abilityUses.length ? abilityUses[s] : null,
           curseKillFx: fx(curseKillFx, s),
           curseTurnsLeft: s == curseVictim ? curseFuse : 0,
           late: late(s),

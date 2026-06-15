@@ -676,7 +676,7 @@ class _OfflineGameScreenState extends State<OfflineGameScreen> {
           doubleLoadFx: fx(_lastOut?.doubleLoad, s),
           piercedFx: fx(_lastOut?.pierced, s),
           resetFx: fx(_lastOut?.resetActive, s),
-          smokeLeft: s == 0 ? _pstate.smokeLeft[0] : 0,
+          abilityUses: abilityUsesLabel(_chars[s], _pstate, s),
           curseTurnsLeft: _pstate.curseVictim == s ? _pstate.curseFuse : 0,
           curseKillFx: fx(_lastOut?.curseKill, s),
           hideAmmo: shadowHide(s),
