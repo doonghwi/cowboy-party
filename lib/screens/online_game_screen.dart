@@ -293,6 +293,7 @@ class _OnlineGameScreenState extends State<OnlineGameScreen> {
                 _maybeReward(view);
                 _manageTurnTimer(view);
                 _maybePeekUnblock(view);
+                if (view.iShouldClaimHost) widget.service.ensureHost(widget.code);
                 if (view.iWasKicked) {
                   return _info('방장이 당신을 내보냈어요.', back: true);
                 }
@@ -645,6 +646,7 @@ class _OnlineGameScreenState extends State<OnlineGameScreen> {
             piercedFx: sv.piercedFx,
             resetFx: sv.resetFx,
             blocked: sv.blocked,
+            smokeLeft: sv.isMe ? view.mySmokeLeft : 0,
             curseTurnsLeft: sv.curseTurnsLeft,
             curseKillFx: sv.curseKillFx,
             hideAmmo: sv.hideAmmo,

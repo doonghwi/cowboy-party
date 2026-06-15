@@ -297,8 +297,8 @@ void main() {
 
   group('방장 방 시스템 (F2)', () {
     Map<String, Object?> lobby({
-      Map<String, Object?>? blocked,
-      Map<String, Object?>? kicked,
+      Map<String, Object?> blocked = const {},
+      Map<String, Object?> kicked = const {},
     }) =>
         {
           'host': 'h',
@@ -309,8 +309,8 @@ void main() {
             'p0': {'id': 'h', 'name': '방장'},
             'p1': {'id': 'g', 'name': 'B'},
           },
-          if (blocked != null) 'blocked': blocked,
-          if (kicked != null) 'kicked': kicked,
+          'blocked': blocked,
+          'kicked': kicked,
         };
 
     test('방장이 닫은 빈 자리는 blocked로 표시', () {

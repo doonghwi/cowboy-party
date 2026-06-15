@@ -137,6 +137,7 @@ class RoomView {
   /// I joined while a game was running — spectating until the next round.
   final bool iAmLate;
   final bool iWasKicked; // F2: 방장에게 추방됨 — 화면에서 내보낸다.
+  final bool iShouldClaimHost; // 방장 승계: 내가 새 방장이면 RTDB에 확정.
 
   /// 내 캐릭터 능력 잔여량 (게임 화면의 버튼 상태용).
   final bool myTrapAvailable;
@@ -186,6 +187,7 @@ class RoomView {
     this.iAmOut = false,
     this.iAmLate = false,
     this.iWasKicked = false,
+    this.iShouldClaimHost = false,
     this.myTrapAvailable = false,
     this.myResetAvailable = false,
     this.mySmokeLeft = 0,
@@ -467,6 +469,45 @@ class OnlineService {
         .set(blocked ? true : null);
   }
 
+  /// 방장 승계: 기록된 방장이 없으면(나갔으면) 현재 인원 중 가장 낮은 좌석이 방장을 이어받는다.
+  /// 내가 그 후보일 때만 host를 내 id로 확정(트랜잭션, 베스트에포트).
+  Future<void> ensureHost(String code) async {
+    final snap = await room(code).get();
+    final data = _asMap(snap.value) ?? const {};
+    final players = _asMap(data['players']) ?? const {};
+    final staleBefore = _now - kPresenceGraceMs;
+    bool here(Map? v) {
+      if (v == null) return false;
+      final seen = _asInt(v['seen']);
+      return seen == null || seen >= staleBefore;
+    }
+
+    final host = data['host'];
+    final hostHere =
+        players.values.any((v) => _asMap(v)?['id'] == host && here(_asMap(v)));
+    if (hostHere) return;
+    var lowest = 1 << 30;
+    String? lowestId;
+    players.forEach((k, v) {
+      final m = _asMap(v);
+      if (m != null && here(m)) {
+        final s = seatOf(k.toString());
+        if (s < lowest) {
+          lowest = s;
+          lowestId = m['id'] as String?;
+        }
+      }
+    });
+    if (lowestId != clientId) return;
+    await room(code).child('host').runTransaction((cur) {
+      // 다른 클라가 먼저 가져갔으면 양보.
+      if (cur == host || cur == null || cur == clientId) {
+        return Transaction.success(clientId);
+      }
+      return Transaction.abort();
+    });
+  }
+
   /// F2: 방장이 특정 자리 플레이어 추방. 그 자리를 비우고 다시 못 들어오게 표시.
   Future<void> kickSeat(String code, int seat) async {
     final snap = await room(code).get();
@@ -702,7 +743,7 @@ class OnlineService {
     final kickedMap = _asMap(data['kicked']) ?? const {};
     final iWasKicked = kickedMap[myClientId] == true;
     final started = data['started'] == true;
-    final isHost = data['host'] == myClientId;
+    final recordedHostId = (data['host'] as String?) ?? '';
     final capacity =
         (_asInt(data['capacity']) ?? kMaxSeats).clamp(kMinSeats, kMaxSeats);
     final staleBefore = nowServerMs <= 0 ? -1 : nowServerMs - kPresenceGraceMs;
@@ -713,6 +754,7 @@ class OnlineService {
     final stale = <int, bool>{};
     final lateSeat = <int, bool>{};
     final seatCharIdx = <int, int>{};
+    final seatId = <int, String>{};
     for (final e in players.entries) {
       final v = _asMap(e.value);
       if (v == null) continue;
@@ -723,6 +765,7 @@ class OnlineService {
       stale[s] = staleBefore > 0 && seen != null && seen < staleBefore;
       lateSeat[s] = v['late'] == true;
       seatCharIdx[s] = _asInt(v['char']) ?? 0;
+      seatId[s] = (v['id'] as String?) ?? '';
       if (v['id'] == myClientId) mySeat = s;
     }
     // The room-level snapshot (written at start) wins over live player nodes —
@@ -749,6 +792,25 @@ class OnlineService {
     // "present" = here, not timed out, not quit.
     bool present(int s) =>
         nodeExists[s] == true && !quit(s) && stale[s] != true;
+
+    // 방장 승계: 기록된 방장이 없으면(나갔으면) 가장 낮은 좌석의 현재 인원이 방장.
+    var effHostId = recordedHostId;
+    final recordedHostHere = seatId.entries
+        .any((e) => e.value == recordedHostId && present(e.key));
+    if (!recordedHostHere) {
+      for (var s = 0; s < capacity; s++) {
+        if (present(s) && (seatId[s] ?? '').isNotEmpty) {
+          effHostId = seatId[s]!;
+          break;
+        }
+      }
+    }
+    final isHost = effHostId.isNotEmpty && effHostId == myClientId;
+    // 화면이 새 방장을 RTDB에 확정(베스트에포트)해야 하는지.
+    final iShouldClaimHost = isHost &&
+        recordedHostId != myClientId &&
+        mySeat >= 0 &&
+        present(mySeat);
 
     final joinedCount = [
       for (var s = 0; s < capacity; s++)
@@ -805,6 +867,7 @@ class OnlineService {
         iRequestedRematch: false,
         rematchCount: 0,
         iWasKicked: iWasKicked,
+        iShouldClaimHost: iShouldClaimHost,
       );
     }
 
@@ -910,6 +973,7 @@ class OnlineService {
               capacity: capacity,
               seatCount: n,
               isHost: isHost,
+              iShouldClaimHost: iShouldClaimHost,
               turn: -1,
               mySeat: mySeat,
               names: names,
@@ -992,6 +1056,7 @@ class OnlineService {
           capacity: capacity,
           seatCount: n,
           isHost: isHost,
+          iShouldClaimHost: iShouldClaimHost,
           turn: t,
           mySeat: mySeat,
           names: names,
@@ -1151,6 +1216,7 @@ class OnlineService {
           capacity: capacity,
           seatCount: n,
           isHost: isHost,
+          iShouldClaimHost: iShouldClaimHost,
           turn: -1,
           mySeat: mySeat,
           names: names,
@@ -1218,6 +1284,7 @@ class OnlineService {
     required int capacity,
     required int seatCount,
     required bool isHost,
+    bool iShouldClaimHost = false,
     required int turn,
     required int mySeat,
     required Map<int, String> names,
@@ -1344,6 +1411,7 @@ class OnlineService {
       seatCount: seatCount,
       started: true,
       isHost: isHost,
+      iShouldClaimHost: iShouldClaimHost,
       phase: phase,
       turn: turn,
       mySeat: mySeat,

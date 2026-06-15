@@ -45,6 +45,9 @@ class SeatCard extends StatelessWidget {
   /// 방장이 닫은 자리(F2) — 자물쇠 아바타.
   final bool blocked;
 
+  /// 스모커 연막 잔여(D2) — 0이면 표시 안 함.
+  final int smokeLeft;
+
   const SeatCard({
     super.key,
     required this.name,
@@ -66,6 +69,7 @@ class SeatCard extends StatelessWidget {
     this.abilityFx,
     this.curseTurnsLeft = 0,
     this.blocked = false,
+    this.smokeLeft = 0,
   });
 
   @override
@@ -157,6 +161,33 @@ class SeatCard extends StatelessWidget {
                     ),
                     child: Icon(charDef(char).icon,
                         size: 11, color: Colors.white),
+                  ),
+                ),
+              // D2: 연막 잔여 — 작은 구름 배지.
+              if (smokeLeft > 0 && alive)
+                Positioned(
+                  left: -10,
+                  bottom: -6,
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 5, vertical: 2),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFF6B7A8F),
+                      borderRadius: BorderRadius.circular(9),
+                      border: Border.all(color: Colors.white, width: 1.2),
+                    ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        const Icon(Icons.cloud, size: 9, color: Colors.white),
+                        const SizedBox(width: 2),
+                        Text('$smokeLeft',
+                            style: const TextStyle(
+                                color: Colors.white,
+                                fontSize: 10,
+                                fontWeight: FontWeight.w900)),
+                      ],
+                    ),
                   ),
                 ),
               // C2: 저주 남은 턴 — 모두에게 보이는 해골 카운트다운.
