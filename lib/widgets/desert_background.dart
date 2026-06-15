@@ -17,6 +17,8 @@ class DesertBackground extends StatelessWidget {
         ? const [Color(0xFFFBEFD2), Color(0xFFF3D79B), CD.sand]
         : const [CD.skyTop, CD.skyMid, CD.skyLow];
     return Container(
+      // 배경은 늘 부모(=화면)를 가득 채운다 — 내용이 짧아도 아래가 끊기지 않게.
+      constraints: const BoxConstraints.expand(),
       decoration: BoxDecoration(
         gradient: LinearGradient(
           begin: Alignment.topCenter,
