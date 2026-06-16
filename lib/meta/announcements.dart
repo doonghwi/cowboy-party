@@ -15,6 +15,13 @@ class Announcement {
 /// 최신이 맨 위. 배너는 [kAnnouncements].first 를 보여준다.
 const List<Announcement> kAnnouncements = [
   Announcement(
+    '2026-06-17',
+    '💀 룰렛이 자기한테 터지면 "꽝!"',
+    '• 러시안룰렛이 50:50으로 자신에게 빗나가면, 내 자리에 붉은 폭발과 "꽝!"이 터져요\n'
+        '• 상대를 맞힐 때와 자기 차례에 터질 때의 연출이 확실히 달라졌어요\n'
+        '• 새 연출이 안 보이면 웹은 한 번 강력 새로고침(Ctrl/Cmd+Shift+R) 해주세요',
+  ),
+  Announcement(
     '2026-06-16',
     '🎰 룰렛 리볼버 연출 + 좌석 정리',
     '• 러시안룰렛을 쓰면 리볼버 실린더가 빙글 돌다 운명의 약실이 딸깍! 하고 터져요\n'
