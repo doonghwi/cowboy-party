@@ -144,11 +144,15 @@ class ShotSpec {
     required this.to,
     this.isSuper = false,
     this.result = ShotResult.missed,
+    this.pierce = false,
   });
   final Offset from;
   final Offset to;
   final bool isSuper;
   final ShotResult result;
+
+  /// 스나이퍼 관통 — draws an extra white-hot lance through the beam.
+  final bool pierce;
 }
 
 /// BANG / SUPER BANG tracers. Draws a *persistent* base line + arrow (so
@@ -231,6 +235,18 @@ class _ShotsPainter extends CustomPainter {
         ..strokeCap = StrokeCap.round;
       canvas.drawLine(start, end, line);
       _arrow(canvas, end, unit, line, 11);
+    }
+
+    // 1b) Sniper pierce — a thin white-hot lance straight through the beam.
+    if (s.pierce) {
+      canvas.drawLine(
+          start,
+          end,
+          Paint()
+            ..color = Colors.white.withValues(alpha: 0.9)
+            ..strokeWidth = 1.6
+            ..strokeCap = StrokeCap.round
+            ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 1.2));
     }
 
     // 2) Travelling bright core (0..0.5) — a lit dash racing to the target.
@@ -571,4 +587,303 @@ class _ReloadPainter extends CustomPainter {
 
   @override
   bool shouldRepaint(covariant _ReloadPainter old) => true;
+}
+
+/// HEAL (의사 자힐): a green cross blooms and a few sparkles rise from the seat.
+class HealSparkle extends StatefulWidget {
+  const HealSparkle({
+    super.key,
+    required this.center,
+    this.seed = 0,
+    this.duration = const Duration(milliseconds: 900),
+  });
+
+  final Offset center;
+  final int seed;
+  final Duration duration;
+
+  @override
+  State<HealSparkle> createState() => _HealSparkleState();
+}
+
+class _HealSparkleState extends State<HealSparkle>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _c =
+      AnimationController(vsync: this, duration: widget.duration)..forward();
+  late final List<Offset> _dirs;
+
+  @override
+  void initState() {
+    super.initState();
+    final rnd = math.Random(widget.seed * 131 + 7);
+    _dirs = List.generate(6, (i) {
+      final a = (i / 6) * math.pi * 2 + rnd.nextDouble() * 0.5;
+      return Offset(math.cos(a), math.sin(a));
+    });
+  }
+
+  @override
+  void dispose() {
+    _c.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return IgnorePointer(
+      child: CustomPaint(
+        painter: _HealPainter(center: widget.center, dirs: _dirs, anim: _c),
+        size: Size.infinite,
+      ),
+    );
+  }
+}
+
+class _HealPainter extends CustomPainter {
+  _HealPainter({required this.center, required this.dirs, required this.anim})
+      : super(repaint: anim);
+
+  final Offset center;
+  final List<Offset> dirs;
+  final Animation<double> anim;
+  static const Color _green = Color(0xFF3FA66A);
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final t = anim.value.clamp(0.0, 1.0);
+    final fade = t < 0.7 ? 1.0 : (1 - (t - 0.7) / 0.3).clamp(0.0, 1.0);
+    // Rising sparkles.
+    for (var i = 0; i < dirs.length; i++) {
+      final d = dirs[i];
+      final pos = center + Offset(d.dx * 16 * t, -18 - 30 * t + d.dy * 6);
+      canvas.drawCircle(pos, 2.2 * fade,
+          Paint()..color = _green.withValues(alpha: 0.9 * fade));
+    }
+    // A pulsing green cross above the seat.
+    final pop = t < 0.3 ? Curves.easeOutBack.transform(t / 0.3) : 1.0;
+    final c = center.translate(0, -26);
+    final arm = 8.0 * pop;
+    final p = Paint()
+      ..color = _green.withValues(alpha: fade)
+      ..strokeWidth = 4
+      ..strokeCap = StrokeCap.round;
+    canvas.drawLine(c.translate(-arm, 0), c.translate(arm, 0), p);
+    canvas.drawLine(c.translate(0, -arm), c.translate(0, arm), p);
+    canvas.drawCircle(
+        c,
+        arm + 5,
+        Paint()
+          ..style = PaintingStyle.stroke
+          ..strokeWidth = 2
+          ..color = _green.withValues(alpha: 0.5 * fade));
+  }
+
+  @override
+  bool shouldRepaint(covariant _HealPainter old) => true;
+}
+
+/// RESET (리셋터 무효): a cool blue ripple washes out over the seat, signalling
+/// the turn's actions were nullified.
+class ResetRipple extends StatefulWidget {
+  const ResetRipple({
+    super.key,
+    required this.center,
+    required this.radius,
+    this.duration = const Duration(milliseconds: 760),
+  });
+
+  final Offset center;
+  final double radius;
+  final Duration duration;
+
+  @override
+  State<ResetRipple> createState() => _ResetRippleState();
+}
+
+class _ResetRippleState extends State<ResetRipple>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _c =
+      AnimationController(vsync: this, duration: widget.duration)..forward();
+
+  @override
+  void dispose() {
+    _c.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return IgnorePointer(
+      child: CustomPaint(
+        painter: _ResetPainter(
+            center: widget.center, radius: widget.radius, anim: _c),
+        size: Size.infinite,
+      ),
+    );
+  }
+}
+
+class _ResetPainter extends CustomPainter {
+  _ResetPainter(
+      {required this.center, required this.radius, required this.anim})
+      : super(repaint: anim);
+
+  final Offset center;
+  final double radius;
+  final Animation<double> anim;
+  static const Color _blue = Color(0xFF5B7FA6);
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final t = Curves.easeOut.transform(anim.value.clamp(0.0, 1.0));
+    final fade = (1 - t).clamp(0.0, 1.0);
+    // Soft filled wash that expands and clears.
+    canvas.drawCircle(
+      center,
+      radius * (0.4 + t * 1.0),
+      Paint()
+        ..color = _blue.withValues(alpha: 0.22 * fade)
+        ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 10),
+    );
+    // Crisp ripple ring.
+    canvas.drawCircle(
+      center,
+      radius * (0.5 + t * 0.95),
+      Paint()
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = 2.5 * fade
+        ..color = _blue.withValues(alpha: 0.85 * fade),
+    );
+  }
+
+  @override
+  bool shouldRepaint(covariant _ResetPainter old) => true;
+}
+
+/// CURSE (부두 저주): a pulsing purple aura with rising motes lingers over a
+/// cursed seat for the reveal; [death] adds a sharp burst (저주 만료 사망).
+class CurseAura extends StatefulWidget {
+  const CurseAura({
+    super.key,
+    required this.center,
+    required this.radius,
+    this.death = false,
+    this.seed = 0,
+    this.duration = const Duration(milliseconds: 1400),
+  });
+
+  final Offset center;
+  final double radius;
+  final bool death;
+  final int seed;
+  final Duration duration;
+
+  @override
+  State<CurseAura> createState() => _CurseAuraState();
+}
+
+class _CurseAuraState extends State<CurseAura>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _c =
+      AnimationController(vsync: this, duration: widget.duration)..forward();
+  late final List<Offset> _motes;
+
+  @override
+  void initState() {
+    super.initState();
+    final rnd = math.Random(widget.seed * 2663 + 5);
+    _motes = List.generate(8, (i) {
+      final a = rnd.nextDouble() * math.pi * 2;
+      final spread = 6 + rnd.nextDouble() * (widget.radius * 0.7);
+      return Offset(math.cos(a) * spread, math.sin(a) * spread);
+    });
+  }
+
+  @override
+  void dispose() {
+    _c.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return IgnorePointer(
+      child: CustomPaint(
+        painter: _CursePainter(
+            center: widget.center,
+            radius: widget.radius,
+            motes: _motes,
+            death: widget.death,
+            anim: _c),
+        size: Size.infinite,
+      ),
+    );
+  }
+}
+
+class _CursePainter extends CustomPainter {
+  _CursePainter({
+    required this.center,
+    required this.radius,
+    required this.motes,
+    required this.death,
+    required this.anim,
+  }) : super(repaint: anim);
+
+  final Offset center;
+  final double radius;
+  final List<Offset> motes;
+  final bool death;
+  final Animation<double> anim;
+  static const Color _purple = Color(0xFF7E57C2);
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final t = anim.value.clamp(0.0, 1.0);
+    final pulse = 0.6 + 0.4 * math.sin(t * 16);
+    final fade = t < 0.78 ? 1.0 : (1 - (t - 0.78) / 0.22).clamp(0.0, 1.0);
+    // Pulsing aura glow.
+    canvas.drawCircle(
+      center,
+      radius * (0.7 + 0.15 * pulse),
+      Paint()
+        ..color = _purple.withValues(alpha: 0.34 * fade * pulse)
+        ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 12),
+    );
+    canvas.drawCircle(
+      center,
+      radius * 0.85,
+      Paint()
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = 2
+        ..color = _purple.withValues(alpha: 0.8 * fade),
+    );
+    // Rising motes.
+    for (final m in motes) {
+      final pos = center + m + Offset(0, -28 * t);
+      final a = (math.sin(t * math.pi)).clamp(0.0, 1.0);
+      canvas.drawCircle(
+        pos,
+        2.4 * fade,
+        Paint()
+          ..color = _purple.withValues(alpha: a * 0.9 * fade)
+          ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 2),
+      );
+    }
+    // Death burst — a sharp expanding ring when the curse claims the seat.
+    if (death) {
+      final p = Curves.easeOutCubic.transform(t.clamp(0.0, 1.0));
+      canvas.drawCircle(
+        center,
+        radius * (0.3 + p * 1.1),
+        Paint()
+          ..style = PaintingStyle.stroke
+          ..strokeWidth = 4 * (1 - p)
+          ..color = _purple.withValues(alpha: (1 - p).clamp(0.0, 1.0)),
+      );
+    }
+  }
+
+  @override
+  bool shouldRepaint(covariant _CursePainter old) => true;
 }

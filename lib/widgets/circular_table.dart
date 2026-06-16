@@ -213,6 +213,43 @@ class CircularTable extends StatelessWidget {
                       seed: s + 1,
                     ),
                   ),
+            // Per-character ability flourishes (all driven by existing reveal
+            // flags — purely additive, no game state read).
+            if (reveal)
+              for (var s = 0; s < n; s++)
+                if (seats[s].healedFx && seats[s].alive && !seats[s].hideAction)
+                  Positioned.fill(
+                    child: HealSparkle(
+                      key: ValueKey('heal-$s-${seats[s].lastMove?.encode()}'),
+                      center: positions[s],
+                      seed: s + 1,
+                    ),
+                  ),
+            if (reveal)
+              for (var s = 0; s < n; s++)
+                if (seats[s].resetFx && !seats[s].hideAction)
+                  Positioned.fill(
+                    child: ResetRipple(
+                      key: ValueKey('reset-$s-${seats[s].lastMove?.encode()}'),
+                      center: positions[s],
+                      radius: cardW / 2 + 16,
+                    ),
+                  ),
+            // 부두 저주: 저주 걸린 좌석에 상시 오라, 만료 사망 시 데스 버스트.
+            if (reveal)
+              for (var s = 0; s < n; s++)
+                if ((seats[s].curseTurnsLeft > 0 || seats[s].curseKillFx) &&
+                    !seats[s].hideAction)
+                  Positioned.fill(
+                    child: CurseAura(
+                      key: ValueKey('curse-$s-${seats[s].curseTurnsLeft}-'
+                          '${seats[s].curseKillFx}-${seats[s].lastMove?.encode()}'),
+                      center: positions[s],
+                      radius: cardW / 2 + 14,
+                      death: seats[s].curseKillFx,
+                      seed: s + 1,
+                    ),
+                  ),
             // Emoji reactions floating over seats. Normally above the card, but
             // flipped below it for top-row seats so it never clips off-screen
             // (the bug at 2 players: the opponent's bubble went above the top).
@@ -268,6 +305,7 @@ class CircularTable extends StatelessWidget {
           to: positions[t],
           isSuper: superShot,
           result: _shotResult(t),
+          pierce: seats[s].piercedFx,
         ));
       }
     }
