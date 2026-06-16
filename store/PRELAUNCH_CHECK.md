@@ -1,13 +1,13 @@
 # 카우보이 — 제출 전 사전점검 (PRELAUNCH_CHECK)
 
 > deploy 루프 세션이 유지. **✅ = 세션이 자동으로 끝낸 것**, **⏳ = 사용자(사장님)만 할 수 있는 것**.
-> 마지막 점검: 2026-06-16 01:15 (KST). 기준 커밋: `9858880`.
+> 마지막 점검: 2026-06-16 13:31 (KST). 기준 커밋: `98f1e9a`.
 
 ## 빌드 신선도 (매 사이클 재확인)
-- ✅ `flutter analyze` 0 issues (2026-06-16 01:15).
-- ✅ `flutter build appbundle --release` 통과 → `build/app/outputs/bundle/release/app-release.aab` (57.5MB, 2026-06-16 01:15 재빌드 — 최신 코드 반영).
+- ✅ `flutter analyze` 0 issues (2026-06-16 13:31).
+- ✅ `flutter build appbundle --release` 통과 → `build/app/outputs/bundle/release/app-release.aab` (63.2MB, 2026-06-16 13:31 재빌드 — 캐릭터 일러스트 16종 에셋 반영, +5.7MB).
   - ⚠️ 현재 .aab는 **디버그 서명 폴백**(key.properties 없음). 제출용 서명 .aab는 사용자 키스토어 필요(아래 ⏳).
-- ✅ 웹 빌드 최신 — gh-pages `2aa9f30 deploy web` (2026-06-16 00:22), HEAD 코드와 동기. https://doonghwi.github.io/cowboy-party/
+- ✅ 웹 빌드 최신 — gh-pages `70b47f8 deploy web` (2026-06-16 13:25), 코드 커밋 98f1e9a(13:24) 이후라 동기. https://doonghwi.github.io/cowboy-party/
 - ✅ `flutter test` 통과 이력(74 테스트, 직전 코드 세션 기준). 코드 변경 시 재확인.
 
 ## 버전 정책
@@ -28,8 +28,8 @@
 - ✅ 앱 아이콘 세트(`flutter_launcher_icons`) — Android 적용됨.
 
 ## 스크린샷
-- ✅ Android 5장 `store/screenshots/android/` (1080×2400, 현재 빌드): 홈/상점/랭킹/보상/게임플레이.
-  - 참고: 코드/UI가 크게 바뀌면 재캡처 권장(에뮬 AVD `cowboy`).
+- ✅ Android 5장 `store/screenshots/android/` (1080×2400): 홈/상점/랭킹/보상/게임플레이.
+  - ⚠️ **재캡처 권장(세션 가능, 사용자 단계 아님)**: 98f1e9a로 상점·좌석에 캐릭터 일러스트 16종이 적용됨 → 기존 02_shop·05_gameplay 스크린샷은 구 아트. 에뮬 AVD `cowboy`로 최신 빌드 재캡처 시 더 좋은 인상. (다음 사이클 또는 디자인 안정화 후 일괄.)
 - ⏳ **iOS 스크린샷** — 시뮬레이터 필요. 6.7"(1290×2796) 또는 6.9" 필수, iPad 12.9"(2048×2732) iPad 지원 시 필수. → `store/screenshots/ios/`(현재 비어있음). 규격: `store/ios_release.md`.
 
 ## 데이터 안전 / 개인정보 양식
