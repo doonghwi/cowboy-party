@@ -258,40 +258,184 @@ class _CharCard extends StatelessWidget {
   final CharDef def;
   const _CharCard({required this.def});
 
-  // E2/E3: 카드 탭 → 능력 전문(잘림 없음) + '체험'(6명 봇전, 미보유도 가능).
+  // P2: 카드 탭 → 큰 일러스트 + 이름 + 능력 전문 + 가격/소유/구매·장착·체험.
+  // 멋진 상세 모달 — 기존 구매/장착/체험 흐름을 그대로 재사용(새 로직 없음).
   void _showDetail(BuildContext context) {
-    showDialog(
+    showModalBottomSheet(
       context: context,
-      builder: (ctx) => AlertDialog(
-        backgroundColor: CD.parchment,
-        title: Row(
-          children: [
-            CharacterPortrait(
-                id: def.id.name, icon: def.icon, color: def.color, size: 40),
-            const SizedBox(width: 10),
-            Expanded(child: Text(def.name, style: posterTitle(20))),
-          ],
+      backgroundColor: CD.parchment,
+      isScrollControlled: true,
+      shape: const RoundedRectangleBorder(
+          borderRadius: BorderRadius.vertical(top: Radius.circular(24))),
+      builder: (ctx) => ListenableBuilder(
+        // 구매·장착 후 Meta 변경 시 시트가 즉시 새 상태로 갱신되도록.
+        listenable: Meta.I,
+        builder: (ctx, _) {
+          final meta = Meta.I;
+          final unlocked = meta.isUnlocked(def.id);
+          final equipped = meta.equipped == def.id;
+          final lockedMystery =
+              def.id == CharId.mystery && !meta.canBuyMystery;
+          return SafeArea(
+            child: SingleChildScrollView(
+              child: Padding(
+                padding: const EdgeInsets.fromLTRB(20, 12, 20, 20),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    Center(
+                      child: Container(
+                        width: 44,
+                        height: 4,
+                        decoration: BoxDecoration(
+                          color: CD.muted.withValues(alpha: 0.4),
+                          borderRadius: BorderRadius.circular(2),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 14),
+                    CharacterHero(
+                        id: def.id.name,
+                        icon: def.icon,
+                        color: def.color,
+                        height: 230),
+                    const SizedBox(height: 14),
+                    Row(
+                      children: [
+                        Expanded(
+                            child: Text(def.name, style: posterTitle(26))),
+                        if (equipped)
+                          _statusChip('장착 중', CD.gold, Icons.check_circle)
+                        else if (unlocked)
+                          _statusChip('보유', CD.sage, Icons.inventory_2)
+                        else if (lockedMystery)
+                          _statusChip('잠김', CD.leather, Icons.lock),
+                      ],
+                    ),
+                    const SizedBox(height: 12),
+                    Container(
+                      width: double.infinity,
+                      padding: const EdgeInsets.all(14),
+                      decoration: BoxDecoration(
+                        color: def.color.withValues(alpha: 0.10),
+                        borderRadius: BorderRadius.circular(14),
+                        border: Border.all(
+                            color: def.color.withValues(alpha: 0.35)),
+                      ),
+                      child: Row(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Icon(def.icon, color: def.color, size: 22),
+                          const SizedBox(width: 10),
+                          Expanded(
+                            child: Text(def.ability,
+                                style: const TextStyle(
+                                    fontSize: 14,
+                                    height: 1.5,
+                                    color: CD.ink)),
+                          ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(height: 16),
+                    Row(
+                      children: [
+                        Expanded(
+                          child: OutlinedButton.icon(
+                            style: OutlinedButton.styleFrom(
+                              foregroundColor: CD.leather,
+                              side: const BorderSide(
+                                  color: CD.leather, width: 1.5),
+                              padding:
+                                  const EdgeInsets.symmetric(vertical: 13),
+                            ),
+                            onPressed: () {
+                              Navigator.pop(ctx);
+                              Sfx.confirm();
+                              // 미보유여도 그 직업으로 6명 봇전 체험.
+                              Navigator.of(context).push(MaterialPageRoute(
+                                builder: (_) => OfflineGameScreen(
+                                    forcedChar: def.id, forcedBots: 5),
+                              ));
+                            },
+                            icon: const Icon(Icons.sports_esports, size: 18),
+                            label: const Text('체험',
+                                style:
+                                    TextStyle(fontWeight: FontWeight.w900)),
+                          ),
+                        ),
+                        const SizedBox(width: 10),
+                        Expanded(
+                            child: _detailPrimaryAction(
+                                context, unlocked, equipped, lockedMystery)),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          );
+        },
+      ),
+    );
+  }
+
+  // 상세 시트의 주 버튼 — 장착됨/장착/구매. 기존 카드와 동일 로직 호출.
+  Widget _detailPrimaryAction(
+      BuildContext context, bool unlocked, bool equipped, bool lockedMystery) {
+    if (equipped) {
+      return FilledButton(
+        onPressed: null,
+        style: FilledButton.styleFrom(
+          disabledBackgroundColor: CD.gold.withValues(alpha: 0.85),
+          padding: const EdgeInsets.symmetric(vertical: 13),
         ),
-        content: Text(def.ability,
-            style: const TextStyle(fontSize: 14, height: 1.5)),
-        actions: [
-          TextButton(
-              onPressed: () => Navigator.pop(ctx), child: const Text('닫기')),
-          FilledButton.icon(
-            style: FilledButton.styleFrom(backgroundColor: CD.sage),
-            onPressed: () {
-              Navigator.pop(ctx);
-              Sfx.confirm();
-              // 미보유여도 그 직업으로 6명 봇전 체험.
-              Navigator.of(context).push(MaterialPageRoute(
-                builder: (_) =>
-                    OfflineGameScreen(forcedChar: def.id, forcedBots: 5),
-              ));
-            },
-            icon: const Icon(Icons.sports_esports, size: 18),
-            label: const Text('체험 (6명 봇전)',
-                style: TextStyle(fontWeight: FontWeight.w900)),
-          ),
+        child: const Text('장착됨',
+            style: TextStyle(color: Colors.white, fontWeight: FontWeight.w900)),
+      );
+    }
+    if (unlocked) {
+      return FilledButton(
+        style: FilledButton.styleFrom(
+            backgroundColor: CD.sage,
+            padding: const EdgeInsets.symmetric(vertical: 13)),
+        onPressed: () {
+          HapticFeedback.lightImpact();
+          Sfx.confirm();
+          Meta.I.equip(def.id);
+        },
+        child: const Text('장착', style: TextStyle(fontWeight: FontWeight.w900)),
+      );
+    }
+    return FilledButton.icon(
+      style: FilledButton.styleFrom(
+          backgroundColor: CD.leather,
+          padding: const EdgeInsets.symmetric(vertical: 13)),
+      onPressed: () => _tryUnlock(context),
+      icon: Icon(lockedMystery ? Icons.lock : Icons.monetization_on,
+          color: CD.gold, size: 18),
+      label: Text(lockedMystery ? '전 캐릭터 필요' : '${def.cost}',
+          style: const TextStyle(fontWeight: FontWeight.w900)),
+    );
+  }
+
+  Widget _statusChip(String label, Color color, IconData icon) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: 0.15),
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: color.withValues(alpha: 0.6)),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, size: 14, color: color),
+          const SizedBox(width: 4),
+          Text(label,
+              style: TextStyle(
+                  color: color, fontSize: 12, fontWeight: FontWeight.w900)),
         ],
       ),
     );

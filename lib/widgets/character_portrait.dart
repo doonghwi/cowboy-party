@@ -88,6 +88,55 @@ class CharacterPortrait extends StatelessWidget {
   }
 }
 
+/// Large hero illustration for the shop detail view — shows head + torso (not
+/// the tight face-crop of [CharacterPortrait]), on a char-tinted backdrop with
+/// a parchment scrim at the bottom for text legibility. Icon fallback when the
+/// PNG is missing. Presentation only.
+class CharacterHero extends StatelessWidget {
+  const CharacterHero({
+    super.key,
+    required this.id,
+    required this.icon,
+    required this.color,
+    this.height = 230,
+  });
+
+  final String id;
+  final IconData icon;
+  final Color color;
+  final double height;
+
+  @override
+  Widget build(BuildContext context) {
+    return ClipRRect(
+      borderRadius: BorderRadius.circular(20),
+      child: Container(
+        height: height,
+        width: double.infinity,
+        decoration: BoxDecoration(
+          gradient: LinearGradient(
+            begin: Alignment.topCenter,
+            end: Alignment.bottomCenter,
+            colors: [
+              color.withValues(alpha: 0.30),
+              color.withValues(alpha: 0.10),
+              CD.parchment,
+            ],
+            stops: const [0, 0.7, 1],
+          ),
+        ),
+        child: Image.asset(
+          'assets/characters/$id.png',
+          fit: BoxFit.cover,
+          alignment: const Alignment(0, -0.15),
+          errorBuilder: (context, error, stack) =>
+              Center(child: Icon(icon, color: color, size: height * 0.42)),
+        ),
+      ),
+    );
+  }
+}
+
 class _Placeholder extends StatelessWidget {
   const _Placeholder({required this.icon, required this.color, required this.size});
   final IconData icon;
