@@ -147,11 +147,13 @@ class CircularTable extends StatelessWidget {
 
         return Stack(
           children: [
-            // Tracer lines behind the cards.
+            // Animated bullet tracers behind the cards (muzzle flash, travelling
+            // core, hit/blocked/missed impact). Keyed per turn so it replays.
             if (reveal)
               Positioned.fill(
-                child: CustomPaint(
-                  painter: _TracerPainter(seats: seats, positions: positions),
+                child: ShotsLayer(
+                  key: ValueKey('shots-${_turnSig()}'),
+                  shots: _shots(positions),
                 ),
               ),
             // Seat cards.
@@ -245,6 +247,46 @@ class CircularTable extends StatelessWidget {
     );
   }
 
+  /// A signature of this turn's moves so the tracer layer re-animates each turn.
+  String _turnSig() => seats.map((s) => s.lastMove?.encode() ?? '-').join('|');
+
+  /// Build the animated shot list from the seat flags (presentation only).
+  List<ShotSpec> _shots(List<Offset> positions) {
+    final out = <ShotSpec>[];
+    for (var s = 0; s < seats.length; s++) {
+      if (!seats[s].fired) continue;
+      final superShot = seats[s].superFired;
+      // 더블 빵야는 두 대상 모두에 탄을 그린다(슈퍼는 단일 대상).
+      final targets = <int>[
+        seats[s].firedTarget,
+        if (!superShot) seats[s].firedTarget2,
+      ];
+      for (final t in targets) {
+        if (t < 0 || t >= positions.length) continue;
+        out.add(ShotSpec(
+          from: positions[s],
+          to: positions[t],
+          isSuper: superShot,
+          result: _shotResult(t),
+        ));
+      }
+    }
+    return out;
+  }
+
+  /// Derive a shot's impact from the *target* seat's existing reveal flags.
+  ShotResult _shotResult(int t) {
+    final tg = seats[t];
+    if (tg.hit) return ShotResult.hit;
+    if (tg.lastMove?.kind == ActKind.defend ||
+        tg.evadedFx ||
+        tg.smoked ||
+        tg.reflectedFx) {
+      return ShotResult.blocked;
+    }
+    return ShotResult.missed;
+  }
+
   /// 이 턴 발동한 능력의 좌석 배지 라벨 (우선순위 1개만).
   static String? _fxLabel(TableSeat s) {
     if (s.curseKillFx) return '저주 사망!';
@@ -265,6 +307,14 @@ class CircularTable extends StatelessWidget {
       case ActKind.defend:
         final ring = cardW + 26;
         return [
+          // Expanding shockwave under the shield for a sense of impact.
+          Positioned.fill(
+            child: ShieldPulse(
+              key: ValueKey('defp-$s-${m.encode()}'),
+              center: pos,
+              radius: ring / 2,
+            ),
+          ),
           Positioned(
             left: pos.dx - ring / 2,
             top: pos.dy - ring / 2,
@@ -353,6 +403,14 @@ class CircularTable extends StatelessWidget {
         ];
       case ActKind.reload:
         return [
+          // Gold cartridge ticks fly up into the seat — more for a double load.
+          Positioned.fill(
+            child: ReloadBurst(
+              key: ValueKey('rlb-$s-${m.encode()}'),
+              center: pos,
+              count: seats[s].doubleLoadFx ? 6 : 3,
+            ),
+          ),
           Positioned(
             left: pos.dx - 26,
             top: pos.dy - cardH / 2 - 16,
@@ -452,105 +510,3 @@ class _ReactionBubble extends StatelessWidget {
   }
 }
 
-class _TracerPainter extends CustomPainter {
-  final List<TableSeat> seats;
-  final List<Offset> positions;
-  _TracerPainter({required this.seats, required this.positions});
-
-  @override
-  void paint(Canvas canvas, Size size) {
-    // Draw normal shots first, super shots on top so they dominate.
-    for (final superPass in [false, true]) {
-      for (var s = 0; s < seats.length; s++) {
-        if (!seats[s].fired || seats[s].superFired != superPass) continue;
-        // 더블 빵야는 두 대상 모두에 화살표를 그린다(슈퍼는 단일 대상).
-        final targets = <int>[
-          seats[s].firedTarget,
-          if (!superPass) seats[s].firedTarget2,
-        ];
-        for (final t in targets) {
-          if (t < 0 || t >= positions.length) continue;
-          final a = positions[s];
-          final b = positions[t];
-          final dir = (b - a);
-          final len = dir.distance;
-          if (len < 1) continue;
-          final unit = dir / len;
-          final start = a + unit * 52;
-          final end = b - unit * 52;
-          if (superPass) {
-            _superBolt(canvas, start, end, unit);
-          } else {
-            final line = Paint()
-              ..color = CD.danger.withValues(alpha: 0.85)
-              ..strokeWidth = 3
-              ..strokeCap = StrokeCap.round;
-            canvas.drawLine(start, end, line);
-            _arrow(canvas, end, unit, line, 11);
-          }
-        }
-      }
-    }
-  }
-
-  /// A thick gold-fire bolt with an outer glow and a starburst at the target —
-  /// the unmistakable, screen-dominating 슈퍼빵야 hit.
-  void _superBolt(Canvas canvas, Offset start, Offset end, Offset unit) {
-    final glow = Paint()
-      ..color = CD.nova.withValues(alpha: 0.40)
-      ..strokeWidth = 13
-      ..strokeCap = StrokeCap.round
-      ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 6);
-    final core = Paint()
-      ..color = CD.nova
-      ..strokeWidth = 6
-      ..strokeCap = StrokeCap.round;
-    final inner = Paint()
-      ..color = Colors.white.withValues(alpha: 0.9)
-      ..strokeWidth = 2
-      ..strokeCap = StrokeCap.round;
-    canvas.drawLine(start, end, glow);
-    canvas.drawLine(start, end, core);
-    canvas.drawLine(start, end, inner);
-    _arrow(canvas, end, unit, Paint()..color = CD.nova, 18);
-    _burst(canvas, end);
-  }
-
-  void _burst(Canvas canvas, Offset c) {
-    final p = Paint()..color = CD.nova;
-    final glow = Paint()
-      ..color = CD.nova.withValues(alpha: 0.4)
-      ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 5);
-    canvas.drawCircle(c, 14, glow);
-    final path = Path();
-    for (var i = 0; i < 8; i++) {
-      final a = i * pi / 4;
-      final r = i.isEven ? 13.0 : 5.5;
-      final pt = c + Offset(cos(a), sin(a)) * r;
-      if (i == 0) {
-        path.moveTo(pt.dx, pt.dy);
-      } else {
-        path.lineTo(pt.dx, pt.dy);
-      }
-    }
-    path.close();
-    canvas.drawPath(path, p);
-    canvas.drawCircle(c, 3, Paint()..color = Colors.white);
-  }
-
-  void _arrow(Canvas canvas, Offset tip, Offset unit, Paint paint, double head) {
-    final back = tip - unit * head;
-    final normal = Offset(-unit.dy, unit.dx);
-    final p1 = back + normal * (head * 0.6);
-    final p2 = back - normal * (head * 0.6);
-    final path = Path()
-      ..moveTo(tip.dx, tip.dy)
-      ..lineTo(p1.dx, p1.dy)
-      ..lineTo(p2.dx, p2.dy)
-      ..close();
-    canvas.drawPath(path, paint..style = PaintingStyle.fill);
-  }
-
-  @override
-  bool shouldRepaint(covariant _TracerPainter old) => true;
-}
