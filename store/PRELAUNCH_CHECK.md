@@ -1,13 +1,13 @@
 # 카우보이 — 제출 전 사전점검 (PRELAUNCH_CHECK)
 
 > deploy 루프 세션이 유지. **✅ = 세션이 자동으로 끝낸 것**, **⏳ = 사용자(사장님)만 할 수 있는 것**.
-> 마지막 점검: 2026-06-16 15:42 (KST). 기준 커밋: `37a6a59`.
+> 마지막 점검: 2026-06-17 01:26 (KST). 기준 커밋: `ecc6576`.
 
 ## 빌드 신선도 (매 사이클 재확인)
-- ✅ `flutter analyze` 0 issues (2026-06-16 15:42).
-- ✅ `flutter build appbundle --release` 통과 → `build/app/outputs/bundle/release/app-release.aab` (63.3MB, 2026-06-16 15:42 재빌드 — 이펙트 E(전 특수행동 연출 통일)·공지 반영, basis 37a6a59=HEAD).
+- ✅ `flutter analyze` 0 issues (2026-06-17 01:26, 단독 실행).
+- ✅ `flutter build appbundle --release` 통과 → `build/app/outputs/bundle/release/app-release.aab` (63.3MB, 2026-06-17 01:26 재빌드 — 이펙트 F(러시안룰렛 자기-꽝 모션)·공지 반영, basis ecc6576=HEAD).
   - ⚠️ 현재 .aab는 **디버그 서명 폴백**(key.properties 없음). 제출용 서명 .aab는 사용자 키스토어 필요(아래 ⏳).
-- ✅ 웹 **완전 동기** — gh-pages `0586945 deploy web` (2026-06-16 15:13:54, 코드세션 배포)이 HEAD 37a6a59(15:13:12) 이후라 최신. https://doonghwi.github.io/cowboy-party/
+- ✅ 웹 **동기** — gh-pages `f844aed deploy web` (2026-06-17 00:52:05, 코드세션 배포)이 앱코드 커밋 f01cb30(00:51)·4c5c46e 반영. HEAD ecc6576은 docs(ARCHITECTURE)만이라 웹 영향 없음. https://doonghwi.github.io/cowboy-party/
 - ✅ `flutter test` 통과 이력(74 테스트, 직전 코드 세션 기준). 코드 변경 시 재확인.
 
 ## 버전 정책
