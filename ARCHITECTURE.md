@@ -42,7 +42,7 @@
 | 평화주의자 pacifist | 빵야 불가, 장전 6회 시 즉시 승리 | none | 5000 |
 | 그림자 shadow | 장전·방어·**탄약수가 상대에게 안 보임**(빵야·피격 시 방어는 드러남) | none(표시) | 5500 |
 | 러시안룰렛 roulette | **운명의 방아쇠**(상시): 50:50로 나/상대 사망, 상대 방어 시 내가 죽음. **연막 회피 적용(C1)** | alwaysRow | 6000 |
-| 쌍권총 dualgun | **더블 빵야**(상시): 총알 2발로 두 명 동시 저격. **두 대상 모두에 화살표 표시**(circular_table `_TracerPainter`가 firedTarget+firedTarget2 그림) | alwaysRow | 6500 |
+| 쌍권총 dualgun | **더블 빵야**(상시): 총알 2발로 두 명 동시 저격. **두 대상 모두에 탄도 표시**(effects.dart `ShotsLayer`가 firedTarget+firedTarget2 그림) | alwaysRow | 6500 |
 | 파파라치 paparazzi | **엿보기**(게임당 1회): 1명 행동 미리보고 내 행동 결정 (온라인은 대기 페이즈) | turnSlot | 7000 |
 | 부두술사 voodoo | **저주**: 대상을 10턴(kCurseFuse) 뒤 사망. 부두술사 죽으면 해제. 남은 턴 모두에게 표시(C2). **저주는 대상 좌석별로 독립**(`PartyState.curseFuse/curseCaster`가 List) — 부두술사 여럿이 각자, 동시에 여러 명을 저주 가능 | turnSlot | 7500 |
 | ??? mystery | 미공개 시작, **능력 발동 시 정체 공개(B8)**. 직업은 매 게임 랜덤(resolveMystery, 일반인 제외). 전 캐릭터 보유 시 구매 | 메타 | 10000 |
@@ -119,8 +119,10 @@ action_bar.dart가 이 분류대로 렌더하고, party_logic이 판정한다.
   `assets/characters/<CharId.name>.png`, 누락 시 `charDef.icon` 폴백, `dim`=미보유) + `CharacterHero`
   (상점 상세용 풀 일러스트, BoxFit.contain 정사각 전체·화면 55%캡). **순수 표시** — 게임상태 미참조.
   적용처: 상점 카드/상세, 좌석 프로필 팝업, 라이브 좌석(생존자=초상, 빈자리=사람/탈락=해골 유지).
-- **effects.dart**(이식 가산 레이어): `SmokePuff`(Canvas-only 입자 연막 구름, IgnorePointer, 게임상태 미참조).
-  circular_table 리빌에서 `evadedFx`(연막 회피) 좌석 위 표출. **의존성 0**(flame/셰이더 미도입 — 출시 안정성).
+- **effects.dart**(가산 레이어, **전부 Canvas-only·IgnorePointer·게임상태 미참조·의존성 0** — flame/셰이더 미도입, 출시 안정성·웹 호환 우선):
+  - `SmokePuff`: 연막 구름. circular_table 리빌에서 `smoked`(연막 발동=차지 소모, **회피 성공 여부와 무관**) 좌석 위 표출. ('회피!' 텍스트 라벨은 `evadedFx` 별개 유지.)
+  - `ShotsLayer`(+ `ShotSpec`/`ShotResult`): 빵야/슈퍼빵야 애니메이션 탄도. 지속 베이스 라인+화살표 위에 머즐 플래시·이동 코어·임팩트(명중=충격링+파편/방어=세이지 디플렉션 호/빗나감=먼지). 슈퍼=노바 볼트+스타버스트. 관통(`ShotSpec.pierce`)=흰 랜스. **임팩트는 타깃 좌석의 기존 리빌 플래그(hit/defend/evaded/smoked/reflected)에서 유도** — 정적 `_TracerPainter` 대체.
+  - `ShieldPulse`(방어 충격파 링)·`ReloadBurst`(장전 탄피 솟구침, 더블장전 강화)·`HealSparkle`(의사 자힐 초록 십자)·`ResetRipple`(리셋 무효 워시)·`CurseAura`(부두 저주 보라 오라+모트, 만료 사망=데스 버스트). circular_table `_effects()`/리빌 루프에서 해당 플래그 시 표출.
 
 ### 메타/경제
 - **meta/meta_service.dart**(`Meta.I`): 코인·해금·장착·출석·**선물코드**(redeemGiftCode). 로컬(SharedPreferences) + 로그인 시 /users/$uid 미러.
