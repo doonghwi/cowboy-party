@@ -115,6 +115,12 @@ action_bar.dart가 이 분류대로 렌더하고, party_logic이 판정한다.
 - **action_bar.dart**: 하단 행동 선택 바. **circular_table.dart**(+ seat_card.dart): 원형 테이블·
   트레이서·발동 이펙트. **emo.dart**: Twemoji 이미지. **online_showdown.dart**: 반응속도 결투.
   **super_flash.dart**: 슈퍼빵야 연출. **top_toast.dart**: 상단 토스트(코인 등).
+- **character_portrait.dart**(이식, cowboy_redesign): `CharacterPortrait`(얼굴 클로즈업 원형 아바타,
+  `assets/characters/<CharId.name>.png`, 누락 시 `charDef.icon` 폴백, `dim`=미보유) + `CharacterHero`
+  (상점 상세용 풀 일러스트, BoxFit.contain 정사각 전체·화면 55%캡). **순수 표시** — 게임상태 미참조.
+  적용처: 상점 카드/상세, 좌석 프로필 팝업, 라이브 좌석(생존자=초상, 빈자리=사람/탈락=해골 유지).
+- **effects.dart**(이식 가산 레이어): `SmokePuff`(Canvas-only 입자 연막 구름, IgnorePointer, 게임상태 미참조).
+  circular_table 리빌에서 `evadedFx`(연막 회피) 좌석 위 표출. **의존성 0**(flame/셰이더 미도입 — 출시 안정성).
 
 ### 메타/경제
 - **meta/meta_service.dart**(`Meta.I`): 코인·해금·장착·출석·**선물코드**(redeemGiftCode). 로컬(SharedPreferences) + 로그인 시 /users/$uid 미러.
