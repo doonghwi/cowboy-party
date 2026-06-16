@@ -5,6 +5,7 @@ import '../audio/sfx.dart';
 import '../game/characters.dart';
 import '../meta/meta_service.dart';
 import '../theme.dart';
+import '../widgets/character_portrait.dart';
 import 'offline_game_screen.dart';
 
 /// 상점 탭: 캐릭터 구매·장착 + 튜토리얼 진입(E1/E3). 설명은 잘리지 않게 스크롤(E2).
@@ -265,10 +266,8 @@ class _CharCard extends StatelessWidget {
         backgroundColor: CD.parchment,
         title: Row(
           children: [
-            CircleAvatar(
-                radius: 18,
-                backgroundColor: def.color,
-                child: Icon(def.icon, color: Colors.white, size: 20)),
+            CharacterPortrait(
+                id: def.id.name, icon: def.icon, color: def.color, size: 40),
             const SizedBox(width: 10),
             Expanded(child: Text(def.name, style: posterTitle(20))),
           ],
@@ -326,15 +325,12 @@ class _CharCard extends StatelessWidget {
             Stack(
               clipBehavior: Clip.none,
               children: [
-                Container(
-                  width: 64,
-                  height: 64,
-                  decoration: BoxDecoration(
-                    color: def.color.withValues(alpha: unlocked ? 1 : 0.45),
-                    shape: BoxShape.circle,
-                    border: Border.all(color: Colors.white, width: 2),
-                  ),
-                  child: Icon(def.icon, color: Colors.white, size: 32),
+                CharacterPortrait(
+                  id: def.id.name,
+                  icon: def.icon,
+                  color: def.color,
+                  size: 64,
+                  dim: !unlocked,
                 ),
                 if (equipped)
                   Positioned(

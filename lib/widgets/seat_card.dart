@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../game/party_logic.dart';
 import '../theme.dart';
+import 'character_portrait.dart';
 import 'emo.dart';
 
 /// A single cowboy at the table: avatar, name, ammo and their last revealed
@@ -114,13 +115,23 @@ class SeatCard extends StatelessWidget {
               blocked
                   ? Icon(Icons.lock,
                       size: avatar, color: CD.muted.withValues(alpha: 0.6))
-                  : Opacity(
-                      opacity: alive ? 1 : 0.55,
-                      child: Emo(
-                        !joined ? 'person' : (alive ? 'cowboy' : 'skull'),
-                        size: avatar,
-                      ),
-                    ),
+                  : (joined && alive && char != CharId.none)
+                      // 살아있는 참가자는 자기 캐릭터 일러스트로 표시(없으면 아이콘 폴백).
+                      ? CharacterPortrait(
+                          id: char.name,
+                          icon: charDef(char).icon,
+                          color: charDef(char).color,
+                          size: avatar,
+                          showRing: false,
+                        )
+                      // 빈자리는 사람, 탈락은 해골 — 생존 상태 가독성 유지.
+                      : Opacity(
+                          opacity: alive ? 1 : 0.55,
+                          child: Emo(
+                            !joined ? 'person' : (alive ? 'cowboy' : 'skull'),
+                            size: avatar,
+                          ),
+                        ),
               if (submitted && alive)
                 Positioned(
                   right: -6,
