@@ -180,7 +180,7 @@ const List<CharDef> kCharacters = [
   CharDef(
     id: CharId.voodoo,
     name: '부두술사',
-    ability: '저주(게임당 1번, 그 턴 행동 불가): 한 명을 10턴 뒤 사망시킨다. 부두술사가 죽으면 풀린다',
+    ability: '저주(턴당 1번, 그 턴 행동 불가): 한 명을 10턴 뒤 사망시킨다. 부두술사가 죽으면 풀린다',
     icon: Icons.auto_fix_high,
     color: Color(0xFF5B3A8E),
     cost: 7500,
