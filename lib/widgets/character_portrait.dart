@@ -108,30 +108,41 @@ class CharacterHero extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final screenH = MediaQuery.of(context).size.height;
     return ClipRRect(
       borderRadius: BorderRadius.circular(20),
-      child: Container(
-        height: height,
-        width: double.infinity,
-        decoration: BoxDecoration(
-          gradient: LinearGradient(
-            begin: Alignment.topCenter,
-            end: Alignment.bottomCenter,
-            colors: [
-              color.withValues(alpha: 0.30),
-              color.withValues(alpha: 0.10),
-              CD.parchment,
-            ],
-            stops: const [0, 0.7, 1],
-          ),
-        ),
-        child: Image.asset(
-          'assets/characters/$id.png',
-          fit: BoxFit.cover,
-          alignment: const Alignment(0, -0.15),
-          errorBuilder: (context, error, stack) =>
-              Center(child: Icon(icon, color: color, size: height * 0.42)),
-        ),
+      child: LayoutBuilder(
+        builder: (context, constraints) {
+          // 일러스트는 1:1 정사각형. 화면이 허용하면 정사각으로 전체를 보여주고,
+          // 작은 화면에서는 화면 높이의 55%로 제한(상세 시트는 스크롤되므로 OK).
+          // height 인자는 하한 힌트로만 사용.
+          final w = constraints.maxWidth;
+          final cap = screenH * 0.55;
+          final boxH = (w <= cap ? w : cap).clamp(height, double.infinity);
+          return Container(
+            height: boxH,
+            width: double.infinity,
+            decoration: BoxDecoration(
+              gradient: LinearGradient(
+                begin: Alignment.topCenter,
+                end: Alignment.bottomCenter,
+                colors: [
+                  color.withValues(alpha: 0.30),
+                  color.withValues(alpha: 0.10),
+                  CD.parchment,
+                ],
+                stops: const [0, 0.7, 1],
+              ),
+            ),
+            // contain → 1:1 일러스트 전체가 잘리지 않고 다 보임.
+            child: Image.asset(
+              'assets/characters/$id.png',
+              fit: BoxFit.contain,
+              errorBuilder: (context, error, stack) =>
+                  Center(child: Icon(icon, color: color, size: boxH * 0.42)),
+            ),
+          );
+        },
       ),
     );
   }
