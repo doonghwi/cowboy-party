@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../game/characters.dart';
 import '../theme.dart';
+import '../widgets/character_portrait.dart';
 import '../widgets/desert_background.dart';
 
 class HowToPlayScreen extends StatelessWidget {
@@ -78,7 +79,7 @@ class HowToPlayScreen extends StatelessWidget {
                     '신호 전에 미리 누르면 부정출발로 패배합니다.',
               ),
               const SizedBox(height: 8),
-              Text('캐릭터 (총잡이 8종)', style: posterTitle(22, color: CD.leather)),
+              Text('캐릭터 (총잡이 16종)', style: posterTitle(22, color: CD.leather)),
               const SizedBox(height: 4),
               const Text(
                 '캐릭터 탭에서 장착하면 능력이 적용돼요 — 온라인과 컴퓨터전 모두! '
@@ -90,6 +91,7 @@ class HowToPlayScreen extends StatelessWidget {
                 _Rule(
                   icon: c.icon,
                   color: c.color,
+                  charId: c.id.name,
                   title: c.cost == 0 ? '${c.name} (기본)' : '${c.name} (${c.cost}코인)',
                   body: c.ability,
                 ),
@@ -123,11 +125,15 @@ class _Rule extends StatelessWidget {
   final Color color;
   final String title;
   final String body;
+
+  /// 캐릭터 규칙이면 `CharId.name` — 아이콘 대신 캐릭터 초상 표시(일관성).
+  final String? charId;
   const _Rule({
     required this.icon,
     required this.color,
     required this.title,
     required this.body,
+    this.charId,
   });
 
   @override
@@ -143,14 +149,17 @@ class _Rule extends StatelessWidget {
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Container(
-            padding: const EdgeInsets.all(9),
-            decoration: BoxDecoration(
-              color: color,
-              borderRadius: BorderRadius.circular(11),
+          if (charId != null)
+            CharacterPortrait(id: charId!, icon: icon, color: color, size: 44)
+          else
+            Container(
+              padding: const EdgeInsets.all(9),
+              decoration: BoxDecoration(
+                color: color,
+                borderRadius: BorderRadius.circular(11),
+              ),
+              child: Icon(icon, color: Colors.white, size: 22),
             ),
-            child: Icon(icon, color: Colors.white, size: 22),
-          ),
           const SizedBox(width: 14),
           Expanded(
             child: Column(
