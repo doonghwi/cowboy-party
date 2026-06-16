@@ -201,36 +201,35 @@ class SeatCard extends StatelessWidget {
                     ),
                   ),
                 ),
-              // C2: 저주 남은 턴 — 모두에게 보이는 해골 카운트다운.
-              if (curseTurnsLeft > 0 && alive)
-                Positioned(
-                  right: -10,
-                  bottom: -6,
-                  child: Container(
-                    padding: const EdgeInsets.symmetric(
-                        horizontal: 5, vertical: 2),
-                    decoration: BoxDecoration(
-                      color: const Color(0xFF5B3A8E),
-                      borderRadius: BorderRadius.circular(9),
-                      border: Border.all(color: Colors.white, width: 1.2),
-                    ),
-                    child: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        const Text('💀',
-                            style: TextStyle(fontSize: 9)),
-                        const SizedBox(width: 2),
-                        Text('$curseTurnsLeft',
-                            style: const TextStyle(
-                                color: Colors.white,
-                                fontSize: 10,
-                                fontWeight: FontWeight.w900)),
-                      ],
-                    ),
-                  ),
-                ),
             ],
           ),
+          // C2: 저주 남은 턴 — 코너 배지(캐릭터·제출·조준마커·능력횟수)와 절대
+          // 겹치지 않도록 아바타 아래 **전용 줄**에 둔다. 덫 사용횟수(좌하단)와
+          // 동시에 떠도 둘 다 또렷이 보인다.
+          if (curseTurnsLeft > 0 && alive) ...[
+            SizedBox(height: mini ? 3 : 4),
+            Container(
+              padding:
+                  const EdgeInsets.symmetric(horizontal: 6, vertical: 1),
+              decoration: BoxDecoration(
+                color: const Color(0xFF5B3A8E),
+                borderRadius: BorderRadius.circular(9),
+                border: Border.all(color: Colors.white, width: 1.2),
+              ),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  const Text('💀', style: TextStyle(fontSize: 9)),
+                  const SizedBox(width: 3),
+                  Text('저주 $curseTurnsLeft',
+                      style: const TextStyle(
+                          color: Colors.white,
+                          fontSize: 10,
+                          fontWeight: FontWeight.w900)),
+                ],
+              ),
+            ),
+          ],
           SizedBox(height: mini ? 2 : 4),
           Text(
             joined ? name : '빈자리',
