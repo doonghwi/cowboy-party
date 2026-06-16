@@ -1,15 +1,13 @@
 # 카우보이 — 제출 전 사전점검 (PRELAUNCH_CHECK)
 
 > deploy 루프 세션이 유지. **✅ = 세션이 자동으로 끝낸 것**, **⏳ = 사용자(사장님)만 할 수 있는 것**.
-> 마지막 점검: 2026-06-16 14:04 (KST). 기준 커밋: `43d48f1`.
+> 마지막 점검: 2026-06-16 15:10 (KST). 기준 커밋: `a82bf73`.
 
 ## 빌드 신선도 (매 사이클 재확인)
-- ✅ `flutter analyze` 0 issues (2026-06-16 14:04).
-- ✅ `flutter build appbundle --release` 통과 → `build/app/outputs/bundle/release/app-release.aab` (63.2MB, 2026-06-16 14:04 재빌드 — P1~P4 캐릭터 일러스트·상점상세·연막 + 부두 설명정정 반영).
+- ✅ `flutter analyze` 0 issues (2026-06-16 15:10).
+- ✅ `flutter build appbundle --release` 통과 → `build/app/outputs/bundle/release/app-release.aab` (63.3MB, 2026-06-16 15:10 재빌드 — 이펙트 A~D 일괄 반영: 연막 버그·빵야/장전/방어 연출·능력 연출·좌석 배지).
   - ⚠️ 현재 .aab는 **디버그 서명 폴백**(key.properties 없음). 제출용 서명 .aab는 사용자 키스토어 필요(아래 ⏳).
-  - ℹ️ basis 43d48f1 — 직후 9b90055(연막 연출 버그수정, 14:36)는 미반영. 제출 임박 아니므로 다음 사이클(버스트 진정 후) 일괄 재빌드 예정.
-- ✅ 웹 — gh-pages `c5e1eb8 deploy web` (2026-06-16 14:37, deploy세션이 43d48f1 반영해 재배포·스모크 통과). https://doonghwi.github.io/cowboy-party/
-  - ℹ️ 웹 배포는 코드세션이 매 커밋 후 직접 수행(force-push). **deploy 세션은 레이스 회피 위해 웹 재배포는 코드세션에 위임**, 검증만 함(이번 1회는 40분 유휴라 직접 배포). 9b90055는 코드세션 다음 배포에 반영.
+- ✅ 웹 — gh-pages `af61ff6 deploy web` (2026-06-16 14:51, 코드세션 배포). 직후 a82bf73(좌석 배지, 15:04)만 미반영 — **웹 배포는 코드세션 담당, deploy 세션은 검증만**(force-push 레이스 회피). 코드세션 다음 배포에 픽업. https://doonghwi.github.io/cowboy-party/
 - ✅ `flutter test` 통과 이력(74 테스트, 직전 코드 세션 기준). 코드 변경 시 재확인.
 
 ## 버전 정책
