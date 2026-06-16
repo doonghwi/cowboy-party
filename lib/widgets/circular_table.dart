@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 
 import '../game/party_logic.dart';
 import '../theme.dart';
+import 'effects.dart';
 import 'emo.dart';
 import 'seat_card.dart';
 
@@ -189,6 +190,21 @@ class CircularTable extends StatelessWidget {
             if (reveal)
               for (var s = 0; s < n; s++)
                 ..._effects(s, positions[s], cardW, cardH),
+            // SMOKE (스모커 연막): purely additive puff over a seat that dodged an
+            // attack via smoke. No game-state read beyond the existing reveal
+            // flags — the cloud just explains why the shot vanished.
+            if (reveal)
+              for (var s = 0; s < n; s++)
+                if (seats[s].evadedFx &&
+                    seats[s].alive &&
+                    !seats[s].hideAction)
+                  Positioned.fill(
+                    child: SmokePuff(
+                      key: ValueKey('smoke-$s-${seats[s].lastMove?.encode()}'),
+                      center: positions[s],
+                      seed: s + 1,
+                    ),
+                  ),
             // Emoji reactions floating over seats. Normally above the card, but
             // flipped below it for top-row seats so it never clips off-screen
             // (the bug at 2 players: the opponent's bubble went above the top).
