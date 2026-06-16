@@ -175,10 +175,45 @@ class ShotsLayer extends StatefulWidget {
   State<ShotsLayer> createState() => _ShotsLayerState();
 }
 
+/// One muzzle-spray particle (precomputed kinematics, like the smoke puff).
+class _Muzzle {
+  const _Muzzle(this.dir, this.speed, this.radius, this.mix);
+  final Offset dir; // unit direction along the cone
+  final double speed; // px/sec
+  final double radius;
+  final double mix; // 0=white core … 1=beam colour
+}
+
 class _ShotsLayerState extends State<ShotsLayer>
     with SingleTickerProviderStateMixin {
   late final AnimationController _c =
       AnimationController(vsync: this, duration: widget.duration)..forward();
+  late final List<List<_Muzzle>> _muzzles;
+
+  @override
+  void initState() {
+    super.initState();
+    _muzzles = [
+      for (var i = 0; i < widget.shots.length; i++)
+        _buildMuzzle(widget.shots[i], i)
+    ];
+  }
+
+  List<_Muzzle> _buildMuzzle(ShotSpec s, int idx) {
+    final dir = s.to - s.from;
+    if (dir.distance < 1) return const [];
+    final base = math.atan2(dir.dy, dir.dx);
+    final rnd = math.Random(idx * 9973 + 7);
+    final count = s.isSuper ? 22 : 14;
+    return List.generate(count, (i) {
+      final spread = (rnd.nextDouble() - 0.5) * (s.isSuper ? 1.5 : 1.1);
+      final a = base + spread;
+      final speed = (s.isSuper ? 230.0 : 160.0) * (0.4 + rnd.nextDouble());
+      final radius = (s.isSuper ? 3.6 : 2.6) * (0.6 + rnd.nextDouble());
+      return _Muzzle(
+          Offset(math.cos(a), math.sin(a)), speed, radius, rnd.nextDouble());
+    });
+  }
 
   @override
   void dispose() {
@@ -190,7 +225,12 @@ class _ShotsLayerState extends State<ShotsLayer>
   Widget build(BuildContext context) {
     return IgnorePointer(
       child: CustomPaint(
-        painter: _ShotsPainter(shots: widget.shots, anim: _c),
+        painter: _ShotsPainter(
+          shots: widget.shots,
+          muzzles: _muzzles,
+          anim: _c,
+          durationSec: widget.duration.inMilliseconds / 1000.0,
+        ),
         size: Size.infinite,
       ),
     );
@@ -198,24 +238,31 @@ class _ShotsLayerState extends State<ShotsLayer>
 }
 
 class _ShotsPainter extends CustomPainter {
-  _ShotsPainter({required this.shots, required this.anim}) : super(repaint: anim);
+  _ShotsPainter({
+    required this.shots,
+    required this.muzzles,
+    required this.anim,
+    required this.durationSec,
+  }) : super(repaint: anim);
 
   final List<ShotSpec> shots;
+  final List<List<_Muzzle>> muzzles;
   final Animation<double> anim;
+  final double durationSec;
 
   @override
   void paint(Canvas canvas, Size size) {
     final t = anim.value.clamp(0.0, 1.0);
     // Normal shots first, super shots on top so they dominate.
     for (final superPass in [false, true]) {
-      for (final s in shots) {
-        if (s.isSuper != superPass) continue;
-        _paintShot(canvas, s, t);
+      for (var i = 0; i < shots.length; i++) {
+        if (shots[i].isSuper != superPass) continue;
+        _paintShot(canvas, shots[i], t, muzzles[i]);
       }
     }
   }
 
-  void _paintShot(Canvas canvas, ShotSpec s, double t) {
+  void _paintShot(Canvas canvas, ShotSpec s, double t, List<_Muzzle> muzzle) {
     final dir = s.to - s.from;
     final len = dir.distance;
     if (len < 1) return;
@@ -229,8 +276,17 @@ class _ShotsPainter extends CustomPainter {
     if (isSuper) {
       _superBase(canvas, start, end, unit);
     } else {
+      // Soft glow under the tracer so it reads as hot, not a thin scratch.
+      canvas.drawLine(
+          start,
+          end,
+          Paint()
+            ..color = color.withValues(alpha: 0.30)
+            ..strokeWidth = 8
+            ..strokeCap = StrokeCap.round
+            ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 6));
       final line = Paint()
-        ..color = color.withValues(alpha: 0.85)
+        ..color = color.withValues(alpha: 0.9)
         ..strokeWidth = 3
         ..strokeCap = StrokeCap.round;
       canvas.drawLine(start, end, line);
@@ -266,19 +322,35 @@ class _ShotsPainter extends CustomPainter {
       );
     }
 
-    // 3) Muzzle flash at the shooter (0..0.3).
-    final mz = (1 - t / 0.3).clamp(0.0, 1.0);
-    if (mz > 0.01) {
-      final r = (isSuper ? 18.0 : 12.0) * (0.4 + (1 - mz) * 0.9);
+    // 3) Muzzle: a particle spray forward along the beam + a bright flash that
+    //    fades fast. Particles spray out then decelerate (smoke-quality).
+    final ts = t * durationSec;
+    for (final m in muzzle) {
+      final life = (1 - t).clamp(0.0, 1.0);
+      if (life <= 0.02) continue;
+      // Decelerating travel: spray out hard, ease to a stop.
+      final travel = m.speed * ts * (1 - 0.4 * t);
+      final pos = start + m.dir * travel;
+      canvas.drawCircle(
+        pos,
+        m.radius * (1 - t * 0.4),
+        Paint()
+          ..color = Color.lerp(Colors.white, color, m.mix)!
+              .withValues(alpha: life)
+          ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 1.6),
+      );
+    }
+    final fl = (1 - t / 0.25).clamp(0.0, 1.0);
+    if (fl > 0.01) {
       canvas.drawCircle(
         start,
-        r,
+        (isSuper ? 17.0 : 12.0) * (0.5 + (1 - fl) * 0.7),
         Paint()
-          ..color = color.withValues(alpha: 0.5 * mz)
-          ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 6),
+          ..color = color.withValues(alpha: 0.45 * fl)
+          ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 7),
       );
-      canvas.drawCircle(start, r * 0.5,
-          Paint()..color = Colors.white.withValues(alpha: 0.8 * mz));
+      canvas.drawCircle(start, (isSuper ? 7.0 : 5.0) * fl + 2,
+          Paint()..color = Colors.white.withValues(alpha: 0.85 * fl));
     }
 
     // 4) Impact at the target once the core arrives.
@@ -292,7 +364,14 @@ class _ShotsPainter extends CustomPainter {
     final fade = (1 - p).clamp(0.0, 1.0);
     switch (s.result) {
       case ShotResult.hit:
-        // White flash core.
+        // White flash core + a soft coloured bloom.
+        canvas.drawCircle(
+          c,
+          (s.isSuper ? 26.0 : 17.0) * (0.4 + p),
+          Paint()
+            ..color = color.withValues(alpha: 0.4 * fade)
+            ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 9),
+        );
         canvas.drawCircle(
           c,
           (s.isSuper ? 22.0 : 14.0) * (0.4 + p),
@@ -300,23 +379,27 @@ class _ShotsPainter extends CustomPainter {
             ..color = Colors.white.withValues(alpha: 0.7 * fade)
             ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 6),
         );
-        // Expanding shock ring.
-        canvas.drawCircle(
-          c,
-          (s.isSuper ? 30.0 : 20.0) * (0.3 + p),
-          Paint()
-            ..style = PaintingStyle.stroke
-            ..strokeWidth = (s.isSuper ? 4.0 : 3.0) * fade
-            ..color = color.withValues(alpha: fade),
-        );
+        // Two expanding shock rings, staggered.
+        for (final delay in [0.0, 0.28]) {
+          final rp = ((p - delay) / (1 - delay)).clamp(0.0, 1.0);
+          if (rp <= 0) continue;
+          canvas.drawCircle(
+            c,
+            (s.isSuper ? 30.0 : 20.0) * (0.3 + rp),
+            Paint()
+              ..style = PaintingStyle.stroke
+              ..strokeWidth = (s.isSuper ? 4.0 : 3.0) * (1 - rp)
+              ..color = color.withValues(alpha: (1 - rp).clamp(0.0, 1.0)),
+          );
+        }
         // Radial debris with a little gravity sag.
-        final n = s.isSuper ? 12 : 9;
+        final n = s.isSuper ? 16 : 11;
         for (var i = 0; i < n; i++) {
-          final a = i * 2 * math.pi / n;
-          final dist = (s.isSuper ? 34.0 : 24.0) * p;
+          final a = i * 2 * math.pi / n + (i.isEven ? 0.0 : 0.3);
+          final dist = (s.isSuper ? 38.0 : 26.0) * p * (i.isEven ? 1.0 : 0.7);
           final pos = c +
               Offset(math.cos(a), math.sin(a)) * dist +
-              const Offset(0, 14) * (p * p);
+              const Offset(0, 16) * (p * p);
           canvas.drawCircle(pos, (s.isSuper ? 3.0 : 2.4) * fade,
               Paint()..color = color.withValues(alpha: fade));
         }
@@ -886,4 +969,229 @@ class _CursePainter extends CustomPainter {
 
   @override
   bool shouldRepaint(covariant _CursePainter old) => true;
+}
+
+/// ROULETTE (러시안룰렛 운명의 방아쇠): a revolver cylinder spins fast, eases to a
+/// stop, then the fated chamber clicks with a flash — the 50:50 tension made
+/// visible at the shooter's seat. Self-animates.
+class RouletteSpin extends StatefulWidget {
+  const RouletteSpin({
+    super.key,
+    required this.center,
+    this.radius = 26,
+    this.duration = const Duration(milliseconds: 1150),
+  });
+
+  final Offset center;
+  final double radius;
+  final Duration duration;
+
+  @override
+  State<RouletteSpin> createState() => _RouletteSpinState();
+}
+
+class _RouletteSpinState extends State<RouletteSpin>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _c =
+      AnimationController(vsync: this, duration: widget.duration)..forward();
+
+  @override
+  void dispose() {
+    _c.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return IgnorePointer(
+      child: CustomPaint(
+        painter: _RoulettePainter(
+            center: widget.center, radius: widget.radius, anim: _c),
+        size: Size.infinite,
+      ),
+    );
+  }
+}
+
+class _RoulettePainter extends CustomPainter {
+  _RoulettePainter(
+      {required this.center, required this.radius, required this.anim})
+      : super(repaint: anim);
+
+  final Offset center;
+  final double radius;
+  final Animation<double> anim;
+  static const Color _steel = Color(0xFF3A3A40);
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final t = anim.value.clamp(0.0, 1.0);
+    final fade = t < 0.86 ? 1.0 : (1 - (t - 0.86) / 0.14).clamp(0.0, 1.0);
+    final spin = Curves.easeOut.transform(t) * math.pi * 8; // ~4 turns, easing
+    final r = radius;
+
+    // Tension glow that throbs while spinning.
+    canvas.drawCircle(
+      center,
+      r * 1.35,
+      Paint()
+        ..color = CD.danger
+            .withValues(alpha: 0.28 * fade * (0.5 + 0.5 * math.sin(t * 30)))
+        ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 9),
+    );
+    // Steel cylinder body + gold rim.
+    canvas.drawCircle(
+        center, r, Paint()..color = _steel.withValues(alpha: 0.92 * fade));
+    canvas.drawCircle(
+        center,
+        r,
+        Paint()
+          ..style = PaintingStyle.stroke
+          ..strokeWidth = 2.5
+          ..color = CD.gold.withValues(alpha: fade));
+    // Six chambers; the fated one (index 0) flares red after the click.
+    final clicked = t > 0.78;
+    for (var i = 0; i < 6; i++) {
+      final a = spin + i * math.pi / 3;
+      final pos = center + Offset(math.cos(a), math.sin(a)) * r * 0.56;
+      final fated = i == 0 && clicked;
+      canvas.drawCircle(
+          pos,
+          r * 0.18,
+          Paint()
+            ..color = (fated ? CD.danger : Colors.black)
+                .withValues(alpha: (fated ? 1.0 : 0.55) * fade));
+      canvas.drawCircle(
+          pos,
+          r * 0.18,
+          Paint()
+            ..style = PaintingStyle.stroke
+            ..strokeWidth = 1.4
+            ..color = CD.gold.withValues(alpha: 0.7 * fade));
+    }
+    // Hub.
+    canvas.drawCircle(
+        center, r * 0.12, Paint()..color = CD.gold.withValues(alpha: fade));
+    // Click flash.
+    if (clicked) {
+      final fl = (1 - (t - 0.78) / 0.22).clamp(0.0, 1.0);
+      canvas.drawCircle(
+        center,
+        r * (0.6 + (1 - fl) * 1.1),
+        Paint()
+          ..color = Colors.white.withValues(alpha: 0.65 * fl)
+          ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 5),
+      );
+    }
+  }
+
+  @override
+  bool shouldRepaint(covariant _RoulettePainter old) => true;
+}
+
+/// CURSE CAST (부두 저주 거는 순간): a wavering purple tether snakes from the
+/// caster to the target, then bursts into a ring — the moment the hex lands.
+/// (The lingering aura on the cursed seat is [CurseAura].)
+class CurseBolt extends StatefulWidget {
+  const CurseBolt({
+    super.key,
+    required this.from,
+    required this.to,
+    this.duration = const Duration(milliseconds: 950),
+  });
+
+  final Offset from;
+  final Offset to;
+  final Duration duration;
+
+  @override
+  State<CurseBolt> createState() => _CurseBoltState();
+}
+
+class _CurseBoltState extends State<CurseBolt>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _c =
+      AnimationController(vsync: this, duration: widget.duration)..forward();
+
+  @override
+  void dispose() {
+    _c.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return IgnorePointer(
+      child: CustomPaint(
+        painter: _CurseBoltPainter(from: widget.from, to: widget.to, anim: _c),
+        size: Size.infinite,
+      ),
+    );
+  }
+}
+
+class _CurseBoltPainter extends CustomPainter {
+  _CurseBoltPainter(
+      {required this.from, required this.to, required this.anim})
+      : super(repaint: anim);
+
+  final Offset from;
+  final Offset to;
+  final Animation<double> anim;
+  static const Color _purple = Color(0xFF7E57C2);
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final t = anim.value.clamp(0.0, 1.0);
+    final dir = to - from;
+    if (dir.distance < 1) return;
+
+    // Phase 1 (0..0.55): wavering tether travels from caster to target.
+    final travel = (t / 0.55).clamp(0.0, 1.0);
+    if (travel < 1.0 || t < 0.6) {
+      final perp = Offset(-dir.dy, dir.dx) / dir.distance;
+      final path = Path()..moveTo(from.dx, from.dy);
+      const n = 24;
+      for (var i = 1; i <= n; i++) {
+        final f = (i / n) * travel;
+        final base = from + dir * f;
+        final wobble = math.sin(f * 18 + t * 12) * 9 * (1 - f);
+        final pt = base + perp * wobble;
+        path.lineTo(pt.dx, pt.dy);
+      }
+      final fade = t < 0.5 ? 1.0 : (1 - (t - 0.5) / 0.3).clamp(0.0, 1.0);
+      canvas.drawPath(
+        path,
+        Paint()
+          ..style = PaintingStyle.stroke
+          ..strokeWidth = 3
+          ..color = _purple.withValues(alpha: 0.85 * fade)
+          ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 3),
+      );
+    }
+
+    // Phase 2 (0.45..1): a ring bursts at the target as the hex lands.
+    if (t > 0.45) {
+      final p = ((t - 0.45) / 0.55).clamp(0.0, 1.0);
+      final fade = (1 - p).clamp(0.0, 1.0);
+      canvas.drawCircle(
+        to,
+        28 * (0.3 + p),
+        Paint()
+          ..style = PaintingStyle.stroke
+          ..strokeWidth = 4 * fade
+          ..color = _purple.withValues(alpha: fade),
+      );
+      canvas.drawCircle(
+        to,
+        18 * (0.4 + p),
+        Paint()
+          ..color = _purple.withValues(alpha: 0.4 * fade)
+          ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 8),
+      );
+    }
+  }
+
+  @override
+  bool shouldRepaint(covariant _CurseBoltPainter old) => true;
 }

@@ -39,4 +39,17 @@ void main() {
     await tester.pump(const Duration(milliseconds: 250));
     await tester.pumpAndSettle();
   });
+
+  testWidgets('RouletteSpin + CurseBolt render without throwing',
+      (tester) async {
+    await tester.pumpWidget(_host(const Stack(children: [
+      RouletteSpin(center: Offset(120, 300), radius: 30),
+      CurseBolt(from: Offset(80, 520), to: Offset(300, 120)),
+    ])));
+    expect(find.byType(RouletteSpin), findsOneWidget);
+    expect(find.byType(CurseBolt), findsOneWidget);
+    await tester.pump(const Duration(milliseconds: 300));
+    await tester.pump(const Duration(milliseconds: 600));
+    await tester.pumpAndSettle();
+  });
 }

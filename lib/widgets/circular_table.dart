@@ -250,6 +250,33 @@ class CircularTable extends StatelessWidget {
                       seed: s + 1,
                     ),
                   ),
+            // 러시안룰렛: 발동 좌석에 리볼버 실린더 스핀(미싱 이펙트 보강).
+            if (reveal)
+              for (var s = 0; s < n; s++)
+                if (seats[s].lastMove?.kind == ActKind.roulette &&
+                    seats[s].alive &&
+                    !seats[s].hideAction)
+                  Positioned.fill(
+                    child: RouletteSpin(
+                      key: ValueKey('roul-$s-${seats[s].lastMove?.encode()}'),
+                      center: positions[s],
+                      radius: cardW / 2 - 8,
+                    ),
+                  ),
+            // 부두 저주를 거는 순간: 시전자→대상 떨리는 테더 + 착탄 링.
+            if (reveal)
+              for (var s = 0; s < n; s++)
+                if (seats[s].lastMove?.kind == ActKind.voodoo &&
+                    !seats[s].hideAction &&
+                    (seats[s].lastMove?.target ?? -1) >= 0 &&
+                    (seats[s].lastMove?.target ?? -1) < n)
+                  Positioned.fill(
+                    child: CurseBolt(
+                      key: ValueKey('cbolt-$s-${seats[s].lastMove?.encode()}'),
+                      from: positions[s],
+                      to: positions[seats[s].lastMove!.target],
+                    ),
+                  ),
             // Emoji reactions floating over seats. Normally above the card, but
             // flipped below it for top-row seats so it never clips off-screen
             // (the bug at 2 players: the opponent's bubble went above the top).
