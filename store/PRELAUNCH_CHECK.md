@@ -7,7 +7,9 @@
 - ✅ `flutter analyze` 0 issues (2026-06-16 14:04).
 - ✅ `flutter build appbundle --release` 통과 → `build/app/outputs/bundle/release/app-release.aab` (63.2MB, 2026-06-16 14:04 재빌드 — P1~P4 캐릭터 일러스트·상점상세·연막 + 부두 설명정정 반영).
   - ⚠️ 현재 .aab는 **디버그 서명 폴백**(key.properties 없음). 제출용 서명 .aab는 사용자 키스토어 필요(아래 ⏳).
-- ✅ 웹 빌드 거의 최신 — gh-pages `1170c69 deploy web` (2026-06-16 13:55, 코드 603db96까지 반영). 직후 커밋 43d48f1(부두 설명 텍스트 정정, 13:56)만 미반영 — 코드세션이 다음 배포 때 픽업 예정(deploy 세션은 force-push 레이스 회피로 직접 재배포 안 함). https://doonghwi.github.io/cowboy-party/
+  - ℹ️ basis 43d48f1 — 직후 9b90055(연막 연출 버그수정, 14:36)는 미반영. 제출 임박 아니므로 다음 사이클(버스트 진정 후) 일괄 재빌드 예정.
+- ✅ 웹 — gh-pages `c5e1eb8 deploy web` (2026-06-16 14:37, deploy세션이 43d48f1 반영해 재배포·스모크 통과). https://doonghwi.github.io/cowboy-party/
+  - ℹ️ 웹 배포는 코드세션이 매 커밋 후 직접 수행(force-push). **deploy 세션은 레이스 회피 위해 웹 재배포는 코드세션에 위임**, 검증만 함(이번 1회는 40분 유휴라 직접 배포). 9b90055는 코드세션 다음 배포에 반영.
 - ✅ `flutter test` 통과 이력(74 테스트, 직전 코드 세션 기준). 코드 변경 시 재확인.
 
 ## 버전 정책
