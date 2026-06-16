@@ -1,13 +1,13 @@
 # 카우보이 — 제출 전 사전점검 (PRELAUNCH_CHECK)
 
 > deploy 루프 세션이 유지. **✅ = 세션이 자동으로 끝낸 것**, **⏳ = 사용자(사장님)만 할 수 있는 것**.
-> 마지막 점검: 2026-06-16 15:10 (KST). 기준 커밋: `a82bf73`.
+> 마지막 점검: 2026-06-16 15:42 (KST). 기준 커밋: `37a6a59`.
 
 ## 빌드 신선도 (매 사이클 재확인)
-- ✅ `flutter analyze` 0 issues (2026-06-16 15:10).
-- ✅ `flutter build appbundle --release` 통과 → `build/app/outputs/bundle/release/app-release.aab` (63.3MB, 2026-06-16 15:10 재빌드 — 이펙트 A~D 일괄 반영: 연막 버그·빵야/장전/방어 연출·능력 연출·좌석 배지).
+- ✅ `flutter analyze` 0 issues (2026-06-16 15:42).
+- ✅ `flutter build appbundle --release` 통과 → `build/app/outputs/bundle/release/app-release.aab` (63.3MB, 2026-06-16 15:42 재빌드 — 이펙트 E(전 특수행동 연출 통일)·공지 반영, basis 37a6a59=HEAD).
   - ⚠️ 현재 .aab는 **디버그 서명 폴백**(key.properties 없음). 제출용 서명 .aab는 사용자 키스토어 필요(아래 ⏳).
-- ✅ 웹 — gh-pages `af61ff6 deploy web` (2026-06-16 14:51, 코드세션 배포). 직후 a82bf73(좌석 배지, 15:04)만 미반영 — **웹 배포는 코드세션 담당, deploy 세션은 검증만**(force-push 레이스 회피). 코드세션 다음 배포에 픽업. https://doonghwi.github.io/cowboy-party/
+- ✅ 웹 **완전 동기** — gh-pages `0586945 deploy web` (2026-06-16 15:13:54, 코드세션 배포)이 HEAD 37a6a59(15:13:12) 이후라 최신. https://doonghwi.github.io/cowboy-party/
 - ✅ `flutter test` 통과 이력(74 테스트, 직전 코드 세션 기준). 코드 변경 시 재확인.
 
 ## 버전 정책
