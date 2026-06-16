@@ -29,6 +29,10 @@ class TableSeat {
   /// 이 턴 능력 발동 표시 (리빌 중 좌석 배지).
   final bool healedFx;
   final bool evadedFx;
+
+  /// 이 턴 연막을 켰는가(=횟수 차감). 회피 성공(evadedFx)과 별개 — 안 맞아도 true.
+  /// SmokePuff 트리거용. evadedFx는 "회피!" 텍스트용으로 유지.
+  final bool smoked;
   final bool reflectedFx;
   final bool doubleLoadFx;
   final bool piercedFx; // 스나이퍼 관통(D1)
@@ -65,6 +69,7 @@ class TableSeat {
     this.late = false,
     this.healedFx = false,
     this.evadedFx = false,
+    this.smoked = false,
     this.reflectedFx = false,
     this.doubleLoadFx = false,
     this.piercedFx = false,
@@ -190,12 +195,13 @@ class CircularTable extends StatelessWidget {
             if (reveal)
               for (var s = 0; s < n; s++)
                 ..._effects(s, positions[s], cardW, cardH),
-            // SMOKE (스모커 연막): purely additive puff over a seat that dodged an
-            // attack via smoke. No game-state read beyond the existing reveal
-            // flags — the cloud just explains why the shot vanished.
+            // SMOKE (스모커 연막): purely additive puff over a seat that RAISED
+            // smoke this turn (charge consumed) — shows whether or not an attack
+            // was actually dodged. Driven by `smoked`, not `evadedFx`, so the
+            // screen appears even when the smoker isn't shot. ("회피!" 텍스트는 evaded.)
             if (reveal)
               for (var s = 0; s < n; s++)
-                if (seats[s].evadedFx &&
+                if (seats[s].smoked &&
                     seats[s].alive &&
                     !seats[s].hideAction)
                   Positioned.fill(

@@ -635,6 +635,7 @@ class _OnlineGameScreenState extends State<OnlineGameScreen> {
             late: sv.late,
             healedFx: sv.healedFx,
             evadedFx: sv.evadedFx,
+            smoked: sv.smokedFx,
             reflectedFx: sv.reflectedFx,
             doubleLoadFx: sv.doubleLoadFx,
             piercedFx: sv.piercedFx,

@@ -680,6 +680,7 @@ class _OfflineGameScreenState extends State<OfflineGameScreen> {
           char: _chars[s],
           healedFx: fx(_lastOut?.healed, s),
           evadedFx: fx(_lastOut?.evaded, s),
+          smoked: fx(_lastOut?.smoked, s),
           reflectedFx: fx(_lastOut?.reflectKill, s),
           doubleLoadFx: fx(_lastOut?.doubleLoad, s),
           piercedFx: fx(_lastOut?.pierced, s),
