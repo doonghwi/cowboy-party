@@ -685,6 +685,7 @@ class _OfflineGameScreenState extends State<OfflineGameScreen> {
           doubleLoadFx: fx(_lastOut?.doubleLoad, s),
           piercedFx: fx(_lastOut?.pierced, s),
           resetFx: fx(_lastOut?.resetActive, s),
+          rouletteSelfFx: fx(_lastOut?.rouletteSelf, s),
           // 파파라치 엿보기는 _peekUsed로 추적(pstate엔 안 남음) — 사용 시 0으로.
           abilityUses: _chars[s] == CharId.paparazzi
               ? (s == 0 && _peekUsed ? '0' : '1')

@@ -38,6 +38,9 @@ class TableSeat {
   final bool piercedFx; // 스나이퍼 관통(D1)
   final bool resetFx; // 리셋터 무효(D4)
 
+  /// 러시안룰렛이 자신에게 빗나가 자해(꽝)한 좌석 — 시전자 자해 모션용.
+  final bool rouletteSelfFx;
+
   /// 부두 저주(C2): 남은 턴(0=없음)을 좌석에 상시 표시, 만료 사망은 별도 이펙트.
   final int curseTurnsLeft;
   final bool curseKillFx;
@@ -74,6 +77,7 @@ class TableSeat {
     this.doubleLoadFx = false,
     this.piercedFx = false,
     this.resetFx = false,
+    this.rouletteSelfFx = false,
     this.curseTurnsLeft = 0,
     this.curseKillFx = false,
     this.hideAmmo = false,
@@ -261,6 +265,16 @@ class CircularTable extends StatelessWidget {
                       key: ValueKey('roul-$s-${seats[s].lastMove?.encode()}'),
                       center: positions[s],
                       radius: cardW / 2 - 8,
+                    ),
+                  ),
+            // 룰렛 자기-꽝(자해): 시전자 좌석에 붉은 꽝 모션(상대 명중과 구분).
+            if (reveal)
+              for (var s = 0; s < n; s++)
+                if (seats[s].rouletteSelfFx && !seats[s].hideAction)
+                  Positioned.fill(
+                    child: RouletteBust(
+                      key: ValueKey('roulbust-$s-${seats[s].lastMove?.encode()}'),
+                      center: positions[s],
                     ),
                   ),
             // 부두 저주를 거는 순간: 시전자→대상 떨리는 테더 + 착탄 링.

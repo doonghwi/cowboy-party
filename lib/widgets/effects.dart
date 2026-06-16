@@ -1089,6 +1089,115 @@ class _RoulettePainter extends CustomPainter {
   bool shouldRepaint(covariant _RoulettePainter old) => true;
 }
 
+/// ROULETTE SELF-BUST (운명의 방아쇠 자기-꽝): plays AFTER the shared spinning
+/// intro when the 50:50 backfires on the caster — a red shock flash, a jagged
+/// red starburst with a "꽝!" punch-in and a recoil shake at the caster's seat.
+/// Deliberately distinct from the opponent-kill (which has no caster burst).
+class RouletteBust extends StatefulWidget {
+  const RouletteBust({
+    super.key,
+    required this.center,
+    this.duration = const Duration(milliseconds: 1150),
+  });
+
+  final Offset center;
+  final Duration duration;
+
+  @override
+  State<RouletteBust> createState() => _RouletteBustState();
+}
+
+class _RouletteBustState extends State<RouletteBust>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _c =
+      AnimationController(vsync: this, duration: widget.duration)..forward();
+
+  @override
+  void dispose() {
+    _c.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return IgnorePointer(
+      child: CustomPaint(
+        painter: _BustPainter(center: widget.center, anim: _c),
+        size: Size.infinite,
+      ),
+    );
+  }
+}
+
+class _BustPainter extends CustomPainter {
+  _BustPainter({required this.center, required this.anim})
+      : super(repaint: anim);
+
+  final Offset center;
+  final Animation<double> anim;
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final t = anim.value.clamp(0.0, 1.0);
+    if (t < 0.5) return; // the spinning-cylinder intro plays first
+    final p = ((t - 0.5) / 0.5).clamp(0.0, 1.0);
+    final pop = p < 0.35 ? Curves.easeOutBack.transform(p / 0.35) : 1.0;
+    final fade = p > 0.7 ? (1 - (p - 0.7) / 0.3).clamp(0.0, 1.0) : 1.0;
+    final shake = p < 0.4 ? math.sin(p * 50) * (0.4 - p) / 0.4 * 7 : 0.0;
+    final c = center.translate(shake, 0);
+
+    // Red shock flash + a white-hot core.
+    canvas.drawCircle(
+      c,
+      48 * (0.4 + p),
+      Paint()
+        ..color = CD.danger.withValues(alpha: 0.5 * fade)
+        ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 14),
+    );
+    canvas.drawCircle(c, 26 * (0.4 + p),
+        Paint()..color = Colors.white.withValues(alpha: 0.4 * fade * (1 - p)));
+
+    // Jagged red starburst.
+    final path = Path();
+    for (var i = 0; i < 12; i++) {
+      final a = i * math.pi / 6;
+      final r = (i.isEven ? 34.0 : 15.0) * pop;
+      final pt = c + Offset(math.cos(a), math.sin(a)) * r;
+      if (i == 0) {
+        path.moveTo(pt.dx, pt.dy);
+      } else {
+        path.lineTo(pt.dx, pt.dy);
+      }
+    }
+    path.close();
+    canvas.drawPath(path, Paint()..color = CD.danger.withValues(alpha: 0.9 * fade));
+    canvas.drawPath(
+        path,
+        Paint()
+          ..style = PaintingStyle.stroke
+          ..strokeWidth = 2
+          ..color = Colors.white.withValues(alpha: 0.8 * fade));
+
+    // "꽝!" punch-in label.
+    final tp = TextPainter(
+      text: TextSpan(
+        text: '꽝!',
+        style: TextStyle(
+          fontSize: 17 * pop,
+          fontWeight: FontWeight.w900,
+          color: Colors.white.withValues(alpha: fade),
+          shadows: const [Shadow(color: Color(0xFF7A1408), blurRadius: 4)],
+        ),
+      ),
+      textDirection: TextDirection.ltr,
+    )..layout();
+    tp.paint(canvas, c.translate(-tp.width / 2, -tp.height / 2));
+  }
+
+  @override
+  bool shouldRepaint(covariant _BustPainter old) => true;
+}
+
 /// CURSE CAST (부두 저주 거는 순간): a wavering purple tether snakes from the
 /// caster to the target, then bursts into a ring — the moment the hex lands.
 /// (The lingering aura on the cursed seat is [CurseAura].)

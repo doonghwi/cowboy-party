@@ -640,6 +640,7 @@ class _OnlineGameScreenState extends State<OnlineGameScreen> {
             doubleLoadFx: sv.doubleLoadFx,
             piercedFx: sv.piercedFx,
             resetFx: sv.resetFx,
+            rouletteSelfFx: sv.rouletteSelfFx,
             blocked: sv.blocked,
             abilityUses: sv.abilityUses,
             curseTurnsLeft: sv.curseTurnsLeft,

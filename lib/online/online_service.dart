@@ -43,6 +43,7 @@ class SeatView {
   final bool doubleLoadFx; // 스피드로더 +2
   final bool piercedFx; // 스나이퍼 관통 발동(D1)
   final bool resetFx; // 리셋터 무효 발동(D4)
+  final bool rouletteSelfFx; // 러시안룰렛 자기-꽝(자해)
   final String? abilityUses; // 유한 능력 사용량 '사용/총'(#11, 모두에게 표시)
   final bool curseKillFx; // 저주 만료로 이 턴 사망
   final int curseTurnsLeft; // 부두 저주 남은 턴(0=저주 없음) — 모두에게 표시(C2)
@@ -78,6 +79,7 @@ class SeatView {
     this.doubleLoadFx = false,
     this.piercedFx = false,
     this.resetFx = false,
+    this.rouletteSelfFx = false,
     this.abilityUses,
     this.curseKillFx = false,
     this.curseTurnsLeft = 0,
@@ -1119,6 +1121,7 @@ class OnlineService {
     var doubleLoadFx = List<bool>.filled(n, false);
     var piercedFx = List<bool>.filled(n, false);
     var resetFx = List<bool>.filled(n, false);
+    var rouletteSelfFx = List<bool>.filled(n, false);
     var banner = '행동을 골라라!';
     final reap = <int>{};
     var t = 0;
@@ -1309,6 +1312,7 @@ class OnlineService {
           doubleLoadFx: doubleLoadFx,
           piercedFx: piercedFx,
           resetFx: resetFx,
+          rouletteSelfFx: rouletteSelfFx,
           abilityUses: abilityUsesNow(),
           curseFuse: pstate.curseFuse,
           myTrapAvailable: mySeat >= 0 &&
@@ -1358,6 +1362,7 @@ class OnlineService {
       doubleLoadFx = out.doubleLoad;
       piercedFx = out.pierced;
       resetFx = out.resetActive;
+      rouletteSelfFx = out.rouletteSelf;
       alive = out.aliveAfter;
       // B8: ??? 정체 공개 — 직업 고유 행동/능력이 실제로 발동한 턴.
       for (var s = 0; s < n; s++) {
@@ -1493,6 +1498,7 @@ class OnlineService {
           doubleLoadFx: doubleLoadFx,
           piercedFx: piercedFx,
           resetFx: resetFx,
+          rouletteSelfFx: rouletteSelfFx,
           abilityUses: abilityUsesNow(),
           curseFuse: pstate.curseFuse,
           curseKillFx: out.curseKill,
@@ -1548,6 +1554,7 @@ class OnlineService {
     List<bool> doubleLoadFx = const [],
     List<bool> piercedFx = const [],
     List<bool> resetFx = const [],
+    List<bool> rouletteSelfFx = const [],
     List<String?> abilityUses = const [],
     String? specialWin,
     bool myTrapAvailable = false,
@@ -1610,6 +1617,7 @@ class OnlineService {
           doubleLoadFx: fx(doubleLoadFx, s),
           piercedFx: fx(piercedFx, s),
           resetFx: fx(resetFx, s),
+          rouletteSelfFx: fx(rouletteSelfFx, s),
           abilityUses: s < abilityUses.length ? abilityUses[s] : null,
           curseKillFx: fx(curseKillFx, s),
           curseTurnsLeft: s < curseFuse.length ? curseFuse[s] : 0,

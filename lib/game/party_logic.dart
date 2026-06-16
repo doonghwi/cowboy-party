@@ -276,6 +276,7 @@ class TurnOutcome {
   final List<bool> smoked;
   final List<bool> doubleLoad; // 스피드로더 +2
   final List<bool> rouletteFired; // 운명의 방아쇠 발동
+  final List<bool> rouletteSelf; // 운명의 방아쇠가 자신에게 빗나가 자해(표시용 파생)
   final List<bool> dualFired; // 더블 빵야 발동
   final List<int> dualTarget2; // 더블 빵야 두 번째 대상, -1
   final List<bool> voodooCast; // 이 턴 저주를 걸었음
@@ -301,6 +302,7 @@ class TurnOutcome {
     this.smoked = const [],
     this.doubleLoad = const [],
     this.rouletteFired = const [],
+    this.rouletteSelf = const [],
     this.dualFired = const [],
     this.dualTarget2 = const [],
     this.voodooCast = const [],
@@ -620,6 +622,7 @@ TurnOutcome resolvePartyTurn({
         smoked: smoked,
         doubleLoad: doubleLoad,
         rouletteFired: rouletteFired,
+        rouletteSelf: rouletteSelf,
         dualFired: dualFired,
         dualTarget2: dualTarget2,
         voodooCast: voodooCast,
