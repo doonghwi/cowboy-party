@@ -123,6 +123,7 @@ action_bar.dart가 이 분류대로 렌더하고, party_logic이 판정한다.
   - `SmokePuff`: 연막 구름. circular_table 리빌에서 `smoked`(연막 발동=차지 소모, **회피 성공 여부와 무관**) 좌석 위 표출. ('회피!' 텍스트 라벨은 `evadedFx` 별개 유지.)
   - `ShotsLayer`(+ `ShotSpec`/`ShotResult`): 빵야/슈퍼빵야 애니메이션 탄도. 지속 베이스 라인+화살표 위에 머즐 플래시·이동 코어·임팩트(명중=충격링+파편/방어=세이지 디플렉션 호/빗나감=먼지). 슈퍼=노바 볼트+스타버스트. 관통(`ShotSpec.pierce`)=흰 랜스. **임팩트는 타깃 좌석의 기존 리빌 플래그(hit/defend/evaded/smoked/reflected)에서 유도** — 정적 `_TracerPainter` 대체.
   - `ShieldPulse`(방어 충격파 링)·`ReloadBurst`(장전 탄피 솟구침, 더블장전 강화)·`HealSparkle`(의사 자힐 초록 십자)·`ResetRipple`(리셋 무효 워시)·`CurseAura`(부두 저주 보라 오라+모트, 만료 사망=데스 버스트). circular_table `_effects()`/리빌 루프에서 해당 플래그 시 표출.
+  - **(E) 퀄 통일/누락0**: `ShotsLayer` 머즐을 다중 파티클 분사(연막식 운동학, white→탄색 보간)로 격상 + 일반 탄도 글로우 + 명중 이중 충격파/파편 강화. `RouletteSpin`(러시안룰렛 리볼버 실린더 스핀→딸깍, `lastMove.kind==roulette` 구동) · `CurseBolt`(저주 시전 시 시전자→대상 떨리는 테더+착탄 링, `lastMove.kind==voodoo`+`target` 구동). **신규 플러밍 0** — 전부 `lastMove`/기존 리빌 플래그로 구동돼 오프/온라인 자동 동일. 전 특수행동 이펙트 커버(장전·방어·빵야·슈퍼빵야·덫반사·저주(상시+시전)·룰렛·더블·관통·의사·무효).
 
 ### 메타/경제
 - **meta/meta_service.dart**(`Meta.I`): 코인·해금·장착·출석·**선물코드**(redeemGiftCode). 로컬(SharedPreferences) + 로그인 시 /users/$uid 미러.
