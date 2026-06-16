@@ -1,13 +1,13 @@
 # 카우보이 — 제출 전 사전점검 (PRELAUNCH_CHECK)
 
 > deploy 루프 세션이 유지. **✅ = 세션이 자동으로 끝낸 것**, **⏳ = 사용자(사장님)만 할 수 있는 것**.
-> 마지막 점검: 2026-06-16 13:31 (KST). 기준 커밋: `98f1e9a`.
+> 마지막 점검: 2026-06-16 14:04 (KST). 기준 커밋: `43d48f1`.
 
 ## 빌드 신선도 (매 사이클 재확인)
-- ✅ `flutter analyze` 0 issues (2026-06-16 13:31).
-- ✅ `flutter build appbundle --release` 통과 → `build/app/outputs/bundle/release/app-release.aab` (63.2MB, 2026-06-16 13:31 재빌드 — 캐릭터 일러스트 16종 에셋 반영, +5.7MB).
+- ✅ `flutter analyze` 0 issues (2026-06-16 14:04).
+- ✅ `flutter build appbundle --release` 통과 → `build/app/outputs/bundle/release/app-release.aab` (63.2MB, 2026-06-16 14:04 재빌드 — P1~P4 캐릭터 일러스트·상점상세·연막 + 부두 설명정정 반영).
   - ⚠️ 현재 .aab는 **디버그 서명 폴백**(key.properties 없음). 제출용 서명 .aab는 사용자 키스토어 필요(아래 ⏳).
-- ✅ 웹 빌드 최신 — gh-pages `70b47f8 deploy web` (2026-06-16 13:25), 코드 커밋 98f1e9a(13:24) 이후라 동기. https://doonghwi.github.io/cowboy-party/
+- ✅ 웹 빌드 거의 최신 — gh-pages `1170c69 deploy web` (2026-06-16 13:55, 코드 603db96까지 반영). 직후 커밋 43d48f1(부두 설명 텍스트 정정, 13:56)만 미반영 — 코드세션이 다음 배포 때 픽업 예정(deploy 세션은 force-push 레이스 회피로 직접 재배포 안 함). https://doonghwi.github.io/cowboy-party/
 - ✅ `flutter test` 통과 이력(74 테스트, 직전 코드 세션 기준). 코드 변경 시 재확인.
 
 ## 버전 정책
