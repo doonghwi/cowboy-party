@@ -1077,10 +1077,14 @@ class OnlineService {
     // B8: ???(mystery)는 능력을 실제로 쓰기 전까지 상대에게 정체를 숨긴다.
     final origChars = <CharId>[for (var s = 0; s < n; s++) charAt(s)];
     final revealed = List<bool>.filled(n, false);
-    // ???가 준비자로 변신하면 시작 탄약(1발)이 곧 정체 — 숨길 능동 능력이 없어
-    // 영영 공개가 안 되던 버그. 시작하자마자 준비자로 드러낸다.
+    // 턴 중 관측 가능한 능동 신호가 없는 직업(일반인·준비자·평화주의자·그림자·
+    // 결투가)으로 변신하면 영영 ???로 남던 버그 → 시작 즉시 공개(순수함수 판정).
+    // 파파라치는 엿보기(peekUsed) 사용 시 공개 — 별도 페이즈라 턴 트리거에 안 잡힘.
     for (var s = 0; s < n; s++) {
-      if (origChars[s] == CharId.mystery && chars[s] == CharId.prepper) {
+      if (origChars[s] != CharId.mystery) continue;
+      if (mysteryRevealsAtStart(chars[s]) ||
+          (chars[s] == CharId.paparazzi &&
+              peekUsedMap[slotKey(s)] == true)) {
         revealed[s] = true;
       }
     }

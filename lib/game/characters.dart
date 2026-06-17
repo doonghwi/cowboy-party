@@ -219,6 +219,44 @@ CharId resolveMystery(String seed, int seat) {
 CharId effectiveChar(CharId c, String seed, int seat) =>
     c == CharId.mystery ? resolveMystery(seed, seat) : c;
 
+/// ??? 정체 공개 분류 --------------------------------------------------------
+///
+/// ???(mystery)가 변신한 **실제 직업**(effective char) 기준으로, 정체를 언제
+/// 드러낼지 둘 중 하나로 나눈다:
+/// - 시작 공개(start-reveal): 턴 중 관측 가능한 능동 신호가 없는 직업.
+///   준비자(시작 탄약 1발)·일반인(능력 없음)·평화주의자(장전·방어만)·
+///   그림자(패시브 은폐)·결투가(결투 승리 시점엔 이미 게임 종료)는 영영 트리거가
+///   안 떠서 ???가 이 직업이면 영원히 ???로 남던 버그 → 시작에 바로 공개.
+/// - 턴 트리거 공개(turn-trigger): 능력이 실제 발동한 턴에 공개되는 나머지.
+///   (파파라치는 엿보기[peekUsed] 사용 시 공개 — online_service에서 처리.)
+///
+/// 두 집합의 합집합은 [kMysteryPool] 전체와 **정확히 일치**해야 한다
+/// (characters_test의 "시작공개 ∪ 턴트리거 == 전체 직업" 단위테스트로 보장).
+const Set<CharId> kMysteryStartRevealChars = {
+  CharId.commoner,
+  CharId.prepper,
+  CharId.pacifist,
+  CharId.shadow,
+  CharId.duelist,
+};
+
+const Set<CharId> kMysteryTurnTriggerChars = {
+  CharId.sniper,
+  CharId.speedloader,
+  CharId.doctor,
+  CharId.hunter,
+  CharId.smoker,
+  CharId.roulette,
+  CharId.dualgun,
+  CharId.paparazzi,
+  CharId.voodoo,
+  CharId.resetter,
+};
+
+/// ???가 이 실제 직업으로 변신했을 때 게임 시작 즉시 정체를 공개할지(순수함수).
+bool mysteryRevealsAtStart(CharId effective) =>
+    kMysteryStartRevealChars.contains(effective);
+
 CharDef charDef(CharId id) =>
     kCharacters.firstWhere((c) => c.id == id, orElse: () => kCharacters[0]);
 

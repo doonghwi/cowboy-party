@@ -45,7 +45,7 @@
 | 쌍권총 dualgun | **더블 빵야**(상시): 총알 2발로 두 명 동시 저격. **두 대상 모두에 탄도 표시**(effects.dart `ShotsLayer`가 firedTarget+firedTarget2 그림) | alwaysRow | 6500 |
 | 파파라치 paparazzi | **엿보기**(게임당 1회): 1명 행동 미리보고 내 행동 결정 (온라인은 대기 페이즈) | turnSlot | 7000 |
 | 부두술사 voodoo | **저주**: 대상을 10턴(kCurseFuse) 뒤 사망. 부두술사 죽으면 해제. 남은 턴 모두에게 표시(C2). **저주는 대상 좌석별로 독립**(`PartyState.curseFuse/curseCaster`가 List) — 부두술사 여럿이 각자, 동시에 여러 명을 저주 가능 | turnSlot | 7500 |
-| ??? mystery | 미공개 시작, **능력 발동 시 정체 공개(B8)**. 직업은 매 게임 랜덤(resolveMystery, 일반인 제외). 전 캐릭터 보유 시 구매 | 메타 | 10000 |
+| ??? mystery | 미공개 시작, **정체 공개(B8)**: 변신 직업을 `mysteryRevealsAtStart`(characters.dart 순수함수)로 분류 — 능동 신호 없는 직업(일반인·준비자·평화주의자·그림자·결투가=`kMysteryStartRevealChars`)은 **시작 즉시 공개**, 나머지 10직업(`kMysteryTurnTriggerChars`)은 **능력 발동 턴 공개**(파파라치는 엿보기[peekUsed]). 두 집합의 합=kMysteryPool 보장(characters_test). 직업은 매 게임 랜덤(resolveMystery). 전 캐릭터 보유 시 구매 | 메타 | 10000 |
 
 ### 특수행동 배치 규칙 (D3, SpecialSlot)
 캐릭터 전용 행동은 UI에서 **종류별로 정해진 자리**에 놓는다 (`SpecialSlot`, characters.dart):

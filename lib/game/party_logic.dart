@@ -21,6 +21,9 @@ export 'characters.dart'
         kCharacters,
         kCurseFuse,
         kMysteryPool,
+        kMysteryStartRevealChars,
+        kMysteryTurnTriggerChars,
+        mysteryRevealsAtStart,
         resolveMystery,
         effectiveChar,
         seededRoll;

@@ -565,4 +565,32 @@ void main() {
     expect(a, isNot(CharId.mystery));
     expect(a, isNot(CharId.none));
   });
+
+  test('???(mystery) 공개 분류: 시작공개 ∪ 턴트리거 == 전체 변신 직업, 서로소', () {
+    final pool = kMysteryPool.toSet();
+    final union = {
+      ...kMysteryStartRevealChars,
+      ...kMysteryTurnTriggerChars,
+    };
+    // 모든 ??? 변신 직업은 시작공개 또는 턴트리거 중 정확히 하나로 공개돼야 한다.
+    expect(union, equals(pool),
+        reason: '공개 경로가 없는 직업이 있으면 영영 ???로 남는다(원래 버그)');
+    expect(
+        kMysteryStartRevealChars.intersection(kMysteryTurnTriggerChars),
+        isEmpty,
+        reason: '두 집합은 서로소(한 직업이 두 경로에 걸치면 안 됨)');
+    // mystery 자신·none은 분류 대상이 아니다.
+    expect(union.contains(CharId.mystery), isFalse);
+    expect(union.contains(CharId.none), isFalse);
+  });
+
+  test('시작 공개 직업은 턴 중 능동 신호가 없는 직업뿐이다', () {
+    for (final c in kMysteryStartRevealChars) {
+      expect(mysteryRevealsAtStart(c), isTrue, reason: '$c 는 시작 공개');
+    }
+    // 능력 발동 신호가 있는 직업은 시작 공개가 아니다(턴 트리거).
+    for (final c in kMysteryTurnTriggerChars) {
+      expect(mysteryRevealsAtStart(c), isFalse, reason: '$c 는 턴 트리거');
+    }
+  });
 }
