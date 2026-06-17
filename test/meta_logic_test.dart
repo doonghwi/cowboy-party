@@ -186,6 +186,15 @@ void main() {
       }
     });
 
+    test('튜토리얼 본 적 표시: 처음엔 false, 표시 후 true·멱등 (#6)', () async {
+      expect(Meta.I.tutorialSeen, isFalse, reason: '신규는 아직 안 봄');
+      await Meta.I.markTutorialSeen();
+      expect(Meta.I.tutorialSeen, isTrue);
+      // 재호출은 멱등(이미 true).
+      await Meta.I.markTutorialSeen();
+      expect(Meta.I.tutorialSeen, isTrue);
+    });
+
     test('데일리 미션: 첫 승리 시 play1+firstwin 동시 달성·지급', () {
       final before = Meta.I.coins;
       final newly = Meta.I.noteGamePlayed(won: true);

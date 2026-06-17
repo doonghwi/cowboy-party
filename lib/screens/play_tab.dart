@@ -31,6 +31,48 @@ class _PlayTabState extends State<PlayTab> {
     super.initState();
     _refresh();
     _auto = Timer.periodic(const Duration(seconds: 15), (_) => _refresh());
+    // #6: 첫 실행이면 게임 방법을 팝업으로 한 번 안내(재방문자는 안 뜸).
+    WidgetsBinding.instance
+        .addPostFrameCallback((_) => _maybeShowFirstRunTutorial());
+  }
+
+  /// 첫 실행 사용자에게만 환영 팝업을 띄워 게임 방법으로 안내한다.
+  /// 띄우기 전에 '봤음'으로 표시해 닫더라도 다시 뜨지 않는다.
+  Future<void> _maybeShowFirstRunTutorial() async {
+    if (!mounted || !Meta.I.ready || Meta.I.tutorialSeen) return;
+    await Meta.I.markTutorialSeen();
+    if (!mounted) return;
+    final go = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: CD.sand,
+        title: const Text('🤠 카우보이 파티에 오신 걸 환영해요!',
+            style: TextStyle(
+                color: CD.ink, fontWeight: FontWeight.w900, fontSize: 17)),
+        content: const Text(
+          '2~6명이 눈치로 빵야·장전·방어를 겨루는 서부 대결이에요.\n'
+          '캐릭터마다 특수 능력이 달라요 — 게임 방법을 먼저 볼까요?',
+          style: TextStyle(color: CD.ink, fontSize: 14, height: 1.4),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('나중에',
+                style: TextStyle(color: CD.leather, fontWeight: FontWeight.w700)),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            style: FilledButton.styleFrom(backgroundColor: CD.rust),
+            child: const Text('게임 방법 보기',
+                style: TextStyle(fontWeight: FontWeight.w800)),
+          ),
+        ],
+      ),
+    );
+    if (go == true && mounted) {
+      Navigator.push(context,
+          MaterialPageRoute(builder: (_) => const HowToPlayScreen()));
+    }
   }
 
   @override
@@ -173,40 +215,30 @@ class _PlayTabState extends State<PlayTab> {
               ),
             ],
           ),
-          const SizedBox(height: 10),
-          // H3: 게임 방법 진입을 눈에 잘 띄는 전체폭 배너로.
-          InkWell(
-            borderRadius: BorderRadius.circular(12),
-            onTap: () => Navigator.push(
-                context,
-                MaterialPageRoute(
-                    builder: (_) => const HowToPlayScreen())),
-            child: Container(
-              padding:
-                  const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-              decoration: BoxDecoration(
-                borderRadius: BorderRadius.circular(12),
-                color: CD.gold.withValues(alpha: 0.16),
-                border: Border.all(color: CD.gold.withValues(alpha: 0.7)),
-              ),
-              child: Row(
-                children: [
-                  const Icon(Icons.menu_book, size: 20, color: CD.gold),
-                  const SizedBox(width: 10),
-                  const Expanded(
-                    child: Text('처음이세요? 게임 방법 · 캐릭터 능력 보기',
-                        style: TextStyle(
-                            color: Colors.white,
-                            fontWeight: FontWeight.w800,
-                            fontSize: 13.5)),
-                  ),
-                  Icon(Icons.chevron_right,
-                      color: CD.sand.withValues(alpha: 0.9), size: 20),
-                ],
+          const SizedBox(height: 4),
+          // #6: 첫 실행엔 팝업으로 안내하므로, 여기선 재방문자용 작은 링크로 축소.
+          Align(
+            alignment: Alignment.centerRight,
+            child: TextButton.icon(
+              onPressed: () => Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                      builder: (_) => const HowToPlayScreen())),
+              icon: const Icon(Icons.menu_book, size: 16, color: CD.gold),
+              label: Text('게임 방법',
+                  style: TextStyle(
+                      color: CD.sand.withValues(alpha: 0.95),
+                      fontWeight: FontWeight.w700,
+                      fontSize: 12.5)),
+              style: TextButton.styleFrom(
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                minimumSize: Size.zero,
+                tapTargetSize: MaterialTapTargetSize.shrinkWrap,
               ),
             ),
           ),
-          const SizedBox(height: 12),
+          const SizedBox(height: 6),
           Row(
             children: [
               Text('공개 방', style: posterTitle(20, color: Colors.white)),

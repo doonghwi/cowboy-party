@@ -90,12 +90,21 @@ class Meta extends ChangeNotifier {
   int _dWins = 0;
   Set<String> _dClaimed = {};
   bool _nicknameSet = false; // 첫 닉네임 설정 여부(첫 설정은 무료)
+  bool _tutorialSeen = false; // 첫 실행 게임방법 팝업을 봤는지(#6)
 
   int get coins => _coins;
   String get nickname => _nickname;
   int get nicknameTickets => _nicknameTickets;
   bool get nicknameSet => _nicknameSet;
   bool get canChangeNicknameFree => !_nicknameSet;
+  bool get tutorialSeen => _tutorialSeen;
+
+  /// 첫 실행 게임방법 안내를 봤다고 표시(독립 플래그 — bulk _save와 무관).
+  Future<void> markTutorialSeen() async {
+    if (_tutorialSeen) return;
+    _tutorialSeen = true;
+    await _sp?.setBool('tutorial_seen', true);
+  }
   int get dailyStreak => _dailyStreak;
   int get seasonPtsLocal => _seasonPtsLocal;
 
@@ -127,6 +136,7 @@ class Meta extends ChangeNotifier {
     _redeemed = (sp.getStringList('redeemed') ?? []).toSet();
     _nicknameTickets = sp.getInt('nick_tickets') ?? 0;
     _nicknameSet = sp.getBool('nick_set') ?? _nickname.isNotEmpty;
+    _tutorialSeen = sp.getBool('tutorial_seen') ?? false;
     _dDay = sp.getString('d_day') ?? '';
     _dGames = sp.getInt('d_games') ?? 0;
     _dWins = sp.getInt('d_wins') ?? 0;
