@@ -42,6 +42,26 @@ const List<DailyMission> kDailyMissions = [
 /// 닉네임 변경권 가격(G2). 첫 닉네임 설정은 무료, 이후 변경은 변경권 소모.
 const int kNicknameTicketCost = 10000;
 
+/// 닉네임 변경 사전 판정 결과.
+enum NicknameChangeGate { empty, unchanged, needTicket, proceed }
+
+/// 닉네임 변경을 **진행해도 되는지** 순수 판정(네트워크 이전).
+/// 전역 유일성 점유([OnlineService.claimNickname])는 부작용으로 **예전 닉네임을
+/// 해제**하므로, 변경권이 없는데 점유부터 하면 내 현재 이름이 풀려 남이 가로채는
+/// 버그가 생긴다 → 점유 **전에** 이 게이트로 거른다.
+NicknameChangeGate nicknameChangeGate({
+  required String requested,
+  required String current,
+  required bool nicknameSet,
+  required int tickets,
+}) {
+  final n = requested.trim();
+  if (n.isEmpty) return NicknameChangeGate.empty;
+  if (n == current) return NicknameChangeGate.unchanged;
+  if (nicknameSet && tickets <= 0) return NicknameChangeGate.needTicket;
+  return NicknameChangeGate.proceed;
+}
+
 /// 신규 계정 시작 골드(G4).
 const int kNewAccountGold = 5000;
 
@@ -200,8 +220,23 @@ class Meta extends ChangeNotifier {
   /// 반환: (ok, message).
   Future<({bool ok, String message})> changeNickname(String raw) async {
     final n = raw.trim();
-    if (n.isEmpty) return (ok: false, message: '닉네임을 입력해 주세요');
-    if (n == _nickname) return (ok: false, message: '같은 닉네임이에요');
+    // 변경권 게이트를 **전역 점유 이전에** 적용 — 권한이 없으면 닉네임 레지스트리를
+    // 절대 건드리지 않는다(예전 이름이 풀려 남이 가로채는 버그 방지).
+    switch (nicknameChangeGate(
+      requested: raw,
+      current: _nickname,
+      nicknameSet: _nicknameSet,
+      tickets: _nicknameTickets,
+    )) {
+      case NicknameChangeGate.empty:
+        return (ok: false, message: '닉네임을 입력해 주세요');
+      case NicknameChangeGate.unchanged:
+        return (ok: false, message: '같은 닉네임이에요');
+      case NicknameChangeGate.needTicket:
+        return (ok: false, message: '닉네임 변경권이 필요해요 (상점에서 구매)');
+      case NicknameChangeGate.proceed:
+        break;
+    }
     await Profanity.I.init(); // 비속어 목록 로드 보장(이미 로드됐으면 즉시 반환)
     if (Profanity.I.isProfane(n)) {
       return (ok: false, message: '닉네임에 부적절한 표현이 있어요');
@@ -218,9 +253,6 @@ class Meta extends ChangeNotifier {
       SeasonService.I.updateName(n);
       notifyListeners();
       return (ok: true, message: '닉네임을 정했어요!');
-    }
-    if (_nicknameTickets <= 0) {
-      return (ok: false, message: '닉네임 변경권이 필요해요 (상점에서 구매)');
     }
     _nicknameTickets -= 1;
     _nickname = n;
