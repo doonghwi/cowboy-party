@@ -45,6 +45,14 @@ flutter:
 
   # Bundled fonts (no runtime fetch) so Korean text never flashes as tofu.
   fonts:
+    # 본문 기본 폰트 — Pretendard(OFL, 한글 가독성↑). CREDITS.md 참고.
+    - family: Pretendard
+      fonts:
+        - asset: assets/fonts/Pretendard-Regular.otf
+        - asset: assets/fonts/Pretendard-Bold.otf
+          weight: 700
+        - asset: assets/fonts/Pretendard-Black.otf
+          weight: 900
     - family: BlackHanSans
       fonts:
         - asset: assets/fonts/BlackHanSans-Regular.ttf

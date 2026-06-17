@@ -3,6 +3,7 @@
 | 에셋 | 출처 | 라이선스 | 비고 |
 |---|---|---|---|
 | assets/emoji/*.png | Twemoji (Twitter/X) | CC-BY 4.0 | 그래픽 저작자 표기: Copyright 2020 Twitter, Inc and other contributors. https://github.com/twitter/twemoji |
+| assets/fonts/Pretendard-*.otf | Pretendard (https://github.com/orioncactus/pretendard) | OFL 1.1 (Reserved Font Name 'Pretendard') | 본문 기본 폰트. 라이선스 전문 assets/fonts/Pretendard-OFL.txt |
 | assets/fonts/BlackHanSans-Regular.ttf | Google Fonts | OFL 1.1 | |
 | assets/fonts/GothicA1-*.ttf | Google Fonts | OFL 1.1 | |
 | assets/fonts/Rye-Regular.ttf | Google Fonts | OFL 1.1 | |

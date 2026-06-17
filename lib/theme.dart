@@ -100,8 +100,8 @@ ThemeData buildCowboyTheme() {
     colorSchemeSeed: CD.rust,
     scaffoldBackgroundColor: CD.sand,
     brightness: Brightness.light,
-    // Bundled Korean body font — full Hangul, no runtime download.
-    fontFamily: 'GothicA1',
+    // Bundled Korean body font — Pretendard(OFL), full Hangul, no runtime download.
+    fontFamily: 'Pretendard',
   );
   return base.copyWith(
     textTheme: base.textTheme.apply(
