@@ -339,6 +339,26 @@ void main() {
       expect(v.seats[0].char, CharId.duelist,
           reason: '결투 자동승 순간 정체 공개');
     });
+
+    test('6장전 도달 턴에 사살된 평화주의자 ???는 승리도 공개도 없다', () {
+      // 능력(6장전 승리)이 실제로 발동하기 직전에 죽으면 reveal 트리거가 없어야 한다.
+      final game = gameFor(CharId.pacifist);
+      // p1(일반인=15)이 t0..t4 장전해 5발 모으고, t5에 평화주의자를 쏜다.
+      // 평화주의자는 t0..t5 장전(6회 도달)하지만 그 턴에 죽어 승자가 못 된다.
+      final turns = <String, Object?>{
+        for (var i = 0; i < kPacifistGoal - 1; i++)
+          't$i': {'p0': reload(), 'p1': reload()},
+        't${kPacifistGoal - 1}': {'p0': reload(), 'p1': shoot(0)},
+      };
+      final v = OnlineService.computeView(
+          room(game: game, turns: turns, p1char: 15), 'g',
+          seedKey: key);
+      expect(v.status, GameStatus.won);
+      expect(v.winnerSeat, 1, reason: '쏜 일반인이 최후 생존');
+      expect(v.seats[0].alive, isFalse, reason: '평화주의자는 죽음');
+      expect(v.seats[0].char, CharId.mystery,
+          reason: '능력 발동 전 사망 → 정체 미공개(거짓 reveal 금지)');
+    });
   });
 
   group('저주 표시 (C2)', () {

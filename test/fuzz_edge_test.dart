@@ -319,6 +319,46 @@ void main() {
           reason: '이미 저주 중이라 새 저주 표시 안 함');
       expect(st.curseCaster[1], 0, reason: '원래 시전자 유지');
     });
+
+    test('시전자 사망으로 해제된 같은 턴에 다른 부두가 재시전하면 새 저주가 걸린다', () {
+      // 0=부두A, 1=대상, 2=부두B, 3=사수. A가 1을 저주 → 같은 턴 A가 죽으면
+      // 7a에서 해제(fuse 0)되고, 7b에서 B의 재시전이 (이제 비저주라) 걸려야 한다.
+      final chars = [
+        CharId.voodoo,
+        CharId.none,
+        CharId.voodoo,
+        CharId.none,
+      ];
+      var st = PartyState.initial(chars);
+      // t0: A 저주 시전, 사수 장전.
+      var out = run(
+        moves: [Move.voodoo(1), const Move.idle(), const Move.idle(), const Move.reload()],
+        ammo: [0, 0, 0, 0],
+        alive: [true, true, true, true],
+        chars: chars,
+        state: st,
+        turn: 0,
+      );
+      st = out.stateAfter!;
+      expect(st.curseFuse[1], kCurseFuse);
+      expect(st.curseCaster[1], 0);
+
+      // t1: 사수가 A(0)를 사살 + 동시에 B(2)가 같은 대상(1)에 재시전.
+      out = run(
+        moves: [const Move.idle(), const Move.idle(), Move.voodoo(1), Move.shoot(0)],
+        ammo: out.ammoAfter,
+        alive: out.aliveAfter,
+        chars: chars,
+        state: st,
+        turn: 1,
+      );
+      st = out.stateAfter!;
+      expect(out.aliveAfter[0], isFalse, reason: 'A 사망');
+      expect(st.curseFuse[1], kCurseFuse,
+          reason: 'A 저주 해제된 빈 자리에 B가 새로 저주(10)');
+      expect(st.curseCaster[1], 2, reason: '새 시전자는 B(2)');
+      expect(out.voodooCast[2], isTrue, reason: 'B의 새 저주는 표시됨');
+    });
   });
 
   // ---- 리셋(무효) 상호작용 ----
