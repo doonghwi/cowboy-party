@@ -13,6 +13,7 @@ import 'package:flutter_test/flutter_test.dart';
 /// 엔진엔 절대 들어오지 않지만(=일반인처럼 동작) 견고성 차원에서 포함한다.
 final List<CharId> _charPool = CharId.values;
 
+/// 균일 무작위 행동. 빵야가 잦아 게임이 빨리 끝난다(공격형 커버리지).
 Move _randomMove(Random rng, int n) {
   final tgt = rng.nextInt(n);
   final tgt2 = rng.nextInt(n);
@@ -40,6 +41,30 @@ Move _randomMove(Random rng, int n) {
       return const Move.reset();
     default:
       return const Move.reload();
+  }
+}
+
+/// 소극적(passive) 행동 — 장전·방어·저주·덫 위주, 빵야 거의 안 함. 게임이
+/// 오래가서 저주 10턴 만료·평화주의자 6장전 승리 같은 **장기 불변식**을 깊게 친다.
+Move _passiveMove(Random rng, int n) {
+  final tgt = rng.nextInt(n);
+  switch (rng.nextInt(10)) {
+    case 0:
+    case 1:
+    case 2:
+    case 3:
+      return Move.reload(smoke: rng.nextBool());
+    case 4:
+    case 5:
+      return Move.defend(smoke: rng.nextBool());
+    case 6:
+      return Move.voodoo(tgt);
+    case 7:
+      return const Move.trap();
+    case 8:
+      return const Move.reset();
+    default:
+      return Move.shoot(tgt); // 가끔만 빵야 — 누군가는 떨어져야 끝남
   }
 }
 
@@ -180,13 +205,17 @@ List<String> _checkInvariants({
 
 void main() {
   test('퍼즈: 무작위 라인업·행동시퀀스 대량 시뮬에서 룰엔진 불변식 위반 0', () {
-    const games = 4000;
-    const maxTurns = 80;
+    const games = 6000;
+    const maxTurns = 120;
+    const passiveFrom = 4000; // 이 이후 게임은 소극적 행동(장기 불변식 커버)
     final problems = <String>[];
+    // 장기 이벤트가 실제로 발생했는지 커버리지 카운터(0이면 테스트가 헛돈 것).
+    var sawCurseKill = 0, sawPacifistWin = 0, sawReflectKill = 0;
 
     outer:
     for (var g = 0; g < games; g++) {
       final rng = Random(g + 1);
+      final passive = g >= passiveFrom;
       final n = 2 + rng.nextInt(kMaxSeats - kMinSeats + 1); // 2..6
       final chars = [for (var s = 0; s < n; s++) _charPool[rng.nextInt(_charPool.length)]];
       var state = PartyState.initial(chars);
@@ -197,7 +226,9 @@ void main() {
       for (var t = 0; t < maxTurns; t++) {
         final moves = [
           for (var s = 0; s < n; s++)
-            alive[s] ? _randomMove(rng, n) : Move.empty
+            alive[s]
+                ? (passive ? _passiveMove(rng, n) : _randomMove(rng, n))
+                : Move.empty
         ];
         final before = state;
         final aliveBefore = List<bool>.from(alive);
@@ -222,6 +253,9 @@ void main() {
           problems.add('game $g turn $t chars=$chars: ${viol.join("; ")}');
           continue outer; // 이 게임은 더 돌리지 않고 다음으로
         }
+        if (out.curseKill.any((x) => x)) sawCurseKill++;
+        if (out.reflectKill.any((x) => x)) sawReflectKill++;
+        if (out.specialWin == 'pacifist') sawPacifistWin++;
         state = out.stateAfter!;
         ammo = out.ammoAfter;
         alive = out.aliveAfter;
@@ -231,5 +265,9 @@ void main() {
 
     expect(problems, isEmpty,
         reason: '불변식 위반 ${problems.length}건:\n${problems.take(20).join("\n")}');
+    // 커버리지 가드: 장기 이벤트가 한 번도 안 났으면 퍼즈가 표면만 친 것.
+    expect(sawCurseKill, greaterThan(0), reason: '저주 만료 사망이 한 번도 발생 안 함');
+    expect(sawReflectKill, greaterThan(0), reason: '덫 반사 사망이 한 번도 발생 안 함');
+    expect(sawPacifistWin, greaterThan(0), reason: '평화주의자 승리가 한 번도 발생 안 함');
   });
 }
