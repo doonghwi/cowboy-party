@@ -637,4 +637,144 @@ void main() {
       expect(st.paparazziUsed[0], isFalse);
     });
   });
+
+  // ---- 관통·슈퍼·덫·연막 상호작용 ----
+  group('슈퍼빵야 관통', () {
+    test('슈퍼빵야는 방어를 관통한다', () {
+      final out = run(
+        moves: [Move.superShoot(1), const Move.defend()],
+        ammo: [kSuperCost, 0],
+        alive: [true, true],
+        chars: [CharId.commoner, CharId.commoner],
+      );
+      expect(out.superFired[0], isTrue);
+      expect(out.hit[1], isTrue, reason: '방어해도 슈퍼는 관통');
+      expect(out.aliveAfter[1], isFalse);
+    });
+
+    test('슈퍼빵야는 덫을 관통한다 — 반사 없이 사냥꾼이 맞는다', () {
+      final out = run(
+        moves: [Move.superShoot(1), const Move.trap()],
+        ammo: [kSuperCost, 0],
+        alive: [true, true],
+        chars: [CharId.commoner, CharId.hunter],
+      );
+      expect(out.superFired[0], isTrue);
+      expect(out.reflectKill[0], isFalse, reason: '슈퍼는 덫에 반사 안 됨');
+      expect(out.aliveAfter[0], isTrue, reason: '시전자 생존');
+      expect(out.hit[1], isTrue, reason: '사냥꾼이 슈퍼에 맞음');
+      expect(out.aliveAfter[1], isFalse);
+    });
+  });
+
+  group('덫 반사 다중', () {
+    test('덫은 여러 사수의 일반탄을 모두 반사하고 사냥꾼은 산다', () {
+      final out = run(
+        moves: [Move.shoot(2), Move.shoot(2), const Move.trap()],
+        ammo: [1, 1, 0],
+        alive: [true, true, true],
+        chars: [CharId.commoner, CharId.commoner, CharId.hunter],
+      );
+      expect(out.reflectKill[0], isTrue);
+      expect(out.reflectKill[1], isTrue);
+      expect(out.aliveAfter[0], isFalse);
+      expect(out.aliveAfter[1], isFalse);
+      expect(out.aliveAfter[2], isTrue, reason: '사냥꾼은 반사로 무사');
+    });
+  });
+
+  group('스나이퍼 관통(pierce) 상호작용', () {
+    // pierce는 20% — 관통이 발동하는 턴을 결정적으로 찾는다(시드/턴 고정).
+    int findPierceTurn(int target, CharId targetChar) {
+      for (var t = 0; t < 800; t++) {
+        final out = run(
+          moves: [Move.shoot(target), const Move.defend()],
+          ammo: [1, 0],
+          alive: [true, true],
+          chars: [CharId.sniper, targetChar],
+          turn: t,
+        );
+        if (out.pierced[0]) return t;
+      }
+      fail('관통 발동 턴을 못 찾음');
+    }
+
+    test('관통은 방어를 무시하고 명중한다', () {
+      final t = findPierceTurn(1, CharId.commoner);
+      final out = run(
+        moves: [Move.shoot(1), const Move.defend()],
+        ammo: [1, 0],
+        alive: [true, true],
+        chars: [CharId.sniper, CharId.commoner],
+        turn: t,
+      );
+      expect(out.pierced[0], isTrue);
+      expect(out.hit[1], isTrue, reason: '관통은 방어 무시');
+      expect(out.aliveAfter[1], isFalse);
+    });
+
+    test('관통탄도 덫에는 반사된다 — 관통이 덫을 못 이긴다', () {
+      // 관통 발동 턴에 사냥꾼이 덫을 놓으면, 관통탄도 일반탄이라 반사된다.
+      final t = findPierceTurn(1, CharId.hunter);
+      final out = run(
+        moves: [Move.shoot(1), const Move.trap()],
+        ammo: [1, 0],
+        alive: [true, true],
+        chars: [CharId.sniper, CharId.hunter],
+        turn: t,
+      );
+      expect(out.pierced[0], isTrue);
+      expect(out.reflectKill[0], isTrue, reason: '관통탄도 덫에 반사');
+      expect(out.aliveAfter[0], isFalse, reason: '스나이퍼가 반사로 사망');
+      expect(out.aliveAfter[1], isTrue, reason: '사냥꾼 무사');
+    });
+  });
+
+  group('연막(smoke) 회피', () {
+    // smoke 회피는 들어오는 빵야당 50% — 회피/피격 턴을 각각 결정적으로 찾는다.
+    ({int evade, int hitT}) findTurns() {
+      int? ev, hi;
+      for (var t = 0; t < 1200 && (ev == null || hi == null); t++) {
+        final out = run(
+          moves: [Move.shoot(1), const Move.reload(smoke: true)],
+          ammo: [1, 0],
+          alive: [true, true],
+          chars: [CharId.commoner, CharId.smoker],
+          turn: t,
+        );
+        if (out.evaded[1] && ev == null) ev = t;
+        if (out.hit[1] && hi == null) hi = t;
+      }
+      return (evade: ev!, hitT: hi!);
+    }
+
+    test('연막은 들어오는 빵야를 회피하고 연막을 1 소모한다', () {
+      final ts = findTurns();
+      final ev = run(
+        moves: [Move.shoot(1), const Move.reload(smoke: true)],
+        ammo: [1, 0],
+        alive: [true, true],
+        chars: [CharId.commoner, CharId.smoker],
+        turn: ts.evade,
+      );
+      expect(ev.evaded[1], isTrue);
+      expect(ev.aliveAfter[1], isTrue, reason: '회피하면 생존');
+      expect(ev.smoked[1], isTrue);
+      expect(ev.stateAfter!.smokeLeft[1], 1, reason: '연막 2→1 소모');
+    });
+
+    test('연막 회피 실패 턴엔 명중한다', () {
+      final ts = findTurns();
+      final hi = run(
+        moves: [Move.shoot(1), const Move.reload(smoke: true)],
+        ammo: [1, 0],
+        alive: [true, true],
+        chars: [CharId.commoner, CharId.smoker],
+        turn: ts.hitT,
+      );
+      expect(hi.hit[1], isTrue, reason: '회피 실패하면 명중');
+      expect(hi.aliveAfter[1], isFalse);
+      expect(hi.evaded[1], isFalse);
+    });
+  });
 }
