@@ -271,6 +271,54 @@ void main() {
       // 좌석은 하나의 도화선/시전자만 가진다(중첩되지 않음).
       expect(st.curseCaster[2], anyOf(0, 1));
     });
+
+    test('이미 저주된 대상 재시전은 무효 — 도화선이 리셋되지 않는다 (제보 #2)', () {
+      // 0=부두, 1=대상. 0이 1을 저주 → 도화선 10. 이후 가만히 두며 줄다가
+      // 다시 저주를 걸어도 도화선이 10으로 되돌아가면 안 된다(죽음 무한연기 방지).
+      final chars = [CharId.voodoo, CharId.none];
+      var st = PartyState.initial(chars);
+      // t0: 저주 시전 → 10.
+      var out = run(
+        moves: [Move.voodoo(1), const Move.idle()],
+        ammo: [0, 0],
+        alive: [true, true],
+        chars: chars,
+        state: st,
+        turn: 0,
+      );
+      st = out.stateAfter!;
+      expect(st.curseFuse[1], kCurseFuse);
+
+      // t1·t2: 가만히 → 매 턴 1씩 감소.
+      for (var t = 1; t <= 2; t++) {
+        out = run(
+          moves: [const Move.idle(), const Move.idle()],
+          ammo: out.ammoAfter,
+          alive: out.aliveAfter,
+          chars: chars,
+          state: st,
+          turn: t,
+        );
+        st = out.stateAfter!;
+      }
+      expect(st.curseFuse[1], kCurseFuse - 2, reason: '2턴 지나 8이어야');
+
+      // t3: 같은 대상에 재시전 → 무효. 7a 감소(8→7)는 적용되지만 10으로 리셋 안 됨.
+      out = run(
+        moves: [Move.voodoo(1), const Move.idle()],
+        ammo: out.ammoAfter,
+        alive: out.aliveAfter,
+        chars: chars,
+        state: st,
+        turn: 3,
+      );
+      st = out.stateAfter!;
+      expect(st.curseFuse[1], kCurseFuse - 3,
+          reason: '재시전 무효 → 정상 감소만(7). 10으로 리셋되면 버그');
+      expect(out.voodooCast[0], isFalse,
+          reason: '이미 저주 중이라 새 저주 표시 안 함');
+      expect(st.curseCaster[1], 0, reason: '원래 시전자 유지');
+    });
   });
 
   // ---- 리셋(무효) 상호작용 ----

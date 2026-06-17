@@ -600,12 +600,16 @@ TurnOutcome resolvePartyTurn({
       }
     }
     // 7b) 새 저주 적용 — 살아있는 부두술사 각자 자기 대상에게(동시에 여러 명 가능).
+    // 이미 저주 중인 대상에 재시전하면 **무효**(도화선 유지) — 재시전으로 도화선을
+    // 10으로 되돌려 죽음을 무한히 미루는 것을 막는다(제보 #2). 같은 턴에 두 부두가
+    // 같은 (비저주) 대상을 노리면 먼저 처리된 좌석의 저주만 걸린다.
     for (var i = 0; i < n; i++) {
       if (chars[i] != CharId.voodoo || !aliveBefore[i] || hit[i]) continue;
       final m = moves[i];
       if (m.kind == ActKind.voodoo &&
           targetOk(i, m.target) &&
-          aliveAfter[m.target]) {
+          aliveAfter[m.target] &&
+          curseFuse[m.target] <= 0) {
         curseFuse[m.target] = kCurseFuse;
         curseCaster[m.target] = i;
         voodooCast[i] = true;
