@@ -12,6 +12,7 @@
 - 🟡 **M2 (방 비번 노출)** — 규칙만으로 불가(공개 read 구조). 미해결, 권고만.
 - 🟡 **M3 (제보 공개 토픽)** — 안내 문구 권고. 미해결.
 - ✅ **시크릿/권한/전송/개인정보**: 양호(원래부터). 키스토어·plist 커밋 이력 없음, INTERNET만, 전부 HTTPS, data_safety 일치.
+- 🔒 **2026-06-17 정보노출 차단**: `users/$uid` read를 `.read: true`(전역 공개) → `auth != null && auth.uid == $uid`(본인만)로 잠금. 기존엔 누구나 `seasons`(공개 read) 리더보드에서 uid를 수집해 `users/<uid>`로 타인의 코인·출석streak·해금·선물코드 사용내역을 열람 가능했음(REST로 실재 확인). 앱은 `meta_service`가 **본인 uid만**(로그인 시) read하고 외부 사이트(cowboy.gg)는 `charstats`만 read하므로 정상 동작 불변. REST 검증: 무인증·타uid read 거부 / 본인 read 허용 / charstats·seasons 공개 read 유지.
 
 ## 요약 (TL;DR — 최초 발견 기준)
 - **H1** `rooms/$code` 가 **인증 없이 누구나 전체 쓰기**(`.write:true`, `auth` 무관) → 방 삭제/위변조로 **그리핑(서비스 방해)**·점수 위조 가능. 가장 큰 실위험.
