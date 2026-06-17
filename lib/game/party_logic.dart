@@ -238,6 +238,21 @@ class PartyState {
 /// Starting ammo for a seat given its character (준비자 = 1).
 int startAmmoFor(CharId c) => c == CharId.prepper ? 1 : 0;
 
+/// 반응속도 결투(showdown) 결투가 자동승 판정(B2). 동시 사망한 [participants] 중
+/// 결투가가 **정확히 1명**이면 그 좌석이 반응속도 없이 즉시 승리(그 좌석 반환).
+/// 결투가가 0명이거나 2명 이상이면 자동승 없음(null) → 반응속도 결투로 진행.
+/// (온라인 computeView·오프라인 _beginShowdown이 공유하는 순수함수 — 한 곳에서 결정.)
+int? duelistShowdownWinner(List<CharId> chars, List<int> participants) {
+  int? only;
+  for (final s in participants) {
+    if (s >= 0 && s < chars.length && chars[s] == CharId.duelist) {
+      if (only != null) return null; // 둘 이상 → 자동승 무효
+      only = s;
+    }
+  }
+  return only;
+}
+
 /// 유한 사용 능력의 **남은 횟수** 라벨 (모든 플레이어에게 표시, #11).
 /// 좌석 배지에 직업 아이콘과 함께 "남은 N"으로 보인다. 0이면 다 쓴 것.
 /// 해당 캐릭터가 횟수 제한 능력이 없으면 null.

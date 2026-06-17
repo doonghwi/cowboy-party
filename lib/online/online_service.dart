@@ -1410,10 +1410,7 @@ class OnlineService {
               ? _asInt(showdown['winner'])
               : null;
           // B2: 결투가가 결투 참가자 중 정확히 1명이면 반응속도 없이 자동 승리.
-          final duelists = [
-            for (final s in parts)
-              if (s < chars.length && chars[s] == CharId.duelist) s
-          ];
+          final dWin = duelistShowdownWinner(chars, parts);
           if (sdWinner != null) {
             status = GameStatus.won;
             winner = sdWinner;
@@ -1423,13 +1420,12 @@ class OnlineService {
               alive[sdWinner] = true;
               hit[sdWinner] = false;
             }
-          } else if (duelists.length == 1) {
+          } else if (dWin != null) {
             status = GameStatus.won;
-            winner = duelists.first;
+            winner = dWin;
             specialWin = 'duelist';
-            final w = duelists.first;
-            alive[w] = true;
-            hit[w] = false;
+            alive[dWin] = true;
+            hit[dWin] = false;
           } else if (parts.where(present).length == 1) {
             // #5: 결투(showdown) 도중 상대가 나가면 남은 한 명이 승리.
             // (예전엔 떠난 사람을 기다리며 무한 로딩)

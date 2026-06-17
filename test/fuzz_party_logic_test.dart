@@ -123,6 +123,23 @@ List<String> _checkInvariants({
       });
     }
 
+    // 3b) 능력 귀속: 각 능력 플래그는 해당 직업에서만 발동해야 한다(오귀속 방지).
+    void attrib(bool flag, CharId owner, String name) {
+      if (flag && chars[s] != owner) {
+        v.add('$name set on seat $s of ${chars[s]} (only $owner)');
+      }
+    }
+
+    attrib(out.pierced[s], CharId.sniper, 'pierced');
+    attrib(out.doubleLoad[s], CharId.speedloader, 'doubleLoad');
+    attrib(out.healed[s], CharId.doctor, 'healed');
+    attrib(out.trapSet[s], CharId.hunter, 'trapSet');
+    attrib(out.smoked[s], CharId.smoker, 'smoked');
+    attrib(out.rouletteFired[s], CharId.roulette, 'rouletteFired');
+    attrib(out.dualFired[s], CharId.dualgun, 'dualFired');
+    attrib(out.voodooCast[s], CharId.voodoo, 'voodooCast');
+    attrib(out.resetActive[s], CharId.resetter, 'resetActive');
+
     // 4) 1회성 자원 단조성(false→true), 연막 단조 감소, 장전 누적 비감소.
     if (before.doctorUsed[s] && !after.doctorUsed[s]) {
       v.add('doctorUsed[$s] reverted true->false');

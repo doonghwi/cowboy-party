@@ -447,12 +447,9 @@ class _OfflineGameScreenState extends State<OfflineGameScreen> {
         if (aliveBefore[s]) s
     ];
     // B2: 결투가가 결투(showdown) 참가자 중 정확히 1명이면 반응속도 없이 자동 승리.
-    final duelists = [
-      for (final s in _sdPlayers)
-        if (_chars[s] == CharId.duelist) s
-    ];
-    if (duelists.length == 1) {
-      _winner = duelists.first;
+    final dWin = duelistShowdownWinner(_chars, _sdPlayers);
+    if (dWin != null) {
+      _winner = dWin;
       _status = GameStatus.won;
       _specialWin = 'duelist';
       _phase = _Phase.over;
