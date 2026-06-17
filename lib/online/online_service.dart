@@ -1445,6 +1445,16 @@ class OnlineService {
             drawParticipants = parts;
           }
         }
+        // ???가 평화주의자/결투가로 변신했다면, 능력이 비로소 발동하는 이 승리
+        // 순간(6장전 승리·결투 자동승)에 정체를 공개한다(그 전엔 숨김).
+        if (status == GameStatus.won &&
+            winner != null &&
+            winner >= 0 &&
+            winner < n &&
+            origChars[winner] == CharId.mystery &&
+            (specialWin == 'pacifist' || specialWin == 'duelist')) {
+          revealed[winner] = true;
+        }
         return _buildView(
           phase: OnlinePhase.over,
           capacity: capacity,

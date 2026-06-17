@@ -267,6 +267,80 @@ void main() {
     });
   });
 
+  group('??? 평화주의자·결투가는 능력 발동(승리) 시 공개 (제보 #1)', () {
+    // mystery=13. effectiveChar는 seed로 결정적이므로, 좌석0이 원하는 직업으로
+    // 변신하는 game 번호를 찾아 시드를 고정한다(seed = '$seedKey#$game').
+    const key = 'RV';
+    int gameFor(CharId target, {int seat = 0}) {
+      for (var g = 0; g < 200000; g++) {
+        if (effectiveChar(CharId.mystery, '$key#$g', seat) == target) return g;
+      }
+      throw StateError('$target 로 변신하는 시드를 못 찾음');
+    }
+
+    Map<String, Object?> room({
+      required int game,
+      required Map<String, Object?> turns,
+      required int p1char,
+      Map<String, Object?>? showdown,
+    }) =>
+        {
+          'host': 'h',
+          'capacity': 6,
+          'started': true,
+          'seatCount': 2,
+          'game': game,
+          'chars': {'p0': 13, 'p1': p1char}, // p0=??? p1=지정
+          'players': {
+            'p0': {'id': 'h', 'name': '미스터리', 'char': 13},
+            'p1': {'id': 'g', 'name': '상대', 'char': p1char},
+          },
+          'turns': turns,
+          'showdown': ?showdown,
+        };
+
+    test('평화주의자로 변신한 ???가 6장전 승리 순간 상대 시야에 공개된다', () {
+      final game = gameFor(CharId.pacifist);
+      // 승리 직전(5장전)엔 상대에게 아직 ???.
+      final pre = <String, Object?>{
+        for (var i = 0; i < kPacifistGoal - 1; i++)
+          't$i': {'p0': reload(), 'p1': defend()},
+      };
+      final vPre = OnlineService.computeView(room(game: game, turns: pre, p1char: 0),
+          'g',
+          seedKey: key);
+      expect(vPre.seats[0].char, CharId.mystery,
+          reason: '승리 전엔 상대에게 정체 숨김');
+      // 6장전 달성 턴에 평화 승리 → 공개.
+      final win = <String, Object?>{
+        for (var i = 0; i < kPacifistGoal; i++)
+          't$i': {'p0': reload(), 'p1': defend()},
+      };
+      final vWin = OnlineService.computeView(room(game: game, turns: win, p1char: 0),
+          'g',
+          seedKey: key);
+      expect(vWin.status, GameStatus.won);
+      expect(vWin.seats[0].char, CharId.pacifist,
+          reason: '6장전 승리 순간 정체 공개');
+    });
+
+    test('결투가로 변신한 ???가 결투 자동승 순간 상대 시야에 공개된다', () {
+      final game = gameFor(CharId.duelist);
+      // 둘 다 장전 후 상호 사살 → 전멸(draw) → 결투가 1명 자동승.
+      final turns = <String, Object?>{
+        't0': {'p0': reload(), 'p1': reload()},
+        't1': {'p0': shoot(1), 'p1': shoot(0)},
+      };
+      final v = OnlineService.computeView(
+          room(game: game, turns: turns, p1char: 0), 'g',
+          seedKey: key);
+      expect(v.status, GameStatus.won, reason: '결투가 자동승');
+      expect(v.winnerSeat, 0);
+      expect(v.seats[0].char, CharId.duelist,
+          reason: '결투 자동승 순간 정체 공개');
+    });
+  });
+
   group('저주 표시 (C2)', () {
     // voodoo=14. p0가 t0에 p1에게 저주 → t1 프론티어에서 남은 턴 표시.
     Map<String, Object?> cursedRoom() => {

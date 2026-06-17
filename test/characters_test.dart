@@ -593,4 +593,19 @@ void main() {
       expect(mysteryRevealsAtStart(c), isFalse, reason: '$c 는 턴 트리거');
     }
   });
+
+  test('평화주의자·결투가는 시작 공개가 아니라 능력 발동(승리) 시 공개된다', () {
+    // 사용자 제보 #1: 둘은 능력이 게임 종반에 비로소 발동하므로 그 전엔 숨겨야 한다.
+    expect(kMysteryStartRevealChars.contains(CharId.pacifist), isFalse,
+        reason: '평화주의자는 6장전 승리 순간에만 공개');
+    expect(kMysteryStartRevealChars.contains(CharId.duelist), isFalse,
+        reason: '결투가는 결투 자동승 순간에만 공개');
+    expect(kMysteryTurnTriggerChars.contains(CharId.pacifist), isTrue);
+    expect(kMysteryTurnTriggerChars.contains(CharId.duelist), isTrue);
+    expect(mysteryRevealsAtStart(CharId.pacifist), isFalse);
+    expect(mysteryRevealsAtStart(CharId.duelist), isFalse);
+    // 신호가 전혀 없는 직업만 시작 공개로 남는다.
+    expect(kMysteryStartRevealChars,
+        equals({CharId.commoner, CharId.prepper, CharId.shadow}));
+  });
 }
