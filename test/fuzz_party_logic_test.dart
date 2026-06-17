@@ -106,6 +106,9 @@ List<String> _checkInvariants({
     if (out.reflectKill[s] && out.aliveAfter[s]) {
       v.add('seat $s reflectKill set but alive (거짓 반사사망)');
     }
+    if (out.rouletteSelf[s] && out.aliveAfter[s]) {
+      v.add('seat $s rouletteSelf set but alive (거짓 꽝/자해)');
+    }
 
     // 3) 죽은 자는 어떤 행동/능력도 발동하지 않고 총알도 그대로.
     if (!aliveBefore[s]) {

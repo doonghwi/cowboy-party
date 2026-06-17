@@ -536,12 +536,15 @@ TurnOutcome resolvePartyTurn({
   }
 
   // 4b) 리셋터 '무효': 이번 턴 모든 치명 결과를 없던 일로. (총알·특수자원은 이미 소모됨.)
+  //     사인(死因) 표시 플래그도 모두 끈다 — 안 그러면 무효로 살아남은 좌석에
+  //     '꽝!'(룰렛 자해)·반사·저주 사망 연출이 잘못 뜬다.
   if (turnVoided) {
     for (var i = 0; i < n; i++) {
       hit[i] = false;
       reflectKill[i] = false;
       curseKill[i] = false;
       evaded[i] = false;
+      rouletteSelf[i] = false;
     }
   }
 

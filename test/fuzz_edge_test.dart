@@ -409,6 +409,38 @@ void main() {
 
   // ---- 리셋(무효) 상호작용 ----
   group('리셋 무효 상호작용', () {
+    test('무효 턴은 룰렛 자기-꽝(자해)의 사망·표시를 모두 지운다', () {
+      // 0=룰렛, 1=대상, 2=리셋터. 룰렛이 자신에게 빗나가는(자해) 턴을 결정적으로
+      // 찾은 뒤, 같은 턴 리셋터가 무효를 내면 자해 사망도 '꽝!' 표시도 없어야 한다.
+      final chars = [CharId.roulette, CharId.none, CharId.resetter];
+      int? selfTurn;
+      for (var t = 0; t < 300; t++) {
+        final ctrl = run(
+          moves: [Move.roulette(1), const Move.idle(), const Move.idle()],
+          ammo: [0, 0, 0],
+          alive: [true, true, true],
+          chars: chars,
+          turn: t,
+        );
+        if (ctrl.rouletteSelf[0]) {
+          selfTurn = t;
+          break;
+        }
+      }
+      expect(selfTurn, isNotNull, reason: '룰렛 자해 턴을 찾아야 함');
+      final out = run(
+        moves: [Move.roulette(1), const Move.idle(), const Move.reset()],
+        ammo: [0, 0, 0],
+        alive: [true, true, true],
+        chars: chars,
+        turn: selfTurn!,
+      );
+      expect(out.resetActive[2], isTrue);
+      expect(out.aliveAfter[0], isTrue, reason: '무효로 자해 사망 취소');
+      expect(out.rouletteSelf[0], isFalse,
+          reason: '무효 턴엔 꽝 표시도 없어야(거짓 RouletteBust 방지)');
+    });
+
     test('무효 턴은 만료 직전 저주를 막고 도화선을 보존한다', () {
       // 저주가 이번 턴 만료(fuse=1)되도록 세팅. 0=부두, 1=대상, 2=리셋터.
       final base = PartyState.initial(

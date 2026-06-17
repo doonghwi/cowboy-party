@@ -18,6 +18,9 @@
 ## 완료
 (처리되면 cowboy-fix-loop가 여기로 옮김)
 
+### 2026-06-17 bugloop 사인 플래그 형제 점검 (cycle 11) — 실버그 1건
+- [x] (P2) 리셋 '무효'로 룰렛 자기-꽝(자해)을 취소한 턴, `rouletteSelf` 플래그 잔류로 산 좌석에 'RouletteBust(꽝!)' 연출 — 재현: 룰렛이 자신에게 빗나가(50%) 자해하는 턴에 리셋터가 무효 발동 / 기대: 자해 사망이 취소됐으니 '꽝!' 연출도 없음 / 실제: 4b 무효 블록이 hit·reflectKill·curseKill·evaded만 끄고 `rouletteSelf`는 안 꺼서, 산 좌석에 붉은 폭발 '꽝!'(circular_table RouletteBust, alive 무관 발동)이 잘못 뜸 / 근본원인: 의사 자힐 버그(cycle 10)와 동형 — 무효 처리에서 사인 표시 플래그 누락 / 수정: 4b에 `rouletteSelf[i]=false` 추가. / 발견: 의사 버그 수정 후 사인 플래그 형제(reflectKill·curseKill·rouletteSelf) 전수 점검 중 reset+roulette 경로 포착. / 회귀: 퍼즈 '사인 플래그⟹사망'에 rouletteSelf 추가 + fuzz_edge '무효 턴은 룰렛 자해 표시도 지운다'(자해 턴 결정적 탐색 후 reset). analyze 0 / test 175. 화면: party_logic.dart
+
 ### 2026-06-17 bugloop reveal/curse 엣지 헌팅 (cycle 10) — 실버그 1건
 - [x] (P2) 의사가 저주 만료·덫 반사를 자힐로 버틴 턴, 사인(死因) 표시 플래그가 산 의사에게 남음 — 재현: 의사가 저주에 걸려 10턴 뒤 만료될 때(또는 덫 놓은 사냥꾼을 쏴 반사될 때) 자힐로 생존 / 기대: 살아남았으니 어떤 사망 연출도 없음 / 실제: `의사 자힐 단계가 hit만 끄고 curseKill·reflectKill는 안 꺼서` 좌석에 '저주 사망!'/'반사 사망' 연출(circular_table)·사망 배너(online/offline)가 산 의사에게 잘못 표시 / 근본원인: party_logic 5단계 의사 힐이 `hit[i]=false`만 하고 사인 플래그 미정리(리셋 4b는 정리하는데 힐은 누락) / 수정: 힐 시 `curseKill[i]=false; reflectKill[i]=false`도 정리. / 발견경위: 저주 재시전 회귀를 막는 퍼즈 불변식을 강화하다 의사-저주만료-재시전 경로가 노출돼 curseKill 잔류를 포착. / 회귀: fuzz_party_logic에 **사인 플래그⟹실제 사망** 불변식(curseKill/reflectKill && alive → 위반) + fuzz_edge 의사-저주만료-재시전·의사-덫반사 자힐 2종. analyze 0 / test 174. 화면: party_logic.dart
 
