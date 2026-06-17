@@ -329,4 +329,146 @@ void main() {
       expect(out.stateAfter!.curseFuse[1], 0);
     });
   });
+
+  // ---- 저주 도화선 만료 타이밍 엣지 ----
+  group('저주 도화선 만료 타이밍', () {
+    // 0=부두(시전자), 1=대상, 2=일반(시전자를 쏠 수 있음).
+    PartyState primed(int fuse) {
+      final base = PartyState.initial(
+          [CharId.voodoo, CharId.none, CharId.none]);
+      return PartyState(
+        doctorUsed: base.doctorUsed,
+        trapUsed: base.trapUsed,
+        smokeLeft: base.smokeLeft,
+        reloads: base.reloads,
+        paparazziUsed: base.paparazziUsed,
+        resetterUsed: base.resetterUsed,
+        curseFuse: [0, fuse, 0],
+        curseCaster: [-1, 0, -1],
+      );
+    }
+
+    test('도화선 1 + 시전자·대상 생존 → 이번 턴 대상 사망', () {
+      final out = run(
+        moves: [const Move.reload(), const Move.reload(), const Move.reload()],
+        ammo: [0, 0, 0],
+        alive: [true, true, true],
+        chars: [CharId.voodoo, CharId.none, CharId.none],
+        state: primed(1),
+      );
+      expect(out.curseKill[1], isTrue);
+      expect(out.aliveAfter[1], isFalse);
+    });
+
+    test('만료 턴에 시전자가 사망하면 대상은 살아남는다(저주 해제)', () {
+      // 도화선 1인데 같은 턴 시전자(0)가 2의 빵야에 죽음 → 저주 미발동.
+      final out = run(
+        moves: [const Move.reload(), const Move.reload(), Move.shoot(0)],
+        ammo: [0, 0, 1],
+        alive: [true, true, true],
+        chars: [CharId.voodoo, CharId.none, CharId.none],
+        state: primed(1),
+      );
+      expect(out.hit[0], isTrue, reason: '시전자 사망');
+      expect(out.curseKill[1], isFalse, reason: '시전자 죽으면 저주 미발동');
+      expect(out.aliveAfter[1], isTrue);
+      expect(out.stateAfter!.curseFuse[1], 0, reason: '저주 해제');
+      expect(out.stateAfter!.curseCaster[1], -1);
+    });
+
+    test('대상이 만료 전에 다른 사인으로 죽으면 저주 상태가 해제된다', () {
+      // 도화선 5(아직 멀었음)인데 대상(1)이 2의 빵야에 죽음.
+      final out = run(
+        moves: [const Move.reload(), const Move.reload(), Move.shoot(1)],
+        ammo: [0, 0, 1],
+        alive: [true, true, true],
+        chars: [CharId.voodoo, CharId.none, CharId.none],
+        state: primed(5),
+      );
+      expect(out.hit[1], isTrue);
+      expect(out.curseKill[1], isFalse, reason: '만료가 아니라 일반 사망');
+      expect(out.stateAfter!.curseFuse[1], 0, reason: '죽은 대상 저주 해제');
+      expect(out.stateAfter!.curseCaster[1], -1);
+    });
+
+    test('도화선은 만료 전까지 매 턴 정확히 1씩만 감소한다', () {
+      var state = primed(3);
+      // 턴마다 모두 장전. 3→2→1→(만료 사망).
+      var alive = [true, true, true];
+      var ammo = [0, 0, 0];
+      final fuses = <int>[];
+      var killTurn = -1;
+      for (var t = 0; t < 4; t++) {
+        final out = run(
+          moves: [const Move.reload(), const Move.reload(), const Move.reload()],
+          ammo: ammo,
+          alive: alive,
+          chars: [CharId.voodoo, CharId.none, CharId.none],
+          state: state,
+          turn: t,
+        );
+        if (out.curseKill[1]) killTurn = t;
+        fuses.add(out.stateAfter!.curseFuse[1]);
+        state = out.stateAfter!;
+        alive = out.aliveAfter;
+        ammo = out.ammoAfter;
+      }
+      // fuse 진행: 2,1,0(사망),0 — 단조 감소 + 만료 정확히 3번째 턴.
+      expect(fuses[0], 2);
+      expect(fuses[1], 1);
+      expect(killTurn, 2, reason: 'fuse 3 → 정확히 3턴 뒤 사망');
+    });
+
+    test('시전자가 만료 1턴 전에 죽으면 다음 턴 대상은 안 죽는다', () {
+      // 도화선 2. 이번 턴 시전자 사망 → 해제. 다음 턴엔 저주 없음.
+      var out = run(
+        moves: [const Move.reload(), const Move.reload(), Move.shoot(0)],
+        ammo: [0, 0, 1],
+        alive: [true, true, true],
+        chars: [CharId.voodoo, CharId.none, CharId.none],
+        state: primed(2),
+      );
+      expect(out.hit[0], isTrue);
+      expect(out.stateAfter!.curseFuse[1], 0, reason: '시전자 죽어 즉시 해제');
+      // 다음 턴: 대상 생존 유지.
+      out = run(
+        moves: [Move.empty, const Move.reload(), const Move.reload()],
+        ammo: out.ammoAfter,
+        alive: out.aliveAfter,
+        chars: [CharId.voodoo, CharId.none, CharId.none],
+        state: out.stateAfter!,
+        turn: 1,
+      );
+      expect(out.curseKill[1], isFalse);
+      expect(out.aliveAfter[1], isTrue);
+    });
+  });
+
+  // ---- 파파라치 엿보기 페이즈는 엔진 판정과 무관(메타데이터) ----
+  group('파파라치 엿보기', () {
+    test('파파라치가 일반 행동을 하면 일반인과 동일하게 판정된다', () {
+      // 엿보기(peek)는 online_service의 별도 페이즈라 resolvePartyTurn에 안 들어온다.
+      // 따라서 파파라치 좌석의 일반 행동은 일반인과 결과가 같아야 한다.
+      TurnOutcome forChar(CharId c) => run(
+            moves: [Move.shoot(1), const Move.defend(), const Move.reload()],
+            ammo: [1, 0, 0],
+            alive: [true, true, true],
+            chars: [c, CharId.none, CharId.none],
+            seed: 'PAPA',
+          );
+      final papa = forChar(CharId.paparazzi);
+      final commoner = forChar(CharId.commoner);
+      expect(papa.hit, commoner.hit);
+      expect(papa.ammoAfter, commoner.ammoAfter);
+      expect(papa.aliveAfter, commoner.aliveAfter);
+      expect(papa.status, commoner.status);
+    });
+
+    test('파파라치는 시작 탄약·연막 자원이 없다(일반과 동일)', () {
+      expect(startAmmoFor(CharId.paparazzi), 0);
+      final st = PartyState.initial([CharId.paparazzi, CharId.none]);
+      expect(st.smokeLeft[0], 0);
+      expect(st.paparazziUsed[0], isFalse);
+    });
+  });
 }
