@@ -389,6 +389,66 @@ void main() {
     });
   });
 
+  group('방장 승계 (host migration)', () {
+    // host='h'가 기록됨. players의 'id'로 좌석 점유를 표현.
+    Map<String, Object?> lobby(Map<String, Object?> players,
+            {String host = 'h'}) =>
+        {
+          'host': host,
+          'capacity': 6,
+          'started': false,
+          'public': true,
+          'players': players,
+        };
+
+    test('기록된 방장이 자리에 있으면 그대로 방장 — 승계 불필요', () {
+      final data = lobby({
+        'p0': {'id': 'h', 'name': '방장'},
+        'p1': {'id': 'g', 'name': 'B'},
+      });
+      final host = OnlineService.computeView(data, 'h');
+      expect(host.isHost, isTrue);
+      expect(host.iShouldClaimHost, isFalse, reason: '이미 기록된 방장');
+      final other = OnlineService.computeView(data, 'g');
+      expect(other.isHost, isFalse);
+    });
+
+    test('방장이 나가면(노드 사라짐) 남은 최저 좌석이 새 방장이 된다', () {
+      // p0(host 'h') 노드가 사라지고 p1('g')만 남음.
+      final data = lobby({
+        'p1': {'id': 'g', 'name': 'B'},
+      });
+      final v = OnlineService.computeView(data, 'g');
+      expect(v.isHost, isTrue, reason: '남은 최저 좌석이 승계');
+      expect(v.iShouldClaimHost, isTrue, reason: '새 방장은 RTDB에 확정해야');
+    });
+
+    test('기록된 방장이 더 높은 좌석에 있어도(낮은 좌석에 타인) 승계되지 않는다', () {
+      // 낮은 좌석 p0=타인('g'), 높은 좌석 p1=기록 방장('h'). 방장 present → 유지.
+      final data = lobby({
+        'p0': {'id': 'g', 'name': 'B'},
+        'p1': {'id': 'h', 'name': '방장'},
+      });
+      expect(OnlineService.computeView(data, 'h').isHost, isTrue);
+      final g = OnlineService.computeView(data, 'g');
+      expect(g.isHost, isFalse, reason: '기록 방장이 있으면 낮은 좌석이라도 안 뺏음');
+      expect(g.iShouldClaimHost, isFalse);
+    });
+
+    test('방장 사라지고 여러 명 남으면 정확히 한 명(최저 좌석)만 방장', () {
+      // host 'h' 사라짐. p1='g'(seat1), p2='k'(seat2) 남음.
+      final data = lobby({
+        'p1': {'id': 'g', 'name': 'B'},
+        'p2': {'id': 'k', 'name': 'C'},
+      });
+      final g = OnlineService.computeView(data, 'g');
+      final k = OnlineService.computeView(data, 'k');
+      expect(g.isHost, isTrue);
+      expect(k.isHost, isFalse, reason: '방장은 단 한 명(최저 좌석)');
+      expect(g.iShouldClaimHost, isTrue);
+    });
+  });
+
   group('파파라치 온라인 엿보기 (computeView)', () {
     // p0=파파라치(12), p1·p2=일반. p0가 p1을 엿보기. p1·p2만 제출.
     Map<String, Object?> peekRoom() => {
