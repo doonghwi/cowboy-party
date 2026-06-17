@@ -98,6 +98,14 @@ List<String> _checkInvariants({
     // 8) 피격은 사망으로 이어진다(의사 힐은 hit를 끈다); 죽은 자는 못 맞는다.
     if (out.hit[s] && out.aliveAfter[s]) v.add('seat $s hit but still alive');
     if (out.hit[s] && !aliveBefore[s]) v.add('seat $s hit while dead-before');
+    // 8b) 사인(死因) 표시 플래그는 실제 사망일 때만 — 살아남은 좌석에 켜져 있으면
+    //     '저주 사망!'/'반사 사망' 연출·배너가 잘못 뜬다(의사 자힐 누락 버그).
+    if (out.curseKill[s] && out.aliveAfter[s]) {
+      v.add('seat $s curseKill set but alive (거짓 저주사망)');
+    }
+    if (out.reflectKill[s] && out.aliveAfter[s]) {
+      v.add('seat $s reflectKill set but alive (거짓 반사사망)');
+    }
 
     // 3) 죽은 자는 어떤 행동/능력도 발동하지 않고 총알도 그대로.
     if (!aliveBefore[s]) {
@@ -179,6 +187,22 @@ List<String> _checkInvariants({
         if (cf > curseFuseBefore(s)) {
           v.add('curseFuse[$s] increased ${curseFuseBefore(s)}->$cf (non-cast)');
         }
+      }
+    }
+    // 5b) 재시전 리셋 금지(제보 #2, newlyCast로 가려지지 않는 강한 가드):
+    //     도화선이 **2 이상**(이번 턴 만료되지 않음)이고 시전자가 생존 중이면,
+    //     그 저주는 7a에서 감소만 되고(여전히 >0) 7b의 재시전 가드가 막으므로
+    //     도화선은 반드시 정확히 1 줄어야 한다. 그대로거나 늘면(=재시전 리셋) 버그.
+    //     fuse==1은 이번 턴 만료·해제(의사 자힐로 생존 시 0으로 풀려 재시전 가능)라
+    //     정당한 증가가 있을 수 있어 제외. 시전자 사망으로 해제 후 새 저주도
+    //     oldCasterAlive=false로 자연 제외된다.
+    final ccBefore = curseCasterBefore(s);
+    final oldCasterAlive =
+        ccBefore >= 0 && ccBefore < n && out.aliveAfter[ccBefore];
+    if (!voided && curseFuseBefore(s) > 1 && oldCasterAlive) {
+      if (cf >= curseFuseBefore(s)) {
+        v.add('curseFuse[$s] 시전자 생존·만료전인데 감소 안 함 '
+            '${curseFuseBefore(s)}->$cf (재시전 리셋 의심)');
       }
     }
   }

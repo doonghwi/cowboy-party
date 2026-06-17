@@ -18,6 +18,9 @@
 ## 완료
 (처리되면 cowboy-fix-loop가 여기로 옮김)
 
+### 2026-06-17 bugloop reveal/curse 엣지 헌팅 (cycle 10) — 실버그 1건
+- [x] (P2) 의사가 저주 만료·덫 반사를 자힐로 버틴 턴, 사인(死因) 표시 플래그가 산 의사에게 남음 — 재현: 의사가 저주에 걸려 10턴 뒤 만료될 때(또는 덫 놓은 사냥꾼을 쏴 반사될 때) 자힐로 생존 / 기대: 살아남았으니 어떤 사망 연출도 없음 / 실제: `의사 자힐 단계가 hit만 끄고 curseKill·reflectKill는 안 꺼서` 좌석에 '저주 사망!'/'반사 사망' 연출(circular_table)·사망 배너(online/offline)가 산 의사에게 잘못 표시 / 근본원인: party_logic 5단계 의사 힐이 `hit[i]=false`만 하고 사인 플래그 미정리(리셋 4b는 정리하는데 힐은 누락) / 수정: 힐 시 `curseKill[i]=false; reflectKill[i]=false`도 정리. / 발견경위: 저주 재시전 회귀를 막는 퍼즈 불변식을 강화하다 의사-저주만료-재시전 경로가 노출돼 curseKill 잔류를 포착. / 회귀: fuzz_party_logic에 **사인 플래그⟹실제 사망** 불변식(curseKill/reflectKill && alive → 위반) + fuzz_edge 의사-저주만료-재시전·의사-덫반사 자힐 2종. analyze 0 / test 174. 화면: party_logic.dart
+
 ### 2026-06-17 bugloop 적대적 시나리오 + 인코딩 경화 (cycle 8)
 - [x] (P3·잠복) `Move.dualShoot` 인코딩이 두 번째 대상 없음(target2=-1)일 때 손상 — 근본원인: `encode()`가 `100 + target*8 + target2`라 target2=-1이면 `99+target*8` → decode 시 다른 행동(예: target=0→99→trap)으로 오역. **현재 UI에선 도달 불가**(더블 빵야 confirm이 `selectedTarget2>=0`을 요구해 게이트됨, 2인전에선 외길이라 발사 자체 불가). 하지만 온라인 결정성의 핵심인 Firebase 정수↔Move 왕복이 잠재적으로 깨질 수 있어 경화. / 수정: 좌석은 0..5뿐이라 미사용인 **슬롯 7**에 target2=-1을 실어 보내고 decode가 7→-1로 복원. **기존 유효코드(t2 0..5)는 그대로라 버전 스큐 없음.** / 테스트: party_logic_test에 전 행동종류×전좌석×연막 무손실 왕복 + 더블빵야 전쌍/외길 왕복 + 코드 유일성(충돌 0) 추가. 화면: party_logic.dart
 - [x] (P2) 적대적/퇴행 시나리오 스크립트 테스트 — `test/adversarial_scenarios_test.dart`: 전원 영원히 가만히(자원불변·미종료), 전원 방어 스테일메이트, 마지막 2인 상호사살→무승부, 긴 저주 체인(퓨즈 10→0 단조·만료턴 사망·시전자 사망시 해제), ???vs???(결정적), 최대장전 평화주의자 승리 + **동시 2인 도달은 단독승자 없음(ongoing)** + 평화주의자 발사 불가. **위반 0건** — 엔진은 극단 대국에서도 멈추거나 거짓승리 안 냄. 화면: test/adversarial_scenarios_test.dart

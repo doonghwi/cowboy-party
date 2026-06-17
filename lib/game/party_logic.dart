@@ -545,11 +545,15 @@ TurnOutcome resolvePartyTurn({
     }
   }
 
-  // 5) 의사: 게임당 1회 치명상 버팀.
+  // 5) 의사: 게임당 1회 치명상 버팀. 살아남았으므로 사인(死因) 표시 플래그도 모두
+  //    지운다 — 안 그러면 의사가 저주 만료·덫 반사를 버틴 턴에 '저주 사망!'/'반사
+  //    사망' 연출과 사망 배너가 산 의사에게 잘못 뜬다.
   final healed = List<bool>.filled(n, false);
   for (var i = 0; i < n; i++) {
     if (hit[i] && chars[i] == CharId.doctor && !doctorUsed[i]) {
       hit[i] = false;
+      curseKill[i] = false;
+      reflectKill[i] = false;
       healed[i] = true;
       doctorUsed[i] = true;
     }

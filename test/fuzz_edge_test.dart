@@ -359,6 +359,52 @@ void main() {
       expect(st.curseCaster[1], 2, reason: '새 시전자는 B(2)');
       expect(out.voodooCast[2], isTrue, reason: 'B의 새 저주는 표시됨');
     });
+
+    test('의사가 저주 만료를 자힐로 버틴 같은 턴, 부두 재시전은 새 저주로 걸린다', () {
+      // 0=의사(저주 fuse 1), 1=부두. 저주가 이번 턴 만료→의사 자힐로 생존→저주
+      // 해제(0). 같은 턴 부두가 재시전하면 (이제 비저주라) 새 저주가 걸려야 한다.
+      // 만료턴(fuse==1) 해제는 정당한 재시전 — 활성 저주를 리셋하는 버그와 다르다.
+      final chars = [CharId.doctor, CharId.voodoo];
+      final base = PartyState.initial(chars);
+      final primed = PartyState(
+        doctorUsed: base.doctorUsed, // 자힐 미사용
+        trapUsed: base.trapUsed,
+        smokeLeft: base.smokeLeft,
+        reloads: base.reloads,
+        paparazziUsed: base.paparazziUsed,
+        resetterUsed: base.resetterUsed,
+        curseFuse: [1, 0], // 의사 이번 턴 만료 예정
+        curseCaster: [1, -1],
+      );
+      final out = run(
+        moves: [const Move.idle(), Move.voodoo(0)],
+        ammo: [0, 0],
+        alive: [true, true],
+        chars: chars,
+        state: primed,
+      );
+      expect(out.healed[0], isTrue, reason: '의사가 저주 만료 사망을 자힐로 버팀');
+      expect(out.curseKill[0], isFalse);
+      expect(out.aliveAfter[0], isTrue);
+      expect(out.stateAfter!.curseFuse[0], kCurseFuse,
+          reason: '만료·해제된 자리에 새 저주(10)');
+      expect(out.stateAfter!.curseCaster[0], 1);
+      expect(out.voodooCast[1], isTrue);
+    });
+
+    test('의사가 덫 반사를 자힐로 버티면 반사사망 표시가 남지 않는다', () {
+      // 0=의사(빵야), 1=사냥꾼(덫). 덫 놓은 사냥꾼을 쏘면 반사로 죽을 뻔하나 자힐로
+      // 생존 — reflectKill이 산 의사에게 남으면 '반사 사망' 연출이 잘못 뜬다.
+      final out = run(
+        moves: [Move.shoot(1), const Move.trap()],
+        ammo: [1, 0],
+        alive: [true, true],
+        chars: [CharId.doctor, CharId.hunter],
+      );
+      expect(out.healed[0], isTrue, reason: '의사가 반사 사망을 자힐로 버팀');
+      expect(out.reflectKill[0], isFalse, reason: '살아남았으니 반사사망 표시 없음');
+      expect(out.aliveAfter[0], isTrue);
+    });
   });
 
   // ---- 리셋(무효) 상호작용 ----
