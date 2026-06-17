@@ -508,7 +508,7 @@ class CircularTable extends StatelessWidget {
                           horizontal: 8, vertical: 3),
                       decoration: BoxDecoration(
                         color: CD.gold,
-                        borderRadius: BorderRadius.circular(10),
+                        borderRadius: BorderRadius.circular(CD.rChip),
                         boxShadow: [
                           BoxShadow(
                               color: CD.gold.withValues(alpha: 0.5),

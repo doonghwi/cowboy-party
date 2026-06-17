@@ -18,6 +18,22 @@ class CD {
   static const gold = Color(0xFFD9A441); // reload
   static const nova = Color(0xFFF2A93B); // 슈퍼빵야 (gold-fire)
 
+  // ── Design tokens (P4 consistency). Use these instead of ad-hoc numbers so
+  // spacing/rounding stay coherent. Palette/fonts above define the identity;
+  // these only standardise rhythm. ──
+  /// Spacing scale (4-pt grid).
+  static const gapXs = 4.0;
+  static const gapSm = 8.0;
+  static const gapMd = 12.0;
+  static const gapLg = 16.0;
+  static const gapXl = 24.0;
+
+  /// Corner-radius scale (snap to the nearest tier).
+  static const rChip = 10.0; // badges, small pills
+  static const rCard = 14.0; // standard cards / buttons (most common)
+  static const rPanel = 18.0; // large panels, bottom sheets
+  static const rPill = 24.0; // fully-rounded banners
+
   // Dusk sky tones for the painted background.
   static const skyTop = Color(0xFF3A2A55);
   static const skyMid = Color(0xFFC8541E);

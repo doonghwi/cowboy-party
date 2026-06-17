@@ -97,7 +97,7 @@ class SeatCard extends StatelessWidget {
             : isMe
                 ? CD.gold.withValues(alpha: 0.22)
                 : CD.parchment.withValues(alpha: 0.9),
-        borderRadius: BorderRadius.circular(mini ? 13 : 16),
+        borderRadius: BorderRadius.circular(CD.rCard),
         border: Border.all(
           color: borderColor,
           width: (isMe || targeted) ? 2.5 : 1.5,
@@ -184,7 +184,7 @@ class SeatCard extends StatelessWidget {
                         horizontal: 5, vertical: 2),
                     decoration: BoxDecoration(
                       color: charDef(char).color,
-                      borderRadius: BorderRadius.circular(9),
+                      borderRadius: BorderRadius.circular(CD.rChip),
                       border: Border.all(color: Colors.white, width: 1.2),
                     ),
                     child: Row(
@@ -213,7 +213,7 @@ class SeatCard extends StatelessWidget {
                   const EdgeInsets.symmetric(horizontal: 6, vertical: 1),
               decoration: BoxDecoration(
                 color: const Color(0xFF5B3A8E),
-                borderRadius: BorderRadius.circular(9),
+                borderRadius: BorderRadius.circular(CD.rChip),
                 border: Border.all(color: Colors.white, width: 1.2),
               ),
               child: Row(
@@ -256,7 +256,7 @@ class SeatCard extends StatelessWidget {
                     const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
                 decoration: BoxDecoration(
                   color: charDef(char).color,
-                  borderRadius: BorderRadius.circular(8),
+                  borderRadius: BorderRadius.circular(CD.rChip),
                 ),
                 child: Text(abilityFx!,
                     style: const TextStyle(
