@@ -277,13 +277,19 @@ class OnlineService {
   /// F4: 방 초대 링크. 이 링크로 들어오면 해당 방으로 입장(main.dart 딥링크 처리).
   static String inviteLink(String code) => '$webBaseUrl?room=$code';
 
+  /// 쿼리/딥링크 값에서 방 코드 정규화 — 대문자 4자만 유효(코드 길이는
+  /// [generateRoomCode]와 동일). 그 외(null·공백·길이불일치)는 null.
+  /// 순수함수라 단위테스트 가능(초대 링크 라운드트립 검증).
+  static String? parseRoomCode(String? raw) {
+    if (raw == null) return null;
+    final code = raw.trim().toUpperCase();
+    return code.length == 4 ? code : null;
+  }
+
   /// 현재 URL/딥링크에서 방 코드 추출(웹). 없으면 null.
   static String? roomCodeFromUrl() {
     try {
-      final c = Uri.base.queryParameters['room'];
-      if (c == null) return null;
-      final code = c.trim().toUpperCase();
-      return code.length == 4 ? code : null;
+      return parseRoomCode(Uri.base.queryParameters['room']);
     } catch (_) {
       return null;
     }
