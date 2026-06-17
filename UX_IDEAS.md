@@ -615,3 +615,41 @@
 **의존/정책 선행 필요(USER-ACTION)**: 시즌 패스(#66)·푸시(#71~75)·현지화(#101)·세이프티(#110) — 각각 무과금 기조·알림 정책·글로벌 의향·연령등급 결정이 먼저.
 
 > 참고: ICE는 추정치 기반 — 실제 채택은 사용자 우선순위/리소스에 따름. 점수는 "어디부터 보면 좋은지" 가이드일 뿐.
+
+---
+
+## 2026-06-17 · 심화 스펙(구현 준비) — S6~S9 mock-level 상세 — [3차 라운드 / 심화]
+
+> 쇼트리스트 "다음 분기" 항목을 구현 직전 수준으로. 코드 위치는 확인된 실제 심볼 기준. **제안 전용(코드 무수정).**
+> 근거: 온라인 멀티는 단일플레이 대비 장기 리텐션 2배 — 재대결/복귀로 세션을 잇는 게 핵심. [출처: CrazyGames 멀티플레이 문서]
+
+### S6 — 데일리 streak 복구 (개선안 #21 구체화) · 이탈 트리거 제거
+- **현 로직**: `claimDaily()`가 `_dailyLast==어제(yKey)`면 streak+1, 아니면 1로 리셋(`meta_service.dart:402-410`). 즉 하루라도 거르면 `_dailyStreak`가 1로 떨어짐.
+- **추가**: 출석 화면 진입 시 "끊김" 감지 = `canClaimDaily && _dailyLast != 어제 && 직전 streak ≥ 3`(직전값 보관 필요: claim 직전 `_dailyStreak`를 `_prevStreak`로 저장). 끊긴 상태면 보상받기 위 **복구 배너**.
+- **UI 카피**: "어제 깜빡했어요? 🤠 연속 {prev}일을 코인 {cost}개로 되살릴 수 있어요" + [되살리기]/[새로 시작]. cost는 streak 길이 비례(예: min(prev×20, 200)). **첫 끊김은 1회 무료**(관대함, `freeReviveUsed` 플래그).
+- **동작**: [되살리기] → 코인 차감 → `_dailyStreak = _prevStreak`(오늘 claim은 별도) → Sfx.coin + 성공 토스트.
+- **코드 위치**: `meta_service.dart`(`_prevStreak`/`freeReviveUsed` 저장·`reviveStreak()`), `rewards_tab.dart`(배너).
+- **AC**: 3일+ streak가 끊긴 다음 진입 시에만 노출 / 첫 회 무료·이후 코인 / 되살리면 streak 복원·재노출 안 함 / 코인 부족 시 명확 안내.
+
+### S7 — 매치 리캡 + MVP (개선안 #8 구체화) · 끝난 판에 의미
+- **데이터**: 엔진이 매 턴 `Move`(kind/target)·생존배열·winner 추적(`party_logic.dart`). 게임 동안 누적 카운터만 추가하면 됨: `turnCount`, 좌석별 `kills`(내 빵야/슈퍼빵야로 죽은 수), `superShotsUsed`.
+- **표시(결과 카드 본문, #6 공유와 같은 영역)**: 한 줄 "⏱ 12턴 · 💥 슈퍼빵야 2회 · 🎯 내 처치 2명" + "🏆 이번 판 MVP: {최다 처치자}"(동수면 생존+최소 피격). 패배해도 MVP/하이라이트 노출.
+- **연계**: 이 리캡 텍스트를 #6 공유 카피에 그대로 삽입("12턴 혈투 끝 최후 생존!").
+- **코드 위치**: `offline_game_screen.dart`/`online_game_screen.dart` 게임 state에 카운터, `_resultCard`에 리캡 위젯; 온라인은 집계를 호스트/뷰에서 도출.
+- **AC**: 모든 결과에 턴수·핵심 통계·MVP 1줄 / 추가 네트워크 라운드트립 없이 기존 상태로 산출 / 동점 MVP 규칙 결정적.
+
+### S8 — 온라인 원탭 재대결 (개선안 #7 구체화) · 세션 연장
+- **기존 자산**: RoomView에 `rematchCount` 존재 + 게임 종료 후 대기실 복귀 흐름(#1 주석). 즉 재시작 인프라 일부 있음 → "원탭" UX로 마감.
+- **흐름**: 온라인 결과 카드에 [같은 멤버로 다시 ↻] (전체폭, CD.rust). 누구나 누르면 본인 "준비" 표시 → `rematchCount`/ready 집계. **과반(또는 방장)** 준비되면 방장이 `startGame` 재호출(같은 좌석·캐릭터 유지). 카운트 "3/4 준비됨" 실시간.
+- **이탈 처리**: 일부가 홈으로 나가면 빈 좌석은 닫고 2명+면 진행. 30초 내 미수렴 시 대기실로.
+- **코드 위치**: `online_service.dart`(rematch ready 집계·재시작), `online_game_screen.dart` 결과부 버튼.
+- **AC**: 결과→다음 판이 방 재생성 없이 1탭 / 준비 인원 실시간 표시 / 이탈해도 멈추지 않음 / 좌석·캐릭터 유지.
+
+### S9 — 컬렉션 진행 미터 (개선안 #16 구체화) · 수집 동기
+- **데이터**: `Meta.I.isUnlocked`/`kCharacters`로 보유 수 즉시 계산(`unlocked = kCharacters.where((c)=>isUnlocked(c.id)).length`). mystery 제외/포함 정책 1개 선택.
+- **UI(characters_tab 최상단 sliver)**: "총잡이 도감 {n}/{total}" + 진행바(LinearProgressIndicator, CD.gold) + 우측 % . 진행바 아래 "다음 해금 추천"(#18): 현재 코인으로 살 수 있는 가장 싼 미보유 1개 칩, 없으면 "앞으로 {N}코인".
+- **완성 시(#17 연계)**: 100%면 미터 자리에 "도감 완성! 🏆" + 완성 보상 안내.
+- **코드 위치**: `characters_tab.dart` 상단 SliverToBoxAdapter, 데이터는 Meta getter(가능하면 `unlockedCount` getter 추가).
+- **AC**: 상점 진입 즉시 전체 진척 가시 / 추천 1개 정확(가격·보유 반영) / 해금 시 즉시 갱신(이미 Meta listener 있음) / 100% 상태 분기.
+
+> 남은 심화 후보: S10 양방향 초대 보상(#47, 어뷰징 설계), S11 연결끊김 배너(#33), S12 결과 승리 연출(#9). 요청 시 mock-level로.
