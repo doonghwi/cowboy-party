@@ -158,14 +158,18 @@ class Move {
       case ActKind.voodoo:
         return 50 + target; // 50..55
       case ActKind.dualShoot:
-        return 100 + target * 8 + target2; // t1*8+t2
+        // t1*8+t2. 좌석은 0..5뿐이라 슬롯 6·7은 미사용 — 두 번째 대상이
+        // 없을 때(-1: 외길 등)는 슬롯 7로 실어 보낸다. 기존 유효 코드(t2 0..5)는
+        // 그대로라 버전 스큐 없음. decode가 7을 -1로 되돌린다.
+        return 100 + target * 8 + (target2 >= 0 ? target2 : 7);
     }
   }
 
   static Move decode(int c) {
     if (c >= 100) {
       final d = c - 100;
-      return Move.dualShoot(d ~/ 8, d % 8);
+      final t2 = d % 8;
+      return Move.dualShoot(d ~/ 8, t2 == 7 ? -1 : t2);
     }
     if (c >= 50 && c <= 55) return Move.voodoo(c - 50);
     if (c == 47) return const Move.reset();
