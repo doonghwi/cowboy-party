@@ -187,4 +187,33 @@ void main() {
       expect(out.hit.any((h) => h), isFalse);
     });
   });
+
+  group('의사 자힐과 승패 판정', () {
+    test('상호 사살에서 의사가 자힐로 버티면 무승부가 아니라 단독 승리', () {
+      final g = _Game([CharId.doctor, CharId.commoner]);
+      g.step([const Move.reload(), const Move.reload()]); // 둘 다 1발
+      final out = g.step([const Move.shoot(1), const Move.shoot(0)]);
+      expect(out.healed[0], isTrue, reason: '의사가 치명상 버팀');
+      expect(out.curseKill[0], isFalse);
+      expect(out.reflectKill[0], isFalse);
+      expect(out.aliveAfter, [true, false]);
+      expect(out.status, GameStatus.won, reason: '의사 생존 → 무승부 아님');
+      expect(out.winner, 0);
+    });
+
+    test('두 의사가 서로 사살하면 둘 다 자힐로 버텨 게임이 계속된다', () {
+      final g = _Game([CharId.doctor, CharId.doctor]);
+      g.step([const Move.reload(), const Move.reload()]);
+      final out = g.step([const Move.shoot(1), const Move.shoot(0)]);
+      expect(out.healed[0], isTrue);
+      expect(out.healed[1], isTrue);
+      expect(out.aliveAfter, [true, true], reason: '둘 다 자힐 생존');
+      expect(out.status, GameStatus.ongoing, reason: '거짓 무승부/승리 없음');
+      // 자힐은 게임당 1회 — 다음 상호 사살은 진짜 무승부.
+      g.step([const Move.reload(), const Move.reload()]);
+      final out2 = g.step([const Move.shoot(1), const Move.shoot(0)]);
+      expect(out2.aliveAfter, [false, false], reason: '자힐 소진 → 둘 다 사망');
+      expect(out2.status, GameStatus.draw);
+    });
+  });
 }
