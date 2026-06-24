@@ -3,7 +3,7 @@
          Flutter only adds INTERNET to the debug/profile manifests by default. -->
     <uses-permission android:name="android.permission.INTERNET"/>
     <application
-        android:label="카우보이 파티"
+        android:label="카우보이"
         android:name="${applicationName}"
         android:icon="@mipmap/ic_launcher">
         <activity
