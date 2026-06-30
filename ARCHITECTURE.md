@@ -114,12 +114,14 @@ action_bar.dart가 이 분류대로 렌더하고, party_logic이 판정한다.
 ### 오디오 (audio/sfx.dart) — 효과음 + 배경음악
 - **`Sfx`**: 효과음. `Sfx.play('shot')` → `assets/sounds/shot.wav`. 음소거 토글은 SharedPreferences `sfx_muted`.
   실패는 전부 삼킨다(소리는 앱을 절대 안 깬다). 발사/명중/회피/방어/덫/연막/슈퍼/장전/승패/구매/탭에 연결.
-- **`Bgm`**: 배경음악(루프). `Bgm.play('menu'|'battle')` → `assets/music/<name>.mp3`. 단일 플레이어 +
+- **`Bgm`**: 배경음악(루프). `Bgm.play('menu'|'battle')` → `assets/music/<name>.mp3`(Pixabay 음원, 루프 가공). 단일 플레이어 +
   페이드아웃→인 전환. **메뉴=shell initState, 전투=`*_game_screen.dart` initState, 게임 dispose 시 'menu'로 복귀.**
-  음소거는 `Sfx`와 공유(`Sfx.setMuted`→`Bgm.applyMute`). **mp3 파일이 없으면 무음**(현재 Suno로 제작 예정 → 파일만 드롭하면 자동 재생).
-- **에셋 합성**: `tool/make_sounds.py`(순수 stdlib, seed 고정, 저작권 0)가 효과음 12종을 합성 —
-  총성 협곡 에코(reverb)·하모닉 팡파레·서브 베이스. 바꾸려면 해당 `write_wav` 블록만 고쳐 재실행.
-  BGM 제작·루프 가공·Suno 프롬프트는 `SOUND_GUIDE.md`.
+  - **볼륨**: 배경 수준으로 매우 낮음 — menu 0.03 / battle 0.024(효과음 0.7~1.0 대비). 호출부에서 `volume:`으로 지정, 기본값 `_vol=0.03`.
+  - **페이드인**: `_fadeIn()` 약 2초 ease-in(제곱 곡선) — 탁 시작하지 않고 서서히 스며듦.
+  - **웹 자동재생 대응**: 브라우저는 첫 제스처 전 오디오를 막음 → `main.dart`에서 `kIsWeb`일 때 첫 PointerDown에 `Bgm.kickStart()`로 현재 트랙을 살림(모바일은 미적용). mp3 없으면 무음(앱 안 깨짐).
+  - 음소거는 `Sfx`와 공유(`Sfx.setMuted`→`Bgm.applyMute`). **토글 UI 2곳**: shell 우상단 스피커 버튼(`volume_up`/`volume_off`) + 설정 시트의 '효과음' 스위치.
+- **에셋**: 효과음 = `tool/make_sounds.py`(순수 stdlib, seed 고정, 저작권 0) 합성 12종(총성 협곡 에코·하모닉 팡파레·서브 베이스).
+  BGM = Pixabay Content License 2곡(menu=Texas Cowboy Wild West Intro 263183, battle=Sound of Desert 335725), ffmpeg crossfade-fold 무이음 루프 가공. 출처·라이선스 `CREDITS.md`, 가이드 `SOUND_GUIDE.md`.
 
 ### 위젯 (widgets/)
 - **action_bar.dart**: 하단 행동 선택 바. **circular_table.dart**(+ seat_card.dart): 원형 테이블·

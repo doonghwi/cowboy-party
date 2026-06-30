@@ -3,7 +3,7 @@
 > 새 세션에서 이 파일을 먼저 읽고 이어서 진행. 모든 작업물은 디스크에 있고 main에 커밋됨.
 > ⚠️ 아래 좌표 일부는 구 Windows 경로(C:\dev\…) — 현재는 Mac `/Users/doonghwi/Documents/dailyapp/`.
 
-## 2026-06-30 사운드 개선 — 효과음+BGM **main 머지 완료, .aab v1.0.0+4 빌드됨 (Play 업로드 대기)**
+## 2026-06-30 사운드 개선 — 효과음+BGM **웹 배포 완료 · .aab v1.0.0+5 (Play 업로드 대기)**
 - **효과음 합성 강화**(`tool/make_sounds.py`): 총성에 협곡 에코(reverb), 팡파레/패배에 잔향+하모닉,
   임팩트(hit/trap/super)에 서브 베이스. 파일명·길이·코드 배선 그대로라 재배선 0. `assets/sounds/*.wav` 12종 재생성.
 - **BGM 인프라 신규**(`lib/audio/sfx.dart`의 `Bgm`): 루프 재생 + 페이드아웃→인 전환 + 음소거 공유(`Sfx.setMuted`→`Bgm.applyMute`).
@@ -17,17 +17,17 @@
 - **가이드**: `SOUND_GUIDE.md` — Suno 프롬프트·ffmpeg 루프 가공·라이선스 체크(참고용, 실제는 Pixabay 채택).
 - **CREDITS.md**: menu/battle.mp3 출처·라이선스 2행 추가 완료.
 - **공지 추가 완료**: `announcements.dart` 최상단 '🎵 배경음악이 깔렸어요'(효과음·BGM·음소거 안내).
-- **main 머지 완료** (FF, 충돌 0): main = 새 아이콘 + 새 그래픽 + 효과음 + BGM 2곡 + 공지, **version 1.0.0+4**.
-- **릴리스 .aab 빌드+검증 완료**: `build/app/outputs/bundle/release/app-release.aab` (70.3MB).
-  - 서명 = **업로드 키**(SHA256 `12:C1:DA:9C…`, 디버그 아님 — 처음엔 worktree에 key.properties 없어 디버그 폴백됐다가 복사 후 재빌드로 해결).
-  - versionCode **4** / versionName 1.0.0, 음악 에셋 포함 확인.
-- 검증: `dart analyze` 0건. .aab 서명/버전/에셋 검증 완료. **인게임 청감만 사용자 확인 권장**(소리는 스샷 불가).
+- **오디오 튜닝(사용자 확정)**: 볼륨 배경 수준으로 대폭 하향 **menu 0.03 / battle 0.024**(효과음 0.7~1.0 대비). 페이드인 **~2초 ease-in**. 우상단 **스피커 토글 버튼** 추가(설정 시트 '효과음' 스위치와 공유). 전투음악은 셋업화면부터 재생(사용자 요청으로 유지).
+- **웹 자동재생 대응**: `main.dart`에서 `kIsWeb`일 때 첫 PointerDown에 `Bgm.kickStart()` → 메뉴 BGM 살림(모바일 무영향).
+- **웹 배포 완료**(`deploy_web.sh` → gh-pages, https://doonghwi.github.io/cowboy-party/): 6/17 이후 밀려있던 2주치 업데이트 + 사운드 전부 라이브. 스모크 통과(rendered=true). ⚠️ 웹 배포는 **수동**(Actions 없음) — 코드 바꾸면 `bash deploy_web.sh` 다시 돌려야 함.
+- **main 머지+푸시 완료**: origin/main HEAD에 새 아이콘+그래픽+효과음+BGM+공지+오디오튜닝 전부, **version 1.0.0+5**.
+- **CREDITS.md**: menu/battle.mp3 출처·라이선스. **공지**: announcements.dart '🎵 배경음악이 깔렸어요'.
+- ⚠️ **이전 .aab v4는 구 오디오(볼륨 큼·스피커 버튼 없음)** — 업로드 금지. **v5로 재빌드한 .aab를 올릴 것**.
 - **남은 사용자 액션** ⚠️:
-  1. **Play Console에 `app-release.aab`(v4) 업로드** → 출시. (이미 +3 작업 중이었어도 +4가 덮음)
-  2. 업로드/출시 후 `dashboard-site/status.json` 갱신, `LEGAL_CHECKLIST.md` BGM 라이선스 항목 체크(CREDITS는 기록됨).
-  3. (선택) 인게임 청감으로 볼륨(menu 0.55/battle 0.45)·크로스페이드 조정 원하면 알려주기.
-  4. (선택) 승리 스팅어 3번째 곡 원하면 파일 주면 연동.
-- worktree `worktree-sound-work`는 main에 모두 머지됨(미푸시). 정리(머지 완료된 worktree) 가능.
+  1. **Play Console에 v5 `app-release.aab` 업로드** → 출시. (현재 비공개테스트 Alpha 활성 버전은 vCode 1, v5가 덮음)
+  2. 업로드/출시 후 `dashboard-site/status.json` 갱신, `LEGAL_CHECKLIST.md` BGM 라이선스 항목 체크.
+  3. (선택) 승리 스팅어 3번째 곡 원하면 파일 주면 연동.
+- worktree `worktree-sound-work`는 main에 모두 머지됨. 정리 가능.
 
 ## 2026-06-15 스토어 출시 준비 (STORE_RELEASE_PREP.md 실행 완료)
 세션이 **계정/결제/제출 없이 가능한 모든 것**을 준비함. 상세·남은 사용자 액션은 `STORE_RELEASE_PREP.md` 하단.
