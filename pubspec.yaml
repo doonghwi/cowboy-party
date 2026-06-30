@@ -2,7 +2,7 @@ name: cowboy_party
 description: "Cowboy Party — 2 to 6 cowboys in a circle, one action a turn, last one standing wins."
 publish_to: 'none'
 
-version: 1.0.0+5
+version: 1.0.0+6
 
 environment:
   sdk: ^3.12.1

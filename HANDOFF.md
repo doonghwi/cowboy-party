@@ -3,7 +3,8 @@
 > 새 세션에서 이 파일을 먼저 읽고 이어서 진행. 모든 작업물은 디스크에 있고 main에 커밋됨.
 > ⚠️ 아래 좌표 일부는 구 Windows 경로(C:\dev\…) — 현재는 Mac `/Users/doonghwi/Documents/dailyapp/`.
 
-## 2026-06-30 사운드 개선 — 효과음+BGM **✅ 완료: 웹 라이브 + 안드로이드 v5 Play 업로드됨(비공개테스트 Alpha)**
+## 2026-06-30 사운드 개선 — 효과음+BGM+게임흐름 **✅ 웹 라이브 · 안드로이드 v6 빌드(Play 업로드 대기)**
+> v6 신규(2026-06-30 후속): ① 메뉴BGM 끊김 수정(웹 `onPlayerComplete` 수동 루프 — audioplayers_web은 ReleaseMode.loop 미동작) + 탭 전환 시 `Bgm.ensure('menu')`. ② 백그라운드 재생 방지(`main.dart` 라이프사이클 옵저버 → `Bgm.onLifecycle`로 paused/hidden 정지·resumed 재개). ③ 컴퓨터전 자동진행 — `offline_game_screen` reveal '계속하기'·관전 '다음 턴 보기' 버튼 제거 → 타이머 자동(`_revealHold` 2.2s/`_spectateHold` 1.1s, 탭하면 즉시 스킵). 봇은 원래 자동. 공지 '🎮 컴퓨터 대결이 더 매끄러워졌어요' 추가. **승리음악은 보류(사용자가 나중에)**.
 - **효과음 합성 강화**(`tool/make_sounds.py`): 총성에 협곡 에코(reverb), 팡파레/패배에 잔향+하모닉,
   임팩트(hit/trap/super)에 서브 베이스. 파일명·길이·코드 배선 그대로라 재배선 0. `assets/sounds/*.wav` 12종 재생성.
 - **BGM 인프라 신규**(`lib/audio/sfx.dart`의 `Bgm`): 루프 재생 + 페이드아웃→인 전환 + 음소거 공유(`Sfx.setMuted`→`Bgm.applyMute`).
@@ -22,14 +23,15 @@
 - **웹 배포 완료**(`deploy_web.sh` → gh-pages, https://doonghwi.github.io/cowboy-party/): 6/17 이후 밀려있던 2주치 업데이트 + 사운드 전부 라이브. 스모크 통과(rendered=true). ⚠️ 웹 배포는 **수동**(Actions 없음) — 코드 바꾸면 `bash deploy_web.sh` 다시 돌려야 함.
 - **main 머지+푸시 완료**: origin/main HEAD에 새 아이콘+그래픽+효과음+BGM+공지+오디오튜닝 전부, **version 1.0.0+5**.
 - **CREDITS.md**: menu/battle.mp3 출처·라이선스. **공지**: announcements.dart '🎵 배경음악이 깔렸어요'.
-- **✅ 안드로이드 v5 Play 업로드 완료**(사용자, 2026-06-30): 비공개테스트(Alpha) 트랙. v5 = 업로드키 서명·versionCode 5·음악 포함·오디오튜닝 포함. (구 v4는 옛 오디오라 폐기 — 절대 재사용 금지.)
-  - .aab 위치: `build/app/outputs/bundle/release/app-release.aab`(gitignore, 재빌드는 `flutter build appbundle --release`. worktree에서 빌드 시 `android/key.properties`+`android/app/google-services.json` 메인에서 복사 필요 — 둘 다 시크릿/gitignore).
-- **✅ 웹 라이브**: https://doonghwi.github.io/cowboy-party/ (gh-pages, 오디오튜닝 반영본). 재배포는 `bash deploy_web.sh`(수동).
+- **안드로이드 버전 이력**: v5 업로드됨(비공개테스트 Alpha). **v6 = v5 + 위 게임흐름/BGM 수정** — 빌드·검증 완료, Play 업로드 대기. (구 v4·v5는 후속이라 v6가 최신, v6 올릴 것.)
+  - .aab 위치: `build/app/outputs/bundle/release/app-release.aab`(gitignore, 업로드키 서명·versionCode 6·음악 포함). 재빌드는 `flutter build appbundle --release`. worktree 빌드 시 `android/key.properties`+`android/app/google-services.json` 메인에서 복사 필요(시크릿/gitignore).
+- **✅ 웹 라이브**: https://doonghwi.github.io/cowboy-party/ (gh-pages, v6 코드 반영본). 재배포는 `bash deploy_web.sh`(수동).
 - **남은 항목(선택/후속)**:
-  1. `dashboard-site/status.json` 갱신(원하면) — 아직 미반영.
-  2. `LEGAL_CHECKLIST.md` BGM 라이선스 항목 체크(CREDITS엔 이미 출처·라이선스 기록됨).
-  3. (선택) 승리 스팅어 3번째 곡 원하면 파일 주면 연동. 오디오 추가 튜닝은 `lib/audio/sfx.dart`+각 화면 `Bgm.play` volume 값.
-- worktree `worktree-sound-work`는 main에 모두 머지·푸시됨(origin/main = `c2e408d` 이후). 정리 가능.
+  1. **Play Console에 v6 .aab 업로드**.
+  2. (보류) **승리 음악** — 사용자가 나중에 Pixabay에서 받아 `assets/music/`에 넣으면 승리(over)화면 1회 재생으로 연동. 후보: "Standing In Light (Winner Fanfare)" by AlexGrohl 등 Pixabay victory/fanfare.
+  3. `dashboard-site/status.json` 갱신, `LEGAL_CHECKLIST.md` BGM 항목 체크(CREDITS엔 기록됨).
+  4. 오디오/자동진행 튜닝값: 볼륨 `lib/audio/sfx.dart`+화면별 `Bgm.play` volume, 자동진행 `offline_game_screen`의 `_revealHold`/`_spectateHold`.
+- worktree `worktree-sound-work`는 main에 모두 머지·푸시됨. 정리 가능.
 
 ## 2026-06-15 스토어 출시 준비 (STORE_RELEASE_PREP.md 실행 완료)
 세션이 **계정/결제/제출 없이 가능한 모든 것**을 준비함. 상세·남은 사용자 액션은 `STORE_RELEASE_PREP.md` 하단.
