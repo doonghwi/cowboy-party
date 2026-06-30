@@ -1,6 +1,7 @@
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_database/firebase_database.dart';
 import 'package:flutter/foundation.dart';
+import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 
 import 'audio/sfx.dart';
@@ -50,6 +51,18 @@ Future<void> main() async {
   // 익명 로그인이 콘솔에서 켜져 있으면 게스트도 랭킹에 오를 수 있다(베스트에포트).
   AuthService.I.tryAnonymous();
   runApp(const CowboyPartyApp());
+  // 웹: 브라우저 자동재생 정책상 BGM이 첫 사용자 입력 전엔 막힌다.
+  // 첫 포인터 입력에서 현재 트랙을 살리고 라우트를 제거한다(한 번만).
+  // 모바일은 initState에서 바로 재생되므로 걸지 않는다.
+  if (kIsWeb) {
+    late final void Function(PointerEvent) unlock;
+    unlock = (PointerEvent e) {
+      if (e is! PointerDownEvent) return;
+      Bgm.kickStart();
+      GestureBinding.instance.pointerRouter.removeGlobalRoute(unlock);
+    };
+    GestureBinding.instance.pointerRouter.addGlobalRoute(unlock);
+  }
 }
 
 /// The DailyApp dashboard reads every app's usage from one central RTDB

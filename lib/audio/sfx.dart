@@ -77,6 +77,19 @@ class Bgm {
     await _switch(name);
   }
 
+  /// 웹 자동재생 차단 대응: 브라우저는 첫 사용자 제스처 전엔 오디오를 막는다.
+  /// 첫 탭에서 한 번 호출하면 기억해 둔 현재 트랙을 실제로 재생해 BGM을 살린다.
+  /// (모바일은 이미 재생 중이라 호출하지 않는다 — main.dart에서 kIsWeb일 때만 건다.)
+  static bool _unlocked = false;
+  static void kickStart() {
+    if (_unlocked) return;
+    _unlocked = true;
+    final cur = _current;
+    if (cur != null && !Sfx.muted) {
+      _switch(cur); // 제스처 컨텍스트 안에서 재생 → 브라우저가 허용
+    }
+  }
+
   /// 배경음 정지(페이드아웃). 트랙 기억도 해제.
   static Future<void> stop() async {
     _current = null;
