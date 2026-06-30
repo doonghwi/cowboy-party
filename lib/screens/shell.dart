@@ -41,7 +41,7 @@ class _ShellScreenState extends State<ShellScreen> {
     Meta.I.addListener(_onMeta);
     AuthService.I.addListener(_onMeta);
     // 메뉴 배경음 — 게임 화면에서 돌아오면 게임 화면 dispose가 다시 'menu'로 전환.
-    Bgm.play('menu', volume: 0.10);
+    Bgm.play('menu', volume: 0.03);
     // F4: 초대 링크(?room=CODE)로 들어오면 그 방으로 바로 입장.
     final code = OnlineService.roomCodeFromUrl();
     if (code != null) {

@@ -54,7 +54,7 @@ class Bgm {
 
   static final AudioPlayer _p = AudioPlayer();
   static String? _current; // 재생을 원하는 트랙 (음소거여도 기억)
-  static double _vol = 0.10; // 기본 배경음 볼륨 (효과음보다 한참 낮게 — 배경 수준)
+  static double _vol = 0.03; // 기본 배경음 볼륨 (효과음보다 한참 낮게 — 배경 수준)
   static Timer? _fade;
   static bool _inited = false;
 
