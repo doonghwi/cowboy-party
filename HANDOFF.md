@@ -3,6 +3,27 @@
 > 새 세션에서 이 파일을 먼저 읽고 이어서 진행. 모든 작업물은 디스크에 있고 main에 커밋됨.
 > ⚠️ 아래 좌표 일부는 구 Windows 경로(C:\dev\…) — 현재는 Mac `/Users/doonghwi/Documents/dailyapp/`.
 
+## 2026-06-30 사운드 개선 — 효과음 강화 + BGM 인프라 (worktree `worktree-sound-work`, 미배포)
+- **효과음 합성 강화**(`tool/make_sounds.py`): 총성에 협곡 에코(reverb), 팡파레/패배에 잔향+하모닉,
+  임팩트(hit/trap/super)에 서브 베이스. 파일명·길이·코드 배선 그대로라 재배선 0. `assets/sounds/*.wav` 12종 재생성.
+- **BGM 인프라 신규**(`lib/audio/sfx.dart`의 `Bgm`): 루프 재생 + 페이드아웃→인 전환 + 음소거 공유(`Sfx.setMuted`→`Bgm.applyMute`).
+  메뉴=shell, 전투=게임화면 initState, 게임 dispose 시 'menu' 복귀. `main.dart`에 `Bgm.init()`. pubspec에 `assets/music/` 등록.
+  **mp3 없으면 무음**(앱 안 깨짐) — 빌드/실행 정상.
+- **BGM 실제 배치 완료**(Suno 대신 Pixabay 음원 채택 — Suno 무료티어는 상업 사용 불가): 사용자가 Pixabay에서 2곡 다운로드,
+  ffmpeg로 **crossfade-fold 루프 가공**(꼬리 4초를 머리에 접어 무이음 루프) 후 `assets/music/`에 배치.
+  - `menu.mp3` ← "Country Music Texas Cowboy Wild West Intro" by Maksym Malko (Pixabay 263183), 본체 [8–62s], 50초 루프.
+  - `battle.mp3` ← "Sound of Desert" by Mohamed Hassan (Pixabay 335725), 본체 [1–84s] 끝 페이드 제거, 79초 루프.
+  - 둘 다 **Pixabay Content License**(상업·앱 임베드 허용, 출처표기 불필요). 루프 이음새 검증: 시작/끝 음량 1dB 이내·클릭 없음.
+- **가이드**: `SOUND_GUIDE.md` — Suno 프롬프트·ffmpeg 루프 가공·라이선스 체크(참고용, 실제는 Pixabay 채택).
+- **CREDITS.md**: menu/battle.mp3 출처·라이선스 2행 추가 완료.
+- 검증: `dart analyze lib/` **0건**(flutter lock 점유로 cache dart 직접 분석). 신호레벨 루프 검증 완료, **에뮬 인게임 청감은 사용자 확인 대기**(소리는 스샷 불가).
+- **남은 사용자 액션** ⚠️:
+  1. `flutter run`으로 **인게임 청감 확인**(메뉴↔전투 페이드 전환·볼륨 밸런스·루프 거슬림 여부) → 좋으면 worktree 머지.
+  2. (선택) 승리 스팅어 3번째 곡 원하면 파일 주면 연동.
+  3. **배포 시 공지 추가**(announcements.dart): "효과음이 더 생생해지고, 서부 분위기 배경음악이 깔렸어요" (배포 후에만).
+  4. `LEGAL_CHECKLIST.md` BGM 라이선스 항목 체크(CREDITS는 이미 기록됨).
+- worktree 위치: `.claude/worktrees/sound-work` (branch `worktree-sound-work`). 로컬 커밋만, 미푸시.
+
 ## 2026-06-15 스토어 출시 준비 (STORE_RELEASE_PREP.md 실행 완료)
 세션이 **계정/결제/제출 없이 가능한 모든 것**을 준비함. 상세·남은 사용자 액션은 `STORE_RELEASE_PREP.md` 하단.
 - **개인정보처리방침**: cowboy.gg repo `privacy.html`(한/영) 작성·푸시 → https://doonghwi.github.io/cowboy.gg/privacy.html

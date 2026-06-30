@@ -40,6 +40,7 @@ flutter:
   assets:
     - assets/emoji/
     - assets/sounds/
+    - assets/music/
     - assets/characters/
     - assets/badwords_ko.json
 

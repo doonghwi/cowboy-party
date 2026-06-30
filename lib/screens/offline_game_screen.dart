@@ -39,6 +39,7 @@ class _OfflineGameScreenState extends State<OfflineGameScreen> {
   @override
   void initState() {
     super.initState();
+    Bgm.play('battle', volume: 0.45); // 전투 배경음 (메뉴보다 살짝 낮게)
     if (widget.forcedBots != null) {
       _botCount = widget.forcedBots!.clamp(1, 5);
       WidgetsBinding.instance.addPostFrameCallback((_) => _start());
@@ -120,6 +121,7 @@ class _OfflineGameScreenState extends State<OfflineGameScreen> {
     for (final t in _rxTimers.values) {
       t.cancel();
     }
+    Bgm.play('menu', volume: 0.55); // 메뉴로 복귀 → 메뉴 배경음
     super.dispose();
   }
 
