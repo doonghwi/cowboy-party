@@ -111,6 +111,16 @@ action_bar.dart가 이 분류대로 렌더하고, party_logic이 판정한다.
 - **characters_tab.dart**: 캐릭터 카드(해금/장착). **rewards_tab.dart**: 출석. **ranking_tab.dart**: 시즌 랭킹.
 - **how_to_play_screen.dart**: 규칙·캐릭터 설명(캐릭터 추가 시 자동 반영 — kCharacters 순회).
 
+### 오디오 (audio/sfx.dart) — 효과음 + 배경음악
+- **`Sfx`**: 효과음. `Sfx.play('shot')` → `assets/sounds/shot.wav`. 음소거 토글은 SharedPreferences `sfx_muted`.
+  실패는 전부 삼킨다(소리는 앱을 절대 안 깬다). 발사/명중/회피/방어/덫/연막/슈퍼/장전/승패/구매/탭에 연결.
+- **`Bgm`**: 배경음악(루프). `Bgm.play('menu'|'battle')` → `assets/music/<name>.mp3`. 단일 플레이어 +
+  페이드아웃→인 전환. **메뉴=shell initState, 전투=`*_game_screen.dart` initState, 게임 dispose 시 'menu'로 복귀.**
+  음소거는 `Sfx`와 공유(`Sfx.setMuted`→`Bgm.applyMute`). **mp3 파일이 없으면 무음**(현재 Suno로 제작 예정 → 파일만 드롭하면 자동 재생).
+- **에셋 합성**: `tool/make_sounds.py`(순수 stdlib, seed 고정, 저작권 0)가 효과음 12종을 합성 —
+  총성 협곡 에코(reverb)·하모닉 팡파레·서브 베이스. 바꾸려면 해당 `write_wav` 블록만 고쳐 재실행.
+  BGM 제작·루프 가공·Suno 프롬프트는 `SOUND_GUIDE.md`.
+
 ### 위젯 (widgets/)
 - **action_bar.dart**: 하단 행동 선택 바. **circular_table.dart**(+ seat_card.dart): 원형 테이블·
   트레이서·발동 이펙트. **emo.dart**: Twemoji 이미지. **online_showdown.dart**: 반응속도 결투.

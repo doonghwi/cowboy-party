@@ -40,6 +40,7 @@ Future<void> main() async {
       Meta.I.init(),
       AuthService.I.init(),
       Sfx.init(),
+      Bgm.init(),
     ]).timeout(const Duration(seconds: 6));
   } catch (_) {
     // 일부 초기화가 느리거나 실패해도 게임은 떠야 한다.
