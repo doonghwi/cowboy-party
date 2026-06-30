@@ -15,6 +15,8 @@ import 'theme.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  // 앱이 백그라운드로 가면 BGM 정지, 복귀하면 재개(백그라운드 재생 방지).
+  WidgetsBinding.instance.addObserver(_BgmLifecycleObserver());
   try {
     await Firebase.initializeApp(
       options: DefaultFirebaseOptions.currentPlatform,
@@ -100,6 +102,14 @@ void _recordOpen() {
     });
   } catch (_) {
     // ignore analytics failures
+  }
+}
+
+/// 앱이 백그라운드로 가면 BGM을 멈추고, 돌아오면 재개한다.
+class _BgmLifecycleObserver with WidgetsBindingObserver {
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    Bgm.onLifecycle(state);
   }
 }
 

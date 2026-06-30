@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:audioplayers/audioplayers.dart';
+import 'package:flutter/widgets.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 /// 효과음 재생 (음소거 토글 포함). 실패는 전부 무시 — 소리는 절대 앱을 깨지 않는다.
@@ -65,6 +66,52 @@ class Bgm {
       await _p.setReleaseMode(ReleaseMode.loop);
       await _p.setVolume(0);
     } catch (_) {}
+    // 웹(audioplayers_web)은 ReleaseMode.loop이 안 먹어 곡이 끝나면 그대로 멈춘다
+    // → 곡이 끝나면 현재 트랙을 페이드 없이 즉시 다시 재생해 수동 루프(메뉴음악 끊김 방지).
+    _p.onPlayerComplete.listen((_) async {
+      final cur = _current;
+      if (cur == null || Sfx.muted) return;
+      try {
+        await _p.setVolume(_vol);
+        await _p.play(AssetSource('music/$cur.mp3'));
+      } catch (_) {}
+    });
+  }
+
+  /// 메뉴 화면(셸)에서 호출 — 메뉴 트랙이 어떤 이유로든 꺼져 있으면 되살린다.
+  /// (웹 loop 끊김/탭 전환/포커스 등 대비. 이미 재생 중이면 그대로 둠.)
+  static Future<void> ensure(String name, {double? volume}) async {
+    if (volume != null) _vol = volume;
+    _current = name;
+    if (Sfx.muted || !_inited) return;
+    if (_p.state == PlayerState.playing) return;
+    await _switch(name);
+  }
+
+  /// 앱 라이프사이클 반영 — 백그라운드로 가면 BGM 일시정지, 복귀하면 재개.
+  /// (앱을 나가도 노래가 계속 재생되는 문제 방지. main.dart의 옵저버에서 호출.)
+  static Future<void> onLifecycle(AppLifecycleState state) async {
+    if (!_inited) return;
+    switch (state) {
+      case AppLifecycleState.resumed:
+        if (_current != null && !Sfx.muted) {
+          try {
+            await _p.setVolume(_vol);
+            await _p.resume();
+          } catch (_) {}
+        }
+        break;
+      case AppLifecycleState.paused:
+      case AppLifecycleState.hidden:
+      case AppLifecycleState.detached:
+        _fade?.cancel();
+        try {
+          await _p.pause();
+        } catch (_) {}
+        break;
+      case AppLifecycleState.inactive:
+        break; // 전환 과도기 — 무시
+    }
   }
 
   /// 원하는 트랙으로 전환. 같은 트랙이면 무시. 음소거면 기억만 하고 재생 안 함.

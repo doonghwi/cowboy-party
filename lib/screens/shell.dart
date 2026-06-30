@@ -261,10 +261,12 @@ class _ShellScreenState extends State<ShellScreen> {
         child: NavigationBar(
           selectedIndex: _tab,
           height: 64,
-          onDestinationSelected: (i) => setState(() {
+          onDestinationSelected: (i) {
             if (i != _tab) Sfx.click();
-            _tab = i;
-          }),
+            // 메뉴 탭으로 돌아다닐 때 배경음악이 꺼져 있으면 되살린다(웹 loop 끊김 대비).
+            Bgm.ensure('menu', volume: 0.03);
+            setState(() => _tab = i);
+          },
           destinations: const [
             NavigationDestination(
                 icon: Icon(Icons.sports_esports), label: '플레이'),

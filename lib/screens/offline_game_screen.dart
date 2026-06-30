@@ -99,6 +99,11 @@ class _OfflineGameScreenState extends State<OfflineGameScreen> {
   Timer? _turnTicker;
   int _secondsLeft = kTurnSeconds;
 
+  // 결과 공개(reveal)·관전 자동 진행 타이머 — 멀티처럼 버튼 없이 자동으로 다음 턴.
+  Timer? _autoNext;
+  static const _revealHold = Duration(milliseconds: 2200); // 결과 보여주는 시간
+  static const _spectateHold = Duration(milliseconds: 1100); // 관전 자동 진행 간격
+
   // 파파라치 엿보기.
   bool _peekUsed = false; // 게임당 1회
   bool _peekSelecting = false; // 엿볼 대상 선택 중
@@ -118,6 +123,7 @@ class _OfflineGameScreenState extends State<OfflineGameScreen> {
     _sdGo?.cancel();
     _superTimer?.cancel();
     _turnTicker?.cancel();
+    _autoNext?.cancel();
     for (final t in _rxTimers.values) {
       t.cancel();
     }
@@ -341,6 +347,13 @@ class _OfflineGameScreenState extends State<OfflineGameScreen> {
       _selTarget2 = -1;
       _smokeOn = false;
     });
+    // 멀티처럼 자동 진행 — 결과를 잠깐 보여준 뒤 버튼 없이 다음 턴으로.
+    if (_phase == _Phase.reveal) {
+      _autoNext?.cancel();
+      _autoNext = Timer(_revealHold, () {
+        if (mounted && _phase == _Phase.reveal) _next();
+      });
+    }
   }
 
   void _playRevealSound(TurnOutcome out) {
@@ -372,6 +385,7 @@ class _OfflineGameScreenState extends State<OfflineGameScreen> {
   }
 
   void _next() {
+    _autoNext?.cancel();
     setState(() {
       _lastOut = null;
       _hit = List<bool>.filled(_n, false);
@@ -382,9 +396,20 @@ class _OfflineGameScreenState extends State<OfflineGameScreen> {
       _firedTarget2 = List<int>.filled(_n, -1);
       _turn++;
       _phase = _Phase.choosing;
-      _banner = '${_turn + 1}번째 턴 · 행동을 골라요';
+      _banner = _alive[0]
+          ? '${_turn + 1}번째 턴 · 행동을 골라요'
+          : '${_turn + 1}번째 턴 · 관전 중';
     });
-    _startTurnTimer();
+    if (_alive[0]) {
+      _startTurnTimer();
+    } else {
+      // 탈락(관전)이면 멀티처럼 버튼 없이 자동으로 다음 턴 진행.
+      _autoNext = Timer(_spectateHold, () {
+        if (mounted && _phase == _Phase.choosing && !_alive[0]) {
+          _resolve(Move.empty);
+        }
+      });
+    }
   }
 
   String _turnBanner(TurnOutcome out, List<Move> moves, List<bool> aliveBefore) {
@@ -795,19 +820,15 @@ class _OfflineGameScreenState extends State<OfflineGameScreen> {
                         color: CD.danger,
                         fontSize: 15,
                         fontWeight: FontWeight.bold)),
-                const SizedBox(height: 10),
-                SizedBox(
-                  width: double.infinity,
-                  child: FilledButton(
-                    onPressed: () => _resolve(Move.empty),
-                    style: FilledButton.styleFrom(
-                      backgroundColor: CD.leather,
-                      padding: const EdgeInsets.symmetric(vertical: 14),
-                      shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(14)),
-                    ),
-                    child: Text('다음 턴 보기',
-                        style: posterTitle(17, color: Colors.white)),
+                const SizedBox(height: 6),
+                // 관전은 멀티처럼 자동 진행 — 탭하면 바로 다음 턴.
+                GestureDetector(
+                  onTap: () => _resolve(Move.empty),
+                  behavior: HitTestBehavior.opaque,
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(vertical: 8),
+                    child: Text('자동으로 진행돼요  (탭하면 바로)',
+                        style: posterTitle(14, color: CD.parchment)),
                   ),
                 ),
               ],
@@ -879,19 +900,19 @@ class _OfflineGameScreenState extends State<OfflineGameScreen> {
           ]),
         );
       case _Phase.reveal:
+        // 멀티처럼 자동으로 다음 턴 — 버튼 없이 잠깐 결과를 보여준 뒤 넘어간다.
+        // 기다리기 싫으면 탭해서 바로 다음 턴으로.
         return Padding(
           padding: const EdgeInsets.symmetric(horizontal: 24),
-          child: SizedBox(
-            width: double.infinity,
-            child: FilledButton(
-              onPressed: _next,
-              style: FilledButton.styleFrom(
-                backgroundColor: CD.sage,
-                padding: const EdgeInsets.symmetric(vertical: 15),
-                shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(14)),
-              ),
-              child: Text('계속하기', style: posterTitle(18, color: Colors.white)),
+          child: GestureDetector(
+            onTap: _next,
+            behavior: HitTestBehavior.opaque,
+            child: Container(
+              width: double.infinity,
+              alignment: Alignment.center,
+              padding: const EdgeInsets.symmetric(vertical: 15),
+              child: Text('다음 턴으로…  (탭하면 바로)',
+                  style: posterTitle(15, color: CD.parchment)),
             ),
           ),
         );
