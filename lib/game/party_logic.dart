@@ -79,7 +79,7 @@ const int kTurnSeconds = 20;
 const List<String> kIdleFlavors = [
   '석양을 보고 있었다',
   '멍때리고 있었다',
-  '담배를 말고 있었다',
+  '커피를 홀짝이고 있었다',
   '딴생각에 빠져 있었다',
   '말에게 한눈 팔았다',
   '모자를 고쳐 쓰고 있었다',
