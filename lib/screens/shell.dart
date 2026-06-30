@@ -288,7 +288,18 @@ class _ShellScreenState extends State<ShellScreen> {
                 style: posterTitle(24, color: Colors.white)),
           ),
           CoinChip(coins: Meta.I.coins),
-          const SizedBox(width: 8),
+          const SizedBox(width: 4),
+          IconButton(
+            onPressed: () {
+              final nowMuted = !Sfx.muted;
+              Sfx.setMuted(nowMuted);
+              if (!nowMuted) Sfx.click(); // 켤 때 살짝 피드백
+              setState(() {});
+            },
+            icon: Icon(Sfx.muted ? Icons.volume_off : Icons.volume_up,
+                color: Colors.white),
+            tooltip: Sfx.muted ? '소리 켜기' : '소리 끄기',
+          ),
           IconButton(
             onPressed: _openSettings,
             icon: const Icon(Icons.settings, color: Colors.white),

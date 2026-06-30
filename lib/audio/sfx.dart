@@ -137,11 +137,15 @@ class Bgm {
   static void _fadeIn() {
     _fade?.cancel();
     int i = 0;
-    const steps = 14;
-    _fade = Timer.periodic(const Duration(milliseconds: 35), (t) async {
+    // 길고 부드러운 페이드인(약 2초). 초반을 더 천천히 올리는 ease-in 곡선이라
+    // 음악이 탁 튀지 않고 서서히 스며든다.
+    const steps = 40;
+    _fade = Timer.periodic(const Duration(milliseconds: 50), (t) async {
       i++;
+      final f = i / steps; // 0 → 1 선형 진행
+      final eased = f * f; // 제곱(ease-in): 시작은 아주 작게, 뒤로 갈수록 빠르게
       try {
-        await _p.setVolume(_vol * i / steps);
+        await _p.setVolume(_vol * eased);
       } catch (_) {}
       if (i >= steps) t.cancel();
     });
