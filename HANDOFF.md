@@ -3,7 +3,7 @@
 > 새 세션에서 이 파일을 먼저 읽고 이어서 진행. 모든 작업물은 디스크에 있고 main에 커밋됨.
 > ⚠️ 아래 좌표 일부는 구 Windows 경로(C:\dev\…) — 현재는 Mac `/Users/doonghwi/Documents/dailyapp/`.
 
-## 2026-06-30 사운드 개선 — 효과음 강화 + BGM 인프라 (worktree `worktree-sound-work`, 미배포)
+## 2026-06-30 사운드 개선 — 효과음+BGM **main 머지 완료, .aab v1.0.0+4 빌드됨 (Play 업로드 대기)**
 - **효과음 합성 강화**(`tool/make_sounds.py`): 총성에 협곡 에코(reverb), 팡파레/패배에 잔향+하모닉,
   임팩트(hit/trap/super)에 서브 베이스. 파일명·길이·코드 배선 그대로라 재배선 0. `assets/sounds/*.wav` 12종 재생성.
 - **BGM 인프라 신규**(`lib/audio/sfx.dart`의 `Bgm`): 루프 재생 + 페이드아웃→인 전환 + 음소거 공유(`Sfx.setMuted`→`Bgm.applyMute`).
@@ -16,13 +16,18 @@
   - 둘 다 **Pixabay Content License**(상업·앱 임베드 허용, 출처표기 불필요). 루프 이음새 검증: 시작/끝 음량 1dB 이내·클릭 없음.
 - **가이드**: `SOUND_GUIDE.md` — Suno 프롬프트·ffmpeg 루프 가공·라이선스 체크(참고용, 실제는 Pixabay 채택).
 - **CREDITS.md**: menu/battle.mp3 출처·라이선스 2행 추가 완료.
-- 검증: `dart analyze lib/` **0건**(flutter lock 점유로 cache dart 직접 분석). 신호레벨 루프 검증 완료, **에뮬 인게임 청감은 사용자 확인 대기**(소리는 스샷 불가).
+- **공지 추가 완료**: `announcements.dart` 최상단 '🎵 배경음악이 깔렸어요'(효과음·BGM·음소거 안내).
+- **main 머지 완료** (FF, 충돌 0): main = 새 아이콘 + 새 그래픽 + 효과음 + BGM 2곡 + 공지, **version 1.0.0+4**.
+- **릴리스 .aab 빌드+검증 완료**: `build/app/outputs/bundle/release/app-release.aab` (70.3MB).
+  - 서명 = **업로드 키**(SHA256 `12:C1:DA:9C…`, 디버그 아님 — 처음엔 worktree에 key.properties 없어 디버그 폴백됐다가 복사 후 재빌드로 해결).
+  - versionCode **4** / versionName 1.0.0, 음악 에셋 포함 확인.
+- 검증: `dart analyze` 0건. .aab 서명/버전/에셋 검증 완료. **인게임 청감만 사용자 확인 권장**(소리는 스샷 불가).
 - **남은 사용자 액션** ⚠️:
-  1. `flutter run`으로 **인게임 청감 확인**(메뉴↔전투 페이드 전환·볼륨 밸런스·루프 거슬림 여부) → 좋으면 worktree 머지.
-  2. (선택) 승리 스팅어 3번째 곡 원하면 파일 주면 연동.
-  3. **배포 시 공지 추가**(announcements.dart): "효과음이 더 생생해지고, 서부 분위기 배경음악이 깔렸어요" (배포 후에만).
-  4. `LEGAL_CHECKLIST.md` BGM 라이선스 항목 체크(CREDITS는 이미 기록됨).
-- worktree 위치: `.claude/worktrees/sound-work` (branch `worktree-sound-work`). 로컬 커밋만, 미푸시.
+  1. **Play Console에 `app-release.aab`(v4) 업로드** → 출시. (이미 +3 작업 중이었어도 +4가 덮음)
+  2. 업로드/출시 후 `dashboard-site/status.json` 갱신, `LEGAL_CHECKLIST.md` BGM 라이선스 항목 체크(CREDITS는 기록됨).
+  3. (선택) 인게임 청감으로 볼륨(menu 0.55/battle 0.45)·크로스페이드 조정 원하면 알려주기.
+  4. (선택) 승리 스팅어 3번째 곡 원하면 파일 주면 연동.
+- worktree `worktree-sound-work`는 main에 모두 머지됨(미푸시). 정리(머지 완료된 worktree) 가능.
 
 ## 2026-06-15 스토어 출시 준비 (STORE_RELEASE_PREP.md 실행 완료)
 세션이 **계정/결제/제출 없이 가능한 모든 것**을 준비함. 상세·남은 사용자 액션은 `STORE_RELEASE_PREP.md` 하단.
