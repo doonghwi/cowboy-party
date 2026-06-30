@@ -86,7 +86,7 @@ class _OnlineGameScreenState extends State<OnlineGameScreen> {
   @override
   void initState() {
     super.initState();
-    Bgm.play('battle', volume: 0.45); // 전투 배경음
+    Bgm.play('battle', volume: 0.24); // 전투 배경음
     _offsetSub = widget.service.serverOffsetRef().onValue.listen((e) {
       final v = e.snapshot.value;
       if (v is num && mounted) setState(() => _serverOffset = v.toInt());
@@ -119,7 +119,7 @@ class _OnlineGameScreenState extends State<OnlineGameScreen> {
       widget.service.leave(widget.code, _presenceSeat,
           started: _startedNow, name: _myName);
     }
-    Bgm.play('menu', volume: 0.55); // 메뉴로 복귀 → 메뉴 배경음
+    Bgm.play('menu', volume: 0.30); // 메뉴로 복귀 → 메뉴 배경음
     super.dispose();
   }
 
