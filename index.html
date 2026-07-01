@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <base href="/cowboy-party/">
+
+  <meta charset="UTF-8">
+  <meta content="IE=Edge" http-equiv="X-UA-Compatible">
+  <meta name="description" content="카우보이 — 2~6명이 원을 그려 앉아 장전·방어·빵야로 최후의 1인을 가린다.">
+
+  <!-- iOS meta tags & icons -->
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black">
+  <meta name="apple-mobile-web-app-title" content="카우보이">
+  <link rel="apple-touch-icon" href="icons/Icon-192.png?v=1">
+
+  <!-- Favicon (v query busts the browser's aggressive favicon cache) -->
+  <link rel="icon" type="image/png" href="favicon.png?v=1"/>
+
+  <title>카우보이</title>
+  <link rel="manifest" href="manifest.json">
+
+  <!-- Always serve the freshest deploy: drop any old service worker / caches
+       so updates show up on a normal refresh instead of being stuck behind
+       Flutter's offline cache. -->
+  <script>
+    if ('serviceWorker' in navigator) {
+      navigator.serviceWorker.getRegistrations().then(function (rs) {
+        rs.forEach(function (r) { r.unregister(); });
+      }).catch(function () {});
+      if (window.caches && caches.keys) {
+        caches.keys().then(function (ks) {
+          ks.forEach(function (k) { caches.delete(k); });
+        }).catch(function () {});
+      }
+    }
+  </script>
+</head>
+<body>
+  <script src="flutter_bootstrap.js" async></script>
+</body>
+</html>

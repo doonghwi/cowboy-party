@@ -1,0 +1,35 @@
+{
+    "name": "카우보이",
+    "short_name": "카우보이",
+    "start_url": ".",
+    "display": "standalone",
+    "background_color": "#2E6E5A",
+    "theme_color": "#2E6E5A",
+    "description": "카우보이 — 2~6명이 원을 그려 앉아 장전·방어·빵야로 최후의 1인을 가린다.",
+    "orientation": "portrait-primary",
+    "prefer_related_applications": false,
+    "icons": [
+        {
+            "src": "icons/Icon-192.png",
+            "sizes": "192x192",
+            "type": "image/png"
+        },
+        {
+            "src": "icons/Icon-512.png",
+            "sizes": "512x512",
+            "type": "image/png"
+        },
+        {
+            "src": "icons/Icon-maskable-192.png",
+            "sizes": "192x192",
+            "type": "image/png",
+            "purpose": "maskable"
+        },
+        {
+            "src": "icons/Icon-maskable-512.png",
+            "sizes": "512x512",
+            "type": "image/png",
+            "purpose": "maskable"
+        }
+    ]
+}
