@@ -22,6 +22,10 @@ const String kDiscordUrl = 'https://discord.com/invite/UhAV5zjKP';
 /// 광고 배너 자리 표시 여부 (실제 광고 SDK 전이라 점선 placeholder).
 const bool kShowAdPlaceholder = true;
 
+/// 앱 빌드 번호(versionCode와 일치시켜 손으로 올린다). 설정에 표시해서
+/// 폰에 어떤 버전이 깔렸는지 눈으로 확인할 수 있게 한다.
+const int kBuildNo = 12;
+
 /// 하단 4탭 셸: [플레이] [상점] [랭킹] [보상] + 코인칩 + 설정.
 class ShellScreen extends StatefulWidget {
   const ShellScreen({super.key});
@@ -41,7 +45,7 @@ class _ShellScreenState extends State<ShellScreen> {
     Meta.I.addListener(_onMeta);
     AuthService.I.addListener(_onMeta);
     // 메뉴 배경음 — 게임 화면에서 돌아오면 게임 화면 dispose가 다시 'menu'로 전환.
-    Bgm.play('menu', volume: 0.03);
+    Bgm.play('menu', volume: 0.06);
     // F4: 초대 링크(?room=CODE)로 들어오면 그 방으로 바로 입장.
     final code = OnlineService.roomCodeFromUrl();
     if (code != null) {
@@ -264,7 +268,7 @@ class _ShellScreenState extends State<ShellScreen> {
           onDestinationSelected: (i) {
             if (i != _tab) Sfx.click();
             // 메뉴 탭으로 돌아다닐 때 배경음악이 꺼져 있으면 되살린다(웹 loop 끊김 대비).
-            Bgm.ensure('menu', volume: 0.03);
+            Bgm.ensure('menu', volume: 0.06);
             setState(() => _tab = i);
           },
           destinations: const [
@@ -471,6 +475,11 @@ class _ShellScreenState extends State<ShellScreen> {
                 subtitle: const Text('버그·건의를 보내요 (개인정보는 보내지 않아요)',
                     style: TextStyle(fontSize: 12)),
                 onTap: () => _openFeedback(context),
+              ),
+              const SizedBox(height: 10),
+              Center(
+                child: Text('카우보이  v1.0.0 · 빌드 $kBuildNo',
+                    style: const TextStyle(fontSize: 11, color: CD.muted)),
               ),
             ],
           ),

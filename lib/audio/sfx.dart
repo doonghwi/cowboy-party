@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:audioplayers/audioplayers.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter/widgets.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
@@ -38,7 +39,13 @@ class Sfx {
     } catch (_) {}
   }
 
-  static void click() => play('click', volume: 0.7);
+  /// UI 탭 피드백 — 클릭 효과음 대신 가벼운 햅틱(선택 틱).
+  /// OS에서 햅틱이 꺼져 있으면 조용히 무시된다(소리는 나지 않는다).
+  static void click() {
+    try {
+      HapticFeedback.selectionClick();
+    } catch (_) {}
+  }
   static void confirm() => play('confirm', volume: 0.8);
   static void coin() => play('coin');
   static void win() => play('win');
@@ -55,14 +62,37 @@ class Bgm {
 
   static final AudioPlayer _p = AudioPlayer();
   static String? _current; // 재생을 원하는 트랙 (음소거여도 기억)
-  static double _vol = 0.03; // 기본 배경음 볼륨 (효과음보다 한참 낮게 — 배경 수준)
+  static double _vol = 0.06; // 기본 배경음 볼륨 (메뉴 기준)
   static Timer? _fade;
   static bool _inited = false;
+
+  /// 게임용 오디오 컨텍스트 — 효과음이 BGM의 오디오 포커스를 뺏지 않게(none) 모든
+  /// 소리를 섞어 재생한다. audioplayers 기본값 gain은 효과음이 울릴 때마다 "내가
+  /// 유일한 소리"라고 포커스를 독점해 BGM을 멈춘다(로비에서 탭 누르면 음악이 꺼지던
+  /// 원인). none으로 두면 클릭·총성 등 효과음이 배경음을 죽이지 않고 함께 흐른다.
+  static final AudioContext _ctx = AudioContext(
+    android: const AudioContextAndroid(
+      isSpeakerphoneOn: false,
+      stayAwake: false,
+      contentType: AndroidContentType.music,
+      usageType: AndroidUsageType.media,
+      audioFocus: AndroidAudioFocus.none,
+    ),
+    iOS: AudioContextIOS(
+      category: AVAudioSessionCategory.playback,
+      options: const {AVAudioSessionOptions.mixWithOthers},
+    ),
+  );
 
   static Future<void> init() async {
     if (_inited) return;
     _inited = true;
     try {
+      // 전역 컨텍스트: 이후 만들어지는 효과음 플레이어도 포커스를 안 뺏게 한다.
+      await AudioPlayer.global.setAudioContext(_ctx);
+    } catch (_) {}
+    try {
+      await _p.setAudioContext(_ctx);
       await _p.setReleaseMode(ReleaseMode.loop);
       await _p.setVolume(0);
     } catch (_) {}

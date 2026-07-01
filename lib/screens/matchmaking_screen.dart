@@ -9,7 +9,7 @@ import '../theme.dart';
 import '../widgets/desert_background.dart';
 import 'online_game_screen.dart';
 
-/// 빠른 시작 매칭(#2). 최대 20초 탐색.
+/// 빠른 시작 매칭(#2). 최대 10초 탐색.
 /// - 모이는 중인 매칭 방 있으면 합류, 없으면 새로 판다(방장).
 /// - 6명 차면 즉시 시작. 10초 시점에 2~5명이면 시작, 1명뿐이면 "상대 없음".
 /// - 매칭 방은 비공개+match라 다른 사람은 보거나 들어올 수 없다.
@@ -21,7 +21,7 @@ class MatchmakingScreen extends StatefulWidget {
 }
 
 class _MatchmakingScreenState extends State<MatchmakingScreen> {
-  static const int _searchSeconds = 20;
+  static const int _searchSeconds = 10;
 
   final _service = OnlineService();
   String? _code;
@@ -48,7 +48,14 @@ class _MatchmakingScreenState extends State<MatchmakingScreen> {
     final name = Meta.I.nickname.isNotEmpty
         ? Meta.I.nickname
         : OnlineService.randomNickname();
-    final r = await _service.quickMatch(name, charIndex: Meta.I.equippedIndex);
+    final ({String code, bool host}) r;
+    try {
+      r = await _service.quickMatch(name, charIndex: Meta.I.equippedIndex);
+    } catch (_) {
+      // 네트워크/로그인 문제로 방을 못 만들면 조용히 멈추지 말고 알린다(#2).
+      if (mounted) _fail('연결이 불안정해요. 잠시 후 다시 시도해 주세요');
+      return;
+    }
     if (!mounted) return;
     // host=true(내가 만든 방)면 좌석0이라 첫 리더. 이후 리더는 _onRoom이 좌석으로 판단.
     _isLeader = r.host;
@@ -136,6 +143,14 @@ class _MatchmakingScreenState extends State<MatchmakingScreen> {
     });
     _tick?.cancel();
     _heartbeat?.cancel();
+    // 실패를 스낵바로도 한 줄 알린다(#2) — 화면 안내와 함께 놓치지 않게.
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+        behavior: SnackBarBehavior.floating,
+        content: Text(msg),
+        duration: const Duration(seconds: 3),
+      ));
+    }
   }
 
   Future<void> _cancelAndPop() async {

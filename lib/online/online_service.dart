@@ -97,6 +97,10 @@ class PublicRoomInfo {
   final String hostName;
   final int joined;
   final int capacity;
+
+  /// 시작된 게임의 실제 인원 수(그 판의 좌석 수). 대기실이면 capacity와 같다.
+  /// 시작된 방은 이 수만큼만 좌석이 있어 late-join 가능 여부를 이걸로 판단한다.
+  final int seatCount;
   final bool started;
   final int createdAt;
 
@@ -106,9 +110,13 @@ class PublicRoomInfo {
     required this.hostName,
     required this.joined,
     required this.capacity,
+    required this.seatCount,
     required this.started,
     required this.createdAt,
   });
+
+  /// 실제로 들어갈 수 있는지(시작된 방은 seatCount, 대기실은 capacity 기준).
+  bool get isFull => joined >= (started && seatCount > 0 ? seatCount : capacity);
 }
 
 /// A fully-derived, render-ready view of a room from one player's perspective.
@@ -532,6 +540,7 @@ class OnlineService {
         hostName: (r['hostName'] as String?) ?? '카우보이',
         joined: joined,
         capacity: capacity,
+        seatCount: _asInt(r['seatCount']) ?? capacity,
         started: r['started'] == true,
         createdAt: createdAt,
       ));
@@ -760,12 +769,20 @@ class OnlineService {
       'react': null,
       'peek': null,
       'peekUsed': null,
+      'ready': null,
     });
   }
 
   Future<void> submitMove(String code, int turn, int seat, Move m) {
     room(code).child('players/${slotKey(seat)}/seen').set(_now);
     return room(code).child('turns/t$turn/${slotKey(seat)}').set(m.encode());
+  }
+
+  /// 대기실 '준비' 토글(방장 제외). true면 준비, false면 해제(노드 제거).
+  Future<void> setReady(String code, int seat, bool ready) {
+    return room(code)
+        .child('ready/${slotKey(seat)}')
+        .set(ready ? true : null);
   }
 
   /// 파파라치 엿보기 시작: 이 턴에 한 명을 엿보기로 지목(아직 내 행동은 제출 안 함).
@@ -834,6 +851,7 @@ class OnlineService {
       'react': null,
       'peek': null,
       'peekUsed': null,
+      'ready': null,
       if (toLobby) 'started': false,
       'game': (_asInt(data['game']) ?? 0) + 1,
     };
@@ -1654,9 +1672,13 @@ class OnlineService {
         if (s == mySeat) iRematch = true;
       }
     }
-    final iAmOut = mySeat < 0 || mySeat >= seatCount || quitFn(mySeat);
-    final iAmLate =
-        mySeat >= 0 && mySeat < seatCount && late(mySeat) && !iAmOut;
+    // 좌석이 seatCount 밖이면(봇방 시작 직전 난입 등) '연결 끊겨 쫓겨남'이 아니라
+    // '다음 판 관전'으로 처리 — 다음 라운드 리셋에서 정상 합류(오안내 방지).
+    final beyondSeat = mySeat >= seatCount;
+    final iAmOut = mySeat < 0 || quitFn(mySeat);
+    final iAmLate = mySeat >= 0 &&
+        !iAmOut &&
+        ((mySeat < seatCount && late(mySeat)) || beyondSeat);
     return RoomView(
       capacity: capacity,
       seatCount: seatCount,

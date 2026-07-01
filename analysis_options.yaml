@@ -13,6 +13,9 @@ analyzer:
   exclude:
     # SwiftPM이 build/ 아래에 받아오는 firebase 예제 코드가 분석되지 않게.
     - build/**
+    # 봇 러너는 별도 순수 Dart 패키지(자체 pubspec·analysis) — 앱 분석에서 제외.
+    # (CLI라 print 사용이 정상이라 flutter_lints 기준으론 info가 뜬다.)
+    - bot_runner/**
 
 linter:
   # The lint rules applied to this project can be customized in the

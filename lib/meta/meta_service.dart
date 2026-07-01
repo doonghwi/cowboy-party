@@ -7,6 +7,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 import '../game/characters.dart';
 import '../online/online_service.dart' show OnlineService;
+import 'analytics.dart';
 import 'auth_service.dart';
 import 'gift_codes.dart';
 import 'profanity.dart';
@@ -81,6 +82,7 @@ class Meta extends ChangeNotifier {
   String _dailyLast = '';
   int _dailyStreak = 0;
   int _seasonPtsLocal = 0;
+  String _seasonPtsWeek = ''; // 로컬 시즌 포인트가 속한 주(주간 리셋 기준)
   String _nickname = '';
   Set<String> _redeemed = {}; // 사용한 선물 코드(계정당 1회)
   int _nicknameTickets = 0; // 닉네임 변경권 보유 수(G2)
@@ -129,9 +131,13 @@ class Meta extends ChangeNotifier {
     _equipped = sp.getInt('equipped') ?? CharId.commoner.index;
     // 안전장치: 보유하지 않은 캐릭터가 장착돼 있으면 일반인으로.
     if (!_unlocked.contains(_equipped)) _equipped = CharId.commoner.index;
+    // ??? 캐릭터 비활성화 — 이미 장착 중이던 사용자는 일반인으로 되돌린다.
+    if (_equipped == CharId.mystery.index) _equipped = CharId.commoner.index;
     _dailyLast = sp.getString('daily_last') ?? '';
     _dailyStreak = sp.getInt('daily_streak') ?? 0;
     _seasonPtsLocal = sp.getInt('season_pts_local') ?? 0;
+    _seasonPtsWeek = sp.getString('season_pts_week') ?? '';
+    _rollSeasonWeek(); // 주가 바뀌었으면(또는 옛 누적값) 이번 주 0으로 리셋
     _nickname = sp.getString('nickname') ?? '';
     _redeemed = (sp.getStringList('redeemed') ?? []).toSet();
     _nicknameTickets = sp.getInt('nick_tickets') ?? 0;
@@ -144,6 +150,16 @@ class Meta extends ChangeNotifier {
     _rollDailyMissions(); // 날짜 바뀌었으면 리셋
     if (brandNew) _save();
     notifyListeners();
+  }
+
+  /// 주가 바뀌면 로컬 시즌(주간) 포인트를 리셋한다. 서버 랭킹이 주간이라 로컬
+  /// "이번 주 포인트" 표시도 매주 월요일에 0부터 시작하게 맞춘다.
+  void _rollSeasonWeek() {
+    final wk = SeasonService.seasonId;
+    if (_seasonPtsWeek != wk) {
+      _seasonPtsWeek = wk;
+      _seasonPtsLocal = 0;
+    }
   }
 
   /// 날짜가 바뀌면 데일리 미션 진행을 리셋한다.
@@ -167,6 +183,7 @@ class Meta extends ChangeNotifier {
     await sp.setString('daily_last', _dailyLast);
     await sp.setInt('daily_streak', _dailyStreak);
     await sp.setInt('season_pts_local', _seasonPtsLocal);
+    await sp.setString('season_pts_week', _seasonPtsWeek);
     await sp.setString('nickname', _nickname);
     await sp.setStringList('redeemed', _redeemed.toList());
     await sp.setInt('nick_tickets', _nicknameTickets);
@@ -197,6 +214,7 @@ class Meta extends ChangeNotifier {
         _dClaimed.add(m.key);
         _coins += m.gold;
         newly.add(m);
+        Ana.log('mission_done', {'mission': m.key, 'gold': m.gold});
       }
     }
     _save();
@@ -377,6 +395,7 @@ class Meta extends ChangeNotifier {
     final def = charDef(c);
     if (!trySpend(def.cost)) return false;
     _unlocked.add(c.index);
+    Ana.log('char_buy', {'char': c.name, 'cost': def.cost});
     _save();
     notifyListeners();
     return true;
@@ -409,6 +428,10 @@ class Meta extends ChangeNotifier {
     _dailyLast = today;
     final amount = kDailyCycle[(_dailyStreak - 1) % kDailyCycle.length];
     _coins += amount;
+    Ana.log('daily_claim', {
+      'day': ((_dailyStreak - 1) % kDailyCycle.length) + 1,
+      'streak': _dailyStreak,
+    });
     _save();
     notifyListeners();
     return amount;
@@ -432,6 +455,7 @@ class Meta extends ChangeNotifier {
   int grantWin(int players) {
     final c = winCoins(players);
     addCoins(c);
+    _rollSeasonWeek(); // 주 경계면 먼저 리셋한 뒤 이번 주 포인트에 더한다
     _seasonPtsLocal += 10 * (players.clamp(2, 6) - 1);
     _save();
     return c;

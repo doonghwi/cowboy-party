@@ -124,6 +124,7 @@ action_bar.dart가 이 분류대로 렌더하고, party_logic이 판정한다.
   BGM = Pixabay Content License 2곡(menu=Texas Cowboy Wild West Intro 263183, battle=Sound of Desert 335725), ffmpeg crossfade-fold 무이음 루프 가공. 출처·라이선스 `CREDITS.md`, 가이드 `SOUND_GUIDE.md`.
 
 ### 위젯 (widgets/)
+- **juice.dart**(`JuiceController`/`JuiceLayer`, v12): 타격감(주스) — **화면 흔들림**(감쇠 사인, 두 축 주파수 상이) + **피격 붉은 비네트**. effects.dart와 같은 원칙(표시 전용·게임상태 미참조·의존성 0). 양 게임 화면이 테이블 Stack을 JuiceLayer로 감싸고, 리빌 시 `_playRevealJuice`가 강도 결정: 내 사망 14+비네트 > 내 피격 13+비네트 > 슈퍼 12 > 남 피격 6 > 발사만 2.5 (햅틱 heavy/medium/light 동반). 온라인 `_handleReveal`(턴 리빌+"마지막 한 방" 즉시종료 케이스 둘 다)·오프라인 `_resolve`에서 구동.
 - **action_bar.dart**: 하단 행동 선택 바. **circular_table.dart**(+ seat_card.dart): 원형 테이블·
   트레이서·발동 이펙트. **emo.dart**: Twemoji 이미지. **online_showdown.dart**: 반응속도 결투.
   **super_flash.dart**: 슈퍼빵야 연출. **top_toast.dart**: 상단 토스트(코인 등).
@@ -139,6 +140,7 @@ action_bar.dart가 이 분류대로 렌더하고, party_logic이 판정한다.
   - **(F) 룰렛 자기-꽝**: `TurnOutcome.rouletteSelf`(좌석별 bool, 표시용 파생 — 인코딩/판정 불변) 노출 → 오프라인 `_lastOut`·온라인 `SeatView.rouletteSelfFx`까지 배선(이것만 플러밍 추가, 게임 로직 0줄). `RouletteBust`(붉은 충격 플래시+적색 스타버스트+'꽝!'+반동) — 실린더 인트로는 양쪽 동일, 자기-꽝일 때만 시전자 좌석에 추가(상대 명중과 구분).
 
 ### 메타/경제
+- **meta/analytics.dart**(`Ana`, v12): Firebase Analytics 이벤트 로깅(제품 지표 — 리텐션·퍼널). **실패 전부 삼킴**(Sfx와 같은 원칙 — 분석은 앱을 안 깬다). 이벤트 사전은 파일 상단 주석이 단일 출처: `game_start`/`game_end`(mode=cpu|online·players·won)·`char_buy`·`daily_claim`·`mission_done`·`share_result`. 발화 지점: 게임 화면 2곳(start/end)·meta_service(구매/출석/미션)·결과 공유 버튼. 새 이벤트 추가 시 사전 주석도 갱신.
 - **meta/meta_service.dart**(`Meta.I`): 코인·해금·장착·출석·**선물코드**(redeemGiftCode). 로컬(SharedPreferences) + 로그인 시 /users/$uid 미러.
 - **meta/gift_codes.dart**: 선물 코드 정의. `kGiftCodes`(빌드 내장 공용 코드, 예 `thankyou`→100000) +
   단일 코드는 RTDB `/giftcodes/<code>`. 공용=계정당 1회(_redeemed), 단일=전체 1명 선착순(`claimedBy` 트랜잭션). 입력은 소문자 정규화.
@@ -175,6 +177,39 @@ dailyapp_stats/cowboy_party: 사용량(중앙 대시보드)
       `RoomView.iAmPeeker/peekedMove` 노출 → 재선택 제출. 다른 사람은 "엿보는 중" 대기.
       호스트 언블록(_maybePeekUnblock, peekStale 10초+). computeView 엿보기 테스트 3건.
 - [x] **Stage 5**: ??? 해금 게이트(canBuyMystery, 전 캐릭터 보유 시) + 선물코드 + 에뮬 검증 + 배포.
+
+## 최근 변경 (2026-07)
+### v12 (2026-07-02, 성장 배치 W1~W4 — PRODUCT_PLAN.md 로드맵 실행)
+- **W1 지표**: `meta/analytics.dart`(`Ana`) 신설 + firebase_analytics 도입. 이벤트 6종(game_start/game_end/char_buy/daily_claim/mission_done/share_result) — 이제 D1 리텐션·퍼널을 Firebase 콘솔에서 측정 가능(Analytics 대시보드 반영은 최대 24h).
+- **W2 타격감**: `widgets/juice.dart` — 피격 화면 흔들림+붉은 비네트+햅틱(강도 위계는 §위젯 참조). 게임로직 0줄, 표시 레이어만.
+- **W3 결과 공유**: 승리 결과 카드에 "자랑하기/우승 자랑하기" 버튼(온/오프) → share_plus 네이티브 시트(실패 시 클립보드 폴백), 웹 링크 포함. (일일미션은 #9에서 기구현.)
+- **W4 ASO**: `store/listing_ko.md`·`listing_en.md` 리뉴얼 — 훅 강화, 주간 랭킹·일일미션·타격감 반영, 캐릭터 15종 정정(??? 비활성), 스크린샷 촬영 가이드 추가. versionCode 12·kBuildNo 12.
+
+### v10~v11 (2026-07-02 야간)
+- **대기실 준비 기능 (v10)**: 방 만들기(공개/비공개) 대기실에서 **방장 빼고 전원 준비해야 시작**. 비-방장=`준비하기/준비완료` 토글(`online_service.setReady`→`rooms/$code/ready/p$seat`), 방장 시작버튼은 `준비 대기(N/M)`→전원준비 시 `시작!`, 준비 안 됐는데 누르면 스낵바 안내(`online_game_screen._hostStart`). 방장=참여좌석 중 최저. **빠른시작(match) 방은 게이트 제외**(봇 자동시작). startGame/resetBoard가 `ready` 초기화.
+- **관전입장 "꽉 찼어요" 버그 수정 (v11 미빌드)**: 시작된 방은 좌석이 `seatCount`(그 판 인원)만큼이라, 버튼 full 판정을 capacity(6)로 하면 5인게임(5/5)을 "안 꽉참"으로 오판→"관전입장"눌렀는데 joinRoom은 full. `PublicRoomInfo`에 `seatCount`+`isFull` getter 추가, `play_tab`이 이걸로 판정·표시.
+- **iAmOut "연결끊겨 나가졌어요" 오안내 수정 (v11 미빌드)**: `computeView`에서 `mySeat>=seatCount`(봇방 시작 직전 난입 등)를 '쫓겨남'이 아니라 **'다음 판 관전'(iAmLate)** 으로. 다음 라운드 리셋에서 정상 합류.
+
+### versionCode 9 (2026-07-01~02)
+- **랭킹 월간→주간** (`season_service.dart`): `seasonId`가 이제 그 주 **월요일 날짜**(`yyyy-MM-dd`) → 매주 월요일 자동 리셋(별도 크론 불필요, `seasons/$sid` 와일드카드라 규칙 변경 없음). `prevSeasonId`/`fetchPrevTop`로 **지난주 챔피언 1~3위**를 랭킹 상단 카드에 표시(`ranking_tab.dart`). 게스트 로컬포인트(`_seasonPtsLocal`)도 `_rollSeasonWeek`로 주간 리셋(`meta_service.dart`).
+- **??? 캐릭터 비활성화**: `characters.dart`의 mystery `CharDef`만 **주석 처리**(kCharacters 순회하는 선택화면·게임설명 자동 제외). enum `CharId.mystery`·`resolveMystery`/`effectiveChar`/공개셋은 **휴면 유지**(인덱스·참조 안 깨짐). 이미 장착했던 유저는 `meta_service` init에서 일반인 복구. 다시 켜려면 그 CharDef 주석만 해제.
+- **컴퓨터전 봇 AI 개편** (`cpu_ai.dart`): 봇 전부 CpuAi 1개 공유 → **좌석별 `_BotProfile`**(skill·aggression·caution·focus·grudge, 게임 시작 `beginGame()`에서 리롤). `_pickTarget`이 "최다 무장만" 노려 **사람에게 몰빵**하던 것 → focus·**반격(grudge, `lastMoves`)**·랜덤 분산으로 표적 흩어짐. 결투 반응속도 `showdownReactionMs(seat)`=실력 연동. 봇 이름 24개 서부풍 풀에서 매판 랜덤(`offline_game_screen._chosenBotNames`). **오프라인 전용**(온라인은 CpuAi 미사용).
+- **오디오 포커스 음악끊김 수정** (`audio/sfx.dart`): audioplayers 기본 `audioFocus: gain`이라 효과음(클릭) 재생 때마다 BGM 포커스를 뺏어 멈추던 버그(웹은 무관). 전역 `AudioPlayer.global.setAudioContext(AudioContext(android: audioFocus:none, iOS: mixWithOthers))`로 해결. 클릭음은 아예 `HapticFeedback.selectionClick()` **햅틱**으로 대체.
+- **배포앱 구글 로그인** — SHA를 **두 곳**에 등록해야 함: ① Firebase 콘솔 Android앱 SHA 지문(OAuth), ② **Google Cloud Console → API 및 서비스 → 사용자 인증정보 → API키(AIza…) → 애플리케이션 제한 → Android → 패키지+SHA-1**(API키 호출 허용). `auth_service`에 `serverClientId`(웹클라 id) 명시 + `catch`에서 실제 예외 노출. 상세는 루트 `_make-new-app/LESSONS.md` 2026-07-02 항목.
+- **빌드번호 표시**: `shell.dart` `const kBuildNo`(versionCode와 손으로 일치) → 설정 시트 하단 "빌드 N". 로그인류 디버깅은 "폰에 뜬 빌드번호"부터 확인(Play 비공개테스트는 옛버전 캐시).
+
+## 봇 러너 (온라인 봇 채우기) — **구현 완료·가동 중** (`bot_runner/`, 상세 README)
+빠른시작·공개방을 봇이 채워 게임 성사 + 로비 북적임 연출. 순수 Dart(http만), 맥미니 상시실행. **앱과 동일한 규칙엔진**(`bot_runner/lib/game/`=`char_core`·`party_logic`·`cpu_ai`를 `tool/sync_core.sh`로 앱에서 복사 → 버전스큐 방지). **앱 재빌드 불필요**(봇은 일반 클라이언트처럼 RTDB에 write).
+- **char_core 분리(P1 완료)**: 룰엔진이 `characters.dart`→flutter 의존이라 헤드리스 불가 → 순수 Dart `lib/game/char_core.dart` 신설(CharId·seededRoll·mystery/reveal·charFromIndex·kPlayableCharIds). characters.dart=UI(CharDef·kCharacters·charDef)+char_core 재export. party_logic은 char_core만 import(순수). 앱 analyze0/test204 유지.
+- **구성**: `config.dart`(봇40·튜닝) · `auth.dart`(Auth REST 저장형익명) · `rtdb.dart`(REST) · `game_replay.dart`(=computeView 축약, seed `{code}#{gameNo}`, **좌석은 uid로 찾음**, 무승부→drawTurn·참가자 + showdown.winner/결투가 자동승 반영) · `bot_client.dart`(입장·하트비트·턴제출·결투탭·**결투 심판 hostRefereeGame**·랭킹기록·퇴장 + 공개방 프리미티브 createPublicRoom/joinSeat/setReady/hostStartGame/resetToLobby/removeSeatEntry) · `bot_pool.dart`(공유 busy풀+예비) · `matchmaker.dart`(빠른시작 채움) · `social_sim.dart`(공개방 3개 상시·churn·호스트교체·사람있어야시작) · `room_janitor.dart`(죽은방 삭제) · `bin/runner.dart`(3개 동시) · `bin/testgame.dart`(빠른시작 e2e) · `bin/showdowntest.dart`(결투 e2e).
+- **핵심 버그·수정(1차)**: ①**좌석 압축**—startGame이 좌석 압축(p0..pn)해서, churn으로 좌석 밀린 봇이 입장seat 그대로 쓰면 엉뚱좌석 판단→가만히있음. `_gameLoop`이 매턴 `_seatOfUid(data)`로 자기좌석 찾도록(+`_leave`도). ②**재큐**—끝낸 매칭방이 안지워져 다시빠른시작 시 옛방 재입장→janitor 매칭방 25초 청소. ③봇끼리 게임시작 방지(사람1명 필수). ④표적몰빵→focus↓+조준풀 절반 랜덤.
+- **핵심 버그·수정(2차, 07-02 심야 — 전부 e2e 검증)**: ⑤**유령 플레이어**—startGame 좌석압축 뒤 SocialSim이 옛 좌석 키로 하트비트/지연 ready → `players/pX/seen`만 있는 id 없는 노드 생성 → `_humanCount`가 "사람"으로 오인 → 유령 기다리며 헛게임 시작→봇 전원 30초 스톨→"포기 퇴장" 폭주(로그 32건). 수정: SocialSim 매 틱 **uid 기반 좌석 재동기화**(resync) + `setReady`가 쓰기 직전 자기 좌석 재확인 + `_awaitStart` 하트비트도 uid 좌석. ⑥**사람 판정 강화**—id 없거나 하트비트 끊긴 좌석은 사람 아님(`socialHumanActiveMs` 12초 < grace 15초라 떠난 사람이 헛시작 못 유발), 호스트 봇이 유령·45초+ 끊긴 좌석 청소(`socialEvictStaleMs`), matchmaker/janitor도 유령 무시. ⑦**RangeError**—seatCount 밖 늦은 입장 좌석이 `r.submitted[seat]` 인덱스 초과 → `_gameLoop`에 seat≥n이면 관전상태로 퇴장 가드 + `_claimSeat`이 입장 직전 재확인(사람 좌석 덮어쓰기 방지). ⑧**결투 탭 무효**—봇이 탭 값으로 반응시간(250 등)을 기록했는데 앱 호스트는 `tap≥goAt`(서버시각)만 유효 처리 → 봇 탭 전부 무효였음. `goAt+반응ms`(서버시각)로 수정.
+- **결투(무승부) 완성**: 봇방 무승부 시 호스트 봇이 앱 호스트 대신 심판(`hostRefereeGame`: showdown 생성→유효 탭 중 최속 승자 확정→전원 부정출발 시 라운드 재시작→15초 무응답 포기). game_replay가 computeView처럼 showdown.winner·결투가 자동승을 won으로 반영. 라운드 종료 후 4~7초 여유 두고 리셋(사람이 결과 볼 시간). e2e `bin/showdowntest.dart` PASS(심판 개시→탭 2개 유효→빠른 쪽 승자→랭킹 기록).
+- **봇 성향**: config `BotSpec(name, fixedChar, personality, reloadOnly)`. personality는 `CpuAi.setProfile(seat, aggression/caution...)`로 주입(앱 cpu_ai에 setProfile 추가).
+- **운영**: 실행 `bash bot_runner/run_local.sh`(키 gitignore) / 상시 `com.doonghwi.cowboy-bot-runner.plist` / 계정 `bot_creds.json`(비밀). 서버 API키=`COWBOY_AUTH_API_KEY`(Cloud Console 애플리케이션제한 없는 키. google-services Android키는 서버 차단됨).
+- **e2e 검증(07-02 심야)**: ⓐ testgame 풀게임(봇 채움→턴 진행→승자·랭킹) ⓑ 유령 방=봇 미투입+janitor 즉시 삭제 ⓒ 가짜 사람 시나리오=활동 사람 준비→3초 시작 / 사람 잠적→**유령 재시작 0회**·47초 좌석 청소 ⓓ showdowntest 결투 PASS. 러너 재시작 후 오류·포기퇴장 0건.
+- **주의**: 앱 규칙 바꾸면 `bash tool/sync_core.sh`+`dart test`(재현 테스트 6개). 봇 랭킹 반영은 실유저 늘면 `bot_client._recordWin` 가드로 끄기(README).
+- **남음**: v11 빌드(관전·iAmOut) · 폰 실기기 확인 · 사회성 튜닝(빈도·인원) 실사용 관찰.
 
 ## 후속(선택)
 - 그림자/파파라치 등 신규 캐릭터의 SeatView 발동 배지(현재 일부는 배너+사운드로만 표시).

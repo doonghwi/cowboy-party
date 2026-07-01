@@ -6,6 +6,7 @@ import 'package:flutter/material.dart';
 
 import 'audio/sfx.dart';
 import 'firebase_options.dart';
+import 'meta/analytics.dart';
 import 'meta/auth_service.dart';
 import 'meta/meta_service.dart';
 import 'meta/profanity.dart';
@@ -31,6 +32,7 @@ Future<void> main() async {
         ).setPersistenceEnabled(true);
       } catch (_) {}
     }
+    Ana.init(); // 지표(리텐션·이벤트) — 실패해도 앱은 안 깨진다
     _recordOpen();
   } catch (_) {
     // Firebase is optional — the offline vs-CPU game works without it.

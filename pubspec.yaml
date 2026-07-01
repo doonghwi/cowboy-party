@@ -2,7 +2,7 @@ name: cowboy_party
 description: "Cowboy Party — 2 to 6 cowboys in a circle, one action a turn, last one standing wins."
 publish_to: 'none'
 
-version: 1.0.0+6
+version: 1.0.0+12
 
 environment:
   sdk: ^3.12.1
@@ -24,6 +24,7 @@ dependencies:
   audioplayers: ^6.7.1
   http: ^1.2.0
   share_plus: ^10.1.0
+  firebase_analytics: ^12.4.3
 
 dev_dependencies:
   flutter_test:

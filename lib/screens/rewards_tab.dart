@@ -42,7 +42,7 @@ class _RewardsTabState extends State<RewardsTab> {
       Sfx.coin();
       TopToast.show(context, message: '선물 코드 ${res.message}');
     } else {
-      Sfx.play('click');
+      Sfx.click();
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(
         behavior: SnackBarBehavior.floating,
         content: Text(res.message),

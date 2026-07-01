@@ -12,31 +12,47 @@ class RankEntry {
   const RankEntry(this.uid, this.name, this.pts);
 }
 
-/// 월별 시즌 랭킹 — `/seasons/{yyyy-MM}/{uid}` {name, pts}.
+/// 주간 시즌 랭킹 — `/seasons/{yyyy-MM-dd(그 주 월요일)}/{uid}` {name, pts}.
+/// 매주 월요일 00:00(로컬)에 새 시즌으로 자동 전환 → 빈 랭킹으로 리셋(별도 크론 불필요).
 /// 서버 기록은 Firebase Auth uid가 있을 때만(게스트는 로컬 표시 + 로그인 유도).
 class SeasonService {
   SeasonService._();
   static final SeasonService I = SeasonService._();
 
-  static String get seasonId {
+  /// 이번 주 월요일(로컬 자정 기준). weekday: Mon=1 … Sun=7.
+  static DateTime get _weekMonday {
     final n = DateTime.now();
-    return '${n.year}-${n.month.toString().padLeft(2, '0')}';
+    final d = DateTime(n.year, n.month, n.day);
+    return d.subtract(Duration(days: d.weekday - 1));
   }
+
+  static String _weekId(DateTime monday) =>
+      '${monday.year}-${monday.month.toString().padLeft(2, '0')}-'
+      '${monday.day.toString().padLeft(2, '0')}';
+
+  static String get seasonId => _weekId(_weekMonday);
+
+  /// 지난 주(월요일 기준) 시즌 id — '지난 주 챔피언' 표시용.
+  static String get prevSeasonId =>
+      _weekId(_weekMonday.subtract(const Duration(days: 7)));
 
   static String get seasonLabel {
-    final n = DateTime.now();
-    return '${n.year}년 ${n.month}월 시즌';
+    final m = _weekMonday;
+    final s = m.add(const Duration(days: 6));
+    return '${m.month}/${m.day}~${s.month}/${s.day} 주간 랭킹';
   }
 
-  DatabaseReference? get _ref {
+  DatabaseReference? _refFor(String sid) {
     try {
       return FirebaseDatabase.instanceFor(
               app: Firebase.app(), databaseURL: OnlineService.databaseUrl)
-          .ref('seasons/$seasonId');
+          .ref('seasons/$sid');
     } catch (_) {
       return null;
     }
   }
+
+  DatabaseReference? get _ref => _refFor(seasonId);
 
   /// 승리 포인트: 10 × (인원 - 1).
   static int winPts(int players) => 10 * (players.clamp(2, 6) - 1);
@@ -72,9 +88,16 @@ class SeasonService {
     } catch (_) {}
   }
 
-  /// 상위 [limit]명 (포인트 내림차순).
-  Future<List<RankEntry>> fetchTop({int limit = 50}) async {
-    final ref = _ref;
+  /// 이번 주 상위 [limit]명 (포인트 내림차순).
+  Future<List<RankEntry>> fetchTop({int limit = 50}) =>
+      _fetchTopFrom(_ref, limit);
+
+  /// 지난 주 상위 [limit]명(기본 3) — '지난 주 챔피언' 표시용.
+  Future<List<RankEntry>> fetchPrevTop({int limit = 3}) =>
+      _fetchTopFrom(_refFor(prevSeasonId), limit);
+
+  Future<List<RankEntry>> _fetchTopFrom(
+      DatabaseReference? ref, int limit) async {
     if (ref == null) return const [];
     try {
       final snap = await ref.orderByChild('pts').limitToLast(limit).get();

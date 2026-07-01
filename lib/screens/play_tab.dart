@@ -175,7 +175,7 @@ class _PlayTabState extends State<PlayTab> {
                       children: [
                         Text('빠른 시작',
                             style: posterTitle(22, color: Colors.white)),
-                        const Text('아무나 만나 바로 대결 (최대 20초 매칭)',
+                        const Text('아무나 만나 바로 대결 (최대 10초 매칭)',
                             style: TextStyle(
                                 color: Colors.white, fontSize: 12)),
                       ],
@@ -337,7 +337,8 @@ class _PlayTabState extends State<PlayTab> {
   }
 
   Widget _roomRow(PublicRoomInfo r) {
-    final full = r.joined >= r.capacity;
+    // 시작된 방은 그 판의 좌석 수 기준으로 꽉 참 판정(late-join 가능 여부와 일치).
+    final full = r.isFull;
     return Container(
       margin: const EdgeInsets.only(bottom: 8),
       padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
@@ -359,7 +360,7 @@ class _PlayTabState extends State<PlayTab> {
                         fontWeight: FontWeight.w900, fontSize: 15)),
                 const SizedBox(height: 2),
                 Text(
-                  '${r.hostName} · ${r.joined}/${r.capacity}명'
+                  '${r.hostName} · ${r.joined}/${r.started && r.seatCount > 0 ? r.seatCount : r.capacity}명'
                   '${r.started ? " · 게임 중" : ""}',
                   style: const TextStyle(color: CD.muted, fontSize: 12),
                 ),

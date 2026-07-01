@@ -5,7 +5,7 @@ import '../meta/meta_service.dart';
 import '../meta/season_service.dart';
 import '../theme.dart';
 
-/// 랭킹 탭: 월별 시즌 포인트 상위 50 + 내 상태 + 로그인 유도.
+/// 랭킹 탭: 주간 시즌 포인트 상위 50 + 지난 주 챔피언 + 내 상태 + 로그인 유도.
 class RankingTab extends StatefulWidget {
   const RankingTab({super.key});
 
@@ -15,15 +15,20 @@ class RankingTab extends StatefulWidget {
 
 class _RankingTabState extends State<RankingTab> {
   late Future<List<RankEntry>> _top;
+  late Future<List<RankEntry>> _prevTop;
 
   @override
   void initState() {
     super.initState();
     _top = SeasonService.I.fetchTop();
+    _prevTop = SeasonService.I.fetchPrevTop();
   }
 
   Future<void> _refresh() async {
-    setState(() => _top = SeasonService.I.fetchTop());
+    setState(() {
+      _top = SeasonService.I.fetchTop();
+      _prevTop = SeasonService.I.fetchPrevTop();
+    });
     await _top;
   }
 
@@ -53,6 +58,7 @@ class _RankingTabState extends State<RankingTab> {
                 ],
               ),
               const SizedBox(height: 10),
+              _prevChampions(),
               if (!AuthService.I.isGoogle) _loginNudge(),
               if (list == null)
                 const Padding(
@@ -70,6 +76,61 @@ class _RankingTabState extends State<RankingTab> {
           );
         },
       ),
+    );
+  }
+
+  /// 지난 주 상위 1~3위(챔피언) — 매주 리셋되는 랭킹의 명예를 남긴다(#6).
+  Widget _prevChampions() {
+    return FutureBuilder<List<RankEntry>>(
+      future: _prevTop,
+      builder: (context, snap) {
+        final list = snap.data;
+        if (list == null || list.isEmpty) return const SizedBox.shrink();
+        const medals = ['🥇', '🥈', '🥉'];
+        return Container(
+          margin: const EdgeInsets.only(bottom: 12),
+          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+          decoration: BoxDecoration(
+            color: CD.parchment.withValues(alpha: 0.12),
+            borderRadius: BorderRadius.circular(14),
+            border: Border.all(color: CD.gold.withValues(alpha: 0.6)),
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Text('🏆 지난 주 챔피언',
+                  style: TextStyle(
+                      color: CD.gold,
+                      fontWeight: FontWeight.w900,
+                      fontSize: 13)),
+              const SizedBox(height: 6),
+              for (var i = 0; i < list.length && i < 3; i++)
+                Padding(
+                  padding: const EdgeInsets.symmetric(vertical: 2),
+                  child: Row(
+                    children: [
+                      Text(medals[i], style: const TextStyle(fontSize: 15)),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: Text(list[i].name,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: const TextStyle(
+                                color: Colors.white,
+                                fontWeight: FontWeight.w700,
+                                fontSize: 13)),
+                      ),
+                      Text('${list[i].pts}점',
+                          style: TextStyle(
+                              color: CD.sand.withValues(alpha: 0.9),
+                              fontSize: 12)),
+                    ],
+                  ),
+                ),
+            ],
+          ),
+        );
+      },
     );
   }
 
@@ -94,7 +155,7 @@ class _RankingTabState extends State<RankingTab> {
                     style: TextStyle(fontWeight: FontWeight.w900)),
                 Text(
                   '지금은 게스트 — 설정(⚙️)에서 Google 로그인하면 승리 포인트가 랭킹에 등록돼요.'
-                  ' (이번 시즌 내 포인트: ${Meta.I.seasonPtsLocal})',
+                  ' (이번 주 내 포인트: ${Meta.I.seasonPtsLocal})',
                   style: const TextStyle(fontSize: 11.5, color: CD.muted),
                 ),
               ],

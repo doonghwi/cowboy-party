@@ -77,7 +77,13 @@ class AuthService extends ChangeNotifier {
       if (kIsWeb) {
         await FirebaseAuth.instance.signInWithPopup(GoogleAuthProvider());
       } else {
-        final g = await GoogleSignIn(scopes: const ['email']).signIn();
+        // serverClientId(웹 클라이언트)를 명시해야 Android에서 Firebase용 idToken이
+        // 확실히 발급된다. 없으면 계정 선택 뒤 토큰 교환이 조용히 실패(→게스트)할 수 있다.
+        final g = await GoogleSignIn(
+          scopes: const ['email'],
+          serverClientId:
+              '162098390378-s2ad0lmi20u81aq3slp4lv581o06oh29.apps.googleusercontent.com',
+        ).signIn();
         if (g == null) {
           lastError = '로그인이 취소됐어요';
           return false;
@@ -97,11 +103,15 @@ class AuthService extends ChangeNotifier {
           '아직 서버에 Google 로그인이 준비 중이에요. 게스트로 플레이해 주세요!',
         'popup-closed-by-user' => '로그인이 취소됐어요',
         'network-request-failed' => '네트워크를 확인해 주세요',
-        _ => '로그인 실패 (${e.code})',
+        // 원인 파악용: code + message를 그대로 노출(예: unknown 뒤 실제 사유).
+        _ => '로그인 실패 (${e.code}'
+            '${(e.message != null && e.message!.isNotEmpty) ? ' · ${e.message}' : ''})',
       };
       return false;
-    } catch (_) {
-      lastError = '로그인 실패 — 잠시 후 다시 시도해 주세요';
+    } catch (e) {
+      // google_sign_in의 PlatformException(sign_in_failed, ApiException: 10 등)이
+      // 여기로 온다 — 삼키지 말고 실제 내용을 보여줘 원인을 좁힌다.
+      lastError = '로그인 실패: $e';
       return false;
     }
   }

@@ -2,14 +2,19 @@ import 'dart:async';
 import 'dart:math';
 
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
+import 'package:share_plus/share_plus.dart';
 
 import '../audio/sfx.dart';
+import '../game/characters.dart';
 import '../game/cpu_ai.dart';
 import '../game/party_logic.dart';
+import '../meta/analytics.dart';
 import '../meta/meta_service.dart';
 import '../theme.dart';
 import '../widgets/action_bar.dart';
 import '../widgets/circular_table.dart';
+import '../widgets/juice.dart';
 import '../widgets/seat_profile.dart';
 import '../widgets/top_toast.dart';
 import '../widgets/desert_background.dart';
@@ -39,16 +44,24 @@ class _OfflineGameScreenState extends State<OfflineGameScreen> {
   @override
   void initState() {
     super.initState();
-    Bgm.play('battle', volume: 0.024); // 전투 배경음 (메뉴보다 살짝 낮게)
+    Bgm.play('battle', volume: 0.072); // 전투 배경음
     if (widget.forcedBots != null) {
       _botCount = widget.forcedBots!.clamp(1, 5);
       WidgetsBinding.instance.addPostFrameCallback((_) => _start());
     }
   }
 
-  static const _botNames = ['잭', '빌', '한스', '로사', '듀크'];
+  // 서부풍 이름 풀 — 매 게임 중복 없이 랜덤으로 뽑아 배정한다.
+  static const _botNames = [
+    '잭', '웨스', '링고', '코디', '행크', '듀크', '클레이', '셰인', '빌리', '카터',
+    '오티스', '밴스', '거스', '와이엇', '로사', '몰리', '테스', '벨', '마고', '조이',
+    '델라', '노아', '릴리', '새디',
+  ];
+  // 이번 게임에 배정된 봇 이름들(_start에서 셔플로 채움).
+  List<String> _chosenBotNames = const [];
   final _cpu = CpuAi();
   final _rand = Random();
+  final _juice = JuiceController(); // 타격감: 화면 흔들림·피격 비네트
 
   int _botCount = 2;
   int _n = 3;
@@ -114,8 +127,13 @@ class _OfflineGameScreenState extends State<OfflineGameScreen> {
   int _superFlashKey = 0;
   Timer? _superTimer;
 
-  List<String> get _names =>
-      ['나', for (var i = 0; i < _n - 1; i++) _botNames[i % _botNames.length]];
+  List<String> get _names => [
+        '나',
+        for (var i = 0; i < _n - 1; i++)
+          i < _chosenBotNames.length
+              ? _chosenBotNames[i]
+              : _botNames[i % _botNames.length],
+      ];
 
   @override
   void dispose() {
@@ -127,7 +145,7 @@ class _OfflineGameScreenState extends State<OfflineGameScreen> {
     for (final t in _rxTimers.values) {
       t.cancel();
     }
-    Bgm.play('menu', volume: 0.03); // 메뉴로 복귀 → 메뉴 배경음
+    Bgm.play('menu', volume: 0.06); // 메뉴로 복귀 → 메뉴 배경음
     super.dispose();
   }
 
@@ -170,6 +188,10 @@ class _OfflineGameScreenState extends State<OfflineGameScreen> {
 
   void _start() {
     _n = 1 + _botCount;
+    Ana.log('game_start', {'mode': 'cpu', 'players': _n});
+    _cpu.beginGame(); // 봇별 성격·실력을 새로 뽑는다(약~강 섞임)
+    _chosenBotNames =
+        (_botNames.toList()..shuffle(_rand)).take(_botCount).toList();
     setState(() {
       final seed = 'OFF${_rand.nextInt(1 << 30)}';
       _gameSeed = seed;
@@ -221,7 +243,12 @@ class _OfflineGameScreenState extends State<OfflineGameScreen> {
       for (var s = 1; s < _n; s++)
         _alive[s]
             ? _cpu.chooseMove(
-                seat: s, ammo: _ammo, alive: _alive, chars: _chars, state: _pstate)
+                seat: s,
+                ammo: _ammo,
+                alive: _alive,
+                chars: _chars,
+                state: _pstate,
+                lastMoves: _last)
             : Move.empty,
     ];
     setState(() {
@@ -303,7 +330,8 @@ class _OfflineGameScreenState extends State<OfflineGameScreen> {
                     ammo: _ammo,
                     alive: _alive,
                     chars: _chars,
-                    state: _pstate))
+                    state: _pstate,
+                    lastMoves: _last))
             : Move.empty,
     ];
     final aliveBefore = List<bool>.from(_alive);
@@ -319,6 +347,7 @@ class _OfflineGameScreenState extends State<OfflineGameScreen> {
     _pstate = out.stateAfter!;
     if (out.superFired.any((x) => x)) _fireSuperFlash();
     _playRevealSound(out);
+    _playRevealJuice(out, aliveBefore);
     setState(() {
       _lastOut = out;
       _last = List<Move?>.from(moves);
@@ -353,6 +382,30 @@ class _OfflineGameScreenState extends State<OfflineGameScreen> {
       _autoNext = Timer(_revealHold, () {
         if (mounted && _phase == _Phase.reveal) _next();
       });
+    }
+  }
+
+  /// 하스스톤식 타격감(W2): 결과에 맞춰 화면 흔들림·햅틱. 내 피해가 최우선.
+  void _playRevealJuice(TurnOutcome out, List<bool> aliveBefore) {
+    final iDied = aliveBefore[0] && !out.aliveAfter[0];
+    final iGotHit = out.hit.isNotEmpty && out.hit[0];
+    final anySuper = out.superFired.any((x) => x);
+    final anyHit = out.hit.any((x) => x);
+    if (iDied) {
+      _juice.hurt(power: 14);
+      HapticFeedback.heavyImpact();
+    } else if (iGotHit) {
+      _juice.hurt();
+      HapticFeedback.heavyImpact();
+    } else if (anySuper) {
+      _juice.shake(12);
+      HapticFeedback.heavyImpact();
+    } else if (anyHit) {
+      _juice.shake(6);
+      HapticFeedback.mediumImpact();
+    } else if (out.fired.any((x) => x) || out.rouletteFired.any((x) => x)) {
+      _juice.shake(2.5); // 발사됐지만 전부 방어/빗나감 — 잔진동만
+      HapticFeedback.lightImpact();
     }
   }
 
@@ -488,7 +541,7 @@ class _OfflineGameScreenState extends State<OfflineGameScreen> {
     _sdFastestMs = 9999;
     for (final s in _sdPlayers) {
       if (s == 0) continue;
-      final r = 280 + _rand.nextInt(560); // 280~840ms
+      final r = _cpu.showdownReactionMs(s); // 실력 높을수록 빠름
       if (r < _sdFastestMs) {
         _sdFastestMs = r;
         _sdFastestBot = s;
@@ -729,7 +782,9 @@ class _OfflineGameScreenState extends State<OfflineGameScreen> {
         Expanded(
           child: Padding(
             padding: const EdgeInsets.all(8),
-            child: Stack(
+            child: JuiceLayer(
+              controller: _juice,
+              child: Stack(
               children: [
                 CircularTable(
                   seats: seats,
@@ -756,6 +811,7 @@ class _OfflineGameScreenState extends State<OfflineGameScreen> {
                         key: ValueKey('sf-$_superFlashKey')),
                   ),
               ],
+              ),
             ),
           ),
         ),
@@ -926,6 +982,8 @@ class _OfflineGameScreenState extends State<OfflineGameScreen> {
   void _endReward() {
     if (_offlineRewarded) return;
     _offlineRewarded = true;
+    Ana.log('game_end',
+        {'mode': 'cpu', 'players': _n, 'won': _winner == 0 ? 1 : 0});
     final missions = Meta.I.noteGamePlayed(won: _winner == 0);
     final bonus = missions.fold<int>(0, (a, m) => a + m.gold);
     if (bonus > 0) {
@@ -934,6 +992,23 @@ class _OfflineGameScreenState extends State<OfflineGameScreen> {
           TopToast.show(context, message: '데일리 미션 +$bonus 코인!');
         }
       });
+    }
+  }
+
+  // #5 결과 공유(성장): 승리를 밖으로 — 링크로 바로 한 판 가능.
+  Future<void> _shareResult() async {
+    Ana.log('share_result', {'mode': 'cpu', 'won': 1});
+    const link = 'https://doonghwi.github.io/cowboy-party/';
+    final text = '🤠 카우보이 $_n인 대결에서 최후의 1인으로 살아남았다!\n너도 한 판? $link';
+    try {
+      await Share.share(text, subject: '카우보이');
+    } catch (_) {
+      Clipboard.setData(ClipboardData(text: text));
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+        content: Text('내용이 복사됐어요 — 카톡 등에 붙여넣어 자랑하세요'),
+        behavior: SnackBarBehavior.floating,
+      ));
     }
   }
 
@@ -970,6 +1045,23 @@ class _OfflineGameScreenState extends State<OfflineGameScreen> {
               textAlign: TextAlign.center,
               style: posterTitle(26, color: iWon ? CD.rust : CD.danger)),
           const SizedBox(height: 14),
+          if (iWon) ...[
+            SizedBox(
+              width: double.infinity,
+              child: OutlinedButton.icon(
+                onPressed: _shareResult,
+                style: OutlinedButton.styleFrom(
+                  foregroundColor: CD.rust,
+                  side: const BorderSide(color: CD.rust, width: 1.5),
+                  padding: const EdgeInsets.symmetric(vertical: 12),
+                ),
+                icon: const Icon(Icons.share, size: 18),
+                label: const Text('승리 자랑하기',
+                    style: TextStyle(fontWeight: FontWeight.w800)),
+              ),
+            ),
+            const SizedBox(height: 10),
+          ],
           Row(
             children: [
               Expanded(

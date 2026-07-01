@@ -10,15 +10,15 @@
 /// outcomes from the same move history.
 library;
 
-import 'characters.dart';
+// 순수 규칙 코어만 import — Flutter 의존이 없어 헤드리스(봇 러너)에서도 돈다.
+// UI 심볼(CharDef·kCharacters·charDef)이 필요한 화면은 characters.dart 를 직접
+// import 한다.
+import 'char_core.dart';
 
-export 'characters.dart'
+export 'char_core.dart'
     show
         CharId,
-        CharDef,
-        charDef,
         charFromIndex,
-        kCharacters,
         kCurseFuse,
         kMysteryPool,
         kMysteryStartRevealChars,

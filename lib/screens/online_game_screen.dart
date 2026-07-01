@@ -6,7 +6,9 @@ import 'package:flutter/services.dart';
 import 'package:share_plus/share_plus.dart';
 
 import '../audio/sfx.dart';
+import '../game/characters.dart';
 import '../game/party_logic.dart';
+import '../meta/analytics.dart';
 import '../meta/meta_service.dart';
 import '../meta/char_stats.dart';
 import '../meta/season_service.dart';
@@ -17,6 +19,7 @@ import '../widgets/circular_table.dart';
 import '../widgets/seat_profile.dart';
 import '../widgets/desert_background.dart';
 import '../widgets/emoji_bar.dart';
+import '../widgets/juice.dart';
 import '../widgets/online_showdown.dart';
 import '../widgets/super_flash.dart';
 import '../widgets/top_toast.dart';
@@ -72,6 +75,10 @@ class _OnlineGameScreenState extends State<OnlineGameScreen> {
   bool _revealing = false;
   Timer? _revealTimer;
 
+  // 타격감(W2) + 지표(game_start 1회 로깅).
+  final _juice = JuiceController();
+  bool _loggedStart = false;
+
   // Server clock skew (for both staleness and the reaction showdown).
   int _serverOffset = 0;
   StreamSubscription<DatabaseEvent>? _offsetSub;
@@ -86,7 +93,7 @@ class _OnlineGameScreenState extends State<OnlineGameScreen> {
   @override
   void initState() {
     super.initState();
-    Bgm.play('battle', volume: 0.024); // 전투 배경음
+    Bgm.play('battle', volume: 0.072); // 전투 배경음
     _offsetSub = widget.service.serverOffsetRef().onValue.listen((e) {
       final v = e.snapshot.value;
       if (v is num && mounted) setState(() => _serverOffset = v.toInt());
@@ -119,7 +126,7 @@ class _OnlineGameScreenState extends State<OnlineGameScreen> {
       widget.service.leave(widget.code, _presenceSeat,
           started: _startedNow, name: _myName);
     }
-    Bgm.play('menu', volume: 0.03); // 메뉴로 복귀 → 메뉴 배경음
+    Bgm.play('menu', volume: 0.06); // 메뉴로 복귀 → 메뉴 배경음
     super.dispose();
   }
 
@@ -193,6 +200,8 @@ class _OnlineGameScreenState extends State<OnlineGameScreen> {
         if (view.status == GameStatus.won) {
           view.iWon ? Sfx.win() : Sfx.lose();
         }
+        // 마지막 한 방(리빌 창 없이 바로 종료)에도 손맛을 준다.
+        _playRevealJuice(view, view.seats.any((s) => s.superFired));
       }
       return;
     }
@@ -200,7 +209,12 @@ class _OnlineGameScreenState extends State<OnlineGameScreen> {
     _endSoundPlayed = false;
     if (view.phase == OnlinePhase.waiting) {
       _shownTurn = 0;
+      _loggedStart = false; // 다음 판 game_start 재로깅용
       return;
+    }
+    if (!_loggedStart) {
+      _loggedStart = true;
+      Ana.log('game_start', {'mode': 'online', 'players': view.seatCount});
     }
     // A rematch resets the turn counter — re-sync so reveals work next game.
     if (view.turn < _shownTurn) _shownTurn = view.turn;
@@ -210,6 +224,7 @@ class _OnlineGameScreenState extends State<OnlineGameScreen> {
       final hadSuper = view.seats.any((s) => s.superFired);
       _shownTurn = view.turn;
       _playRevealSound(view, hadSuper);
+      _playRevealJuice(view, hadSuper);
       // Always reveal so the 장전(+1)·방어(방패) effects show even on a quiet
       // turn with no shots; a quiet turn just gets a shorter window.
       _revealing = true;
@@ -218,6 +233,26 @@ class _OnlineGameScreenState extends State<OnlineGameScreen> {
         if (mounted) setState(() => _revealing = false);
       });
       if (hadSuper) _fireSuperFlash();
+    }
+  }
+
+  /// 하스스톤식 타격감(W2): 결과에 맞춰 화면 흔들림·햅틱. 내 피해가 최우선.
+  void _playRevealJuice(RoomView view, bool hadSuper) {
+    final me = view.mySeat >= 0 && view.mySeat < view.seats.length
+        ? view.seats[view.mySeat]
+        : null;
+    if (me?.hitThisTurn == true) {
+      _juice.hurt();
+      HapticFeedback.heavyImpact();
+    } else if (hadSuper) {
+      _juice.shake(12);
+      HapticFeedback.heavyImpact();
+    } else if (view.seats.any((s) => s.hitThisTurn)) {
+      _juice.shake(6);
+      HapticFeedback.mediumImpact();
+    } else if (view.seats.any((s) => s.fired)) {
+      _juice.shake(2.5); // 발사됐지만 전부 방어/빗나감 — 잔진동만
+      HapticFeedback.lightImpact();
     }
   }
 
@@ -308,7 +343,7 @@ class _OnlineGameScreenState extends State<OnlineGameScreen> {
                   if (view.mySeat < 0) {
                     return _info('방에서 나왔어요.', back: true);
                   }
-                  return _waiting(view);
+                  return _waiting(view, data);
                 }
                 if (view.iAmOut) {
                   return _info('연결이 끊겨 방에서 나가졌어요.\n초대 링크로 다시 들어올 수 있어요.',
@@ -475,6 +510,8 @@ class _OnlineGameScreenState extends State<OnlineGameScreen> {
     _rewarded = true;
     final players = view.seatCount;
     final iWon = view.winnerSeat == view.mySeat;
+    Ana.log('game_end',
+        {'mode': 'online', 'players': players, 'won': iWon ? 1 : 0});
     final coins = iWon ? Meta.I.grantWin(players) : Meta.I.grantPlay();
     if (iWon) SeasonService.I.recordWin(players);
     // #12 승률 트래커: 내 캐릭터의 승/패 1건 기록(밸런스용).
@@ -514,7 +551,20 @@ class _OnlineGameScreenState extends State<OnlineGameScreen> {
 
   // ---- Waiting room ------------------------------------------------------
 
-  Widget _waiting(RoomView view) {
+  Widget _waiting(RoomView view, Map data) {
+    // 준비 상태(방장 제외 전원 준비해야 시작). 방장 = 참여 좌석 중 가장 낮은 좌석.
+    // 빠른시작(match) 방은 봇이 준비를 안 누르므로 게이트 제외(항상 시작 가능).
+    final isMatch = data['match'] == true;
+    final readyMap = (data['ready'] is Map) ? data['ready'] as Map : const {};
+    final present = [for (final s in view.seats) if (s.joined) s.seat];
+    final hostSeat =
+        present.isEmpty ? 0 : present.reduce((a, b) => a < b ? a : b);
+    final nonHost = present.where((s) => s != hostSeat).toList();
+    final readyCount = nonHost.where((s) => readyMap['p$s'] == true).length;
+    final needReady = !isMatch;
+    final allReady =
+        !needReady || (nonHost.isNotEmpty && readyCount == nonHost.length);
+    final iAmReady = view.mySeat >= 0 && readyMap['p${view.mySeat}'] == true;
     return Column(
       children: [
         const SizedBox(height: 12),
@@ -586,11 +636,11 @@ class _OnlineGameScreenState extends State<OnlineGameScreen> {
               ? SizedBox(
                   width: double.infinity,
                   child: FilledButton.icon(
-                    onPressed: view.canStart
-                        ? () => widget.service.startGame(widget.code)
-                        : null,
+                    // 2명 이상이면 누를 수 있고, 준비 안 된 사람 있으면 안내만 뜬다.
+                    onPressed:
+                        view.canStart ? () => _hostStart(allReady) : null,
                     style: FilledButton.styleFrom(
-                      backgroundColor: CD.rust,
+                      backgroundColor: allReady ? CD.rust : CD.leather,
                       disabledBackgroundColor: CD.muted.withValues(alpha: 0.4),
                       padding: const EdgeInsets.symmetric(vertical: 15),
                       shape: RoundedRectangleBorder(
@@ -598,22 +648,58 @@ class _OnlineGameScreenState extends State<OnlineGameScreen> {
                     ),
                     icon: const Icon(Icons.play_arrow),
                     label: Text(
-                        view.canStart
-                            ? '시작! (${view.joinedCount}명)'
-                            : '2명 이상 모이면 시작',
+                        !view.canStart
+                            ? '2명 이상 모이면 시작'
+                            : allReady
+                                ? '시작! (${view.joinedCount}명)'
+                                : '준비 대기 ($readyCount/${nonHost.length})',
                         style: posterTitle(18, color: Colors.white)),
                   ),
                 )
-              : const Padding(
-                  padding: EdgeInsets.symmetric(vertical: 10),
-                  child: Text('호스트가 시작하기를 기다리는 중...',
-                      style: TextStyle(
-                          color: CD.leather, fontWeight: FontWeight.w700)),
-                ),
+              : !needReady
+                  ? const Padding(
+                      padding: EdgeInsets.symmetric(vertical: 10),
+                      child: Text('호스트가 시작하기를 기다리는 중...',
+                          style: TextStyle(
+                              color: CD.leather, fontWeight: FontWeight.w700)),
+                    )
+                  : SizedBox(
+                      width: double.infinity,
+                      child: FilledButton.icon(
+                        onPressed: view.mySeat < 0
+                            ? null
+                            : () => widget.service
+                                .setReady(widget.code, view.mySeat, !iAmReady),
+                        style: FilledButton.styleFrom(
+                          backgroundColor: iAmReady ? CD.sage : CD.leather,
+                          padding: const EdgeInsets.symmetric(vertical: 15),
+                          shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(14)),
+                        ),
+                        icon: Icon(iAmReady
+                            ? Icons.check_circle
+                            : Icons.check_circle_outline),
+                        label: Text(iAmReady ? '준비 완료 (탭해서 해제)' : '준비하기',
+                            style: posterTitle(18, color: Colors.white)),
+                      ),
+                    ),
         ),
         const SizedBox(height: 12),
       ],
     );
+  }
+
+  /// 방장 시작 버튼: 전원 준비돼야 시작, 아니면 안내 스낵바.
+  void _hostStart(bool allReady) {
+    if (allReady) {
+      widget.service.startGame(widget.code);
+    } else {
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+        behavior: SnackBarBehavior.floating,
+        content: Text('아직 준비하지 않은 사람이 있어요. 모두 "준비"를 누르면 시작할 수 있어요.'),
+        duration: Duration(seconds: 2),
+      ));
+    }
   }
 
   // ---- Table -------------------------------------------------------------
@@ -667,7 +753,9 @@ class _OnlineGameScreenState extends State<OnlineGameScreen> {
         Expanded(
           child: Padding(
             padding: const EdgeInsets.all(8),
-            child: Stack(
+            child: JuiceLayer(
+              controller: _juice,
+              child: Stack(
               children: [
                 CircularTable(
                   seats: _seatsOf(view, reveal),
@@ -717,6 +805,7 @@ class _OnlineGameScreenState extends State<OnlineGameScreen> {
                         key: ValueKey('sf-$_superFlashKey')),
                   ),
               ],
+              ),
             ),
           ),
         ),
@@ -1034,6 +1123,24 @@ class _OnlineGameScreenState extends State<OnlineGameScreen> {
     );
   }
 
+  // #5 결과 공유(성장): 우승을 밖으로 — 링크로 바로 한 판 가능.
+  Future<void> _shareWin(RoomView view) async {
+    Ana.log('share_result', {'mode': 'online', 'won': 1});
+    const link = 'https://doonghwi.github.io/cowboy-party/';
+    final text =
+        '🤠 카우보이 ${view.seatCount}인 온라인 대결에서 우승했다!\n너도 한 판? $link';
+    try {
+      await Share.share(text, subject: '카우보이');
+    } catch (_) {
+      Clipboard.setData(ClipboardData(text: text));
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+        content: Text('내용이 복사됐어요 — 카톡 등에 붙여넣어 자랑하세요'),
+        behavior: SnackBarBehavior.floating,
+      ));
+    }
+  }
+
   Widget _result(RoomView view) {
     final iWon = view.iWon;
     return Container(
@@ -1051,6 +1158,23 @@ class _OnlineGameScreenState extends State<OnlineGameScreen> {
               textAlign: TextAlign.center,
               style: posterTitle(26, color: iWon ? CD.rust : CD.danger)),
           const SizedBox(height: 12),
+          if (iWon) ...[
+            SizedBox(
+              width: double.infinity,
+              child: OutlinedButton.icon(
+                onPressed: () => _shareWin(view),
+                style: OutlinedButton.styleFrom(
+                  foregroundColor: CD.rust,
+                  side: const BorderSide(color: CD.rust, width: 1.5),
+                  padding: const EdgeInsets.symmetric(vertical: 12),
+                ),
+                icon: const Icon(Icons.share, size: 18),
+                label: const Text('우승 자랑하기',
+                    style: TextStyle(fontWeight: FontWeight.w800)),
+              ),
+            ),
+            const SizedBox(height: 10),
+          ],
           // 매칭 방(#2)은 다시하기 없이 나가기만.
           if (widget.matchMode)
             SizedBox(

@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../game/characters.dart';
 import '../game/party_logic.dart';
 import '../theme.dart';
 import 'character_portrait.dart';
