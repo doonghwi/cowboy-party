@@ -180,6 +180,15 @@ dailyapp_stats/cowboy_party: 사용량(중앙 대시보드)
 - 그림자/파파라치 등 신규 캐릭터의 SeatView 발동 배지(현재 일부는 배너+사운드로만 표시).
 - 온라인 엿보기 2-클라이언트 실기기 검증(현재 computeView 단위테스트 + 오프라인 동작으로 검증됨).
 
+## iOS 스토어 준비 (App Store, 계정 전 사전작업 완료)
+> 상세·체크리스트는 `STORE_RELEASE_PREP.md`(F절)·`store/ios_release.md`·`store/appstore_metadata.md`.
+- **PrivacyInfo.xcprivacy** (`ios/Runner/`) — 수집데이터(uid·닉네임·플레이기록, Linked·비추적) +
+  필요사유 API(UserDefaults/파일타임스탬프/부팅시각) 선언. pbxproj Resources에 연결 → `Runner.app` 최상위 번들 검증.
+- **Runner.entitlements** — `com.apple.developer.applesignin`(계정 뒤 Xcode capability로 자동 연결).
+- **Info.plist**: `ITSAppUsesNonExemptEncryption=false`(수출규정 자동통과), 구글 URL scheme·아이콘 세트 확인.
+- iOS 릴리스 빌드 `flutter build ios --release --no-codesign` 통과(서명/업로드만 Apple Developer 계정 필요).
+- 스크린샷: 6.9"(1320×2868)·iPad 13"(2064×2752) 홈 캡처(`store/screenshots/ios/`), 나머지는 README 절차로 추가.
+
 ## 7. 유지보수 원칙
 - 규칙 바꿀 일은 **party_logic.dart 한 곳**. 바꾸면 characters_test.dart에 케이스 추가.
 - 새 RTDB 정렬 쿼리 추가 시 `.indexOn` 규칙 동반.

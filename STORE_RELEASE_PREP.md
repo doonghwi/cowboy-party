@@ -34,7 +34,10 @@
 - [x] C1 안드로이드 에뮬(AVD `cowboy`)에서 **현재 빌드**로 캡처(1080×2400): 홈(빠른시작 포함)/
       게임플레이(6인)/상점/랭킹/보상 5장 → `store/screenshots/android/`.
 - [ ] C2 iOS 시뮬레이터에서 6.7"/6.5"/5.5" + iPad 규격 캡처(App Store는 규격 엄격). **(후속: 시뮬레이터 필요 — store/ios_release.md 규격 참고)**
-- [x] C3 `store/screenshots/android/` 저장 완료. `ios/`는 폴더만 생성(후속).
+- [x] C2 iOS 시뮬레이터 캡처 — **6.9"(1320×2868) `ios/iphone_69/01_home.png` + iPad 13"(2064×2752) `ios/ipad_13/01_home.png`**
+      (App Store 사이즈별 필수 최소 충족). 상점/랭킹/보상/게임플레이는 탭 이동이 필요해 `store/screenshots/ios/README.md`
+      절차로 추가 캡처(자동화 세션은 GUI 탭 불가). iPhone 17 Pro Max / iPad Pro 13" 시뮬레이터 사용.
+- [x] C3 `store/screenshots/android/` + `ios/iphone_69`·`ios/ipad_13` 저장 완료.
 
 ## D. 그래픽 자산
 - [x] D1 앱 아이콘 512×512 → `store/icon_512.png` (원본 1024 launcher icon에서 추출).
@@ -56,6 +59,12 @@
       ⚠️ 실제 작동은 Firebase 콘솔 Apple 공급자 + Apple Developer 계정 필요(store/ios_release.md).
 - [x] F2 버전/빌드번호·bundle id·아이콘 세트 점검 항목 정리 → store/ios_release.md.
 - [x] F3 Xcode 아카이브·업로드 절차 문서화 → store/ios_release.md.
+- [x] F4 **개인정보 매니페스트** `ios/Runner/PrivacyInfo.xcprivacy` 생성 + Xcode 타깃 연결(pbxproj) →
+      릴리스 빌드 `Runner.app/PrivacyInfo.xcprivacy`로 번들됨 검증. (2024+ App Store 필수)
+- [x] F5 **`Runner.entitlements`(applesignin) 사전 생성** — 계정 뒤 Xcode capability 추가 시 자동 연결.
+- [x] F6 **`Info.plist ITSAppUsesNonExemptEncryption=false`** — 업로드 시 수출규정 질문 자동 통과(HTTPS만 사용).
+- [x] F7 **iOS 릴리스 빌드 검증** `flutter build ios --release --no-codesign` 통과(Runner.app 48MB, 서명만 계정 필요).
+- [x] F8 **App Store Connect 입력 필드 문서** `store/appstore_metadata.md`(부제·키워드·프로모션·Age Rating·App Review 노트).
 
 ## G. 데이터 안전 / 개인정보 양식 답안
 - [x] G1 Play "데이터 안전" 답안 초안 작성.

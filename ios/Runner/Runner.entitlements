@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<!--
+	  Sign in with Apple entitlement.
+	  This file is pre-created so it is ready. It only takes effect once the Xcode
+	  build setting CODE_SIGN_ENTITLEMENTS = Runner/Runner.entitlements is set, which
+	  Xcode wires automatically when you add "Sign in with Apple" under
+	  Signing & Capabilities (requires an Apple Developer account + App ID capability).
+	-->
+	<key>com.apple.developer.applesignin</key>
+	<array>
+		<string>Default</string>
+	</array>
+</dict>
+</plist>
