@@ -1,0 +1,43 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<!-- 맥미니 상시 실행용 launchd 에이전트.
+     ~/Library/LaunchAgents/ 에 복사 후 launchctl load. COWBOY_AUTH_API_KEY 를
+     실제 서버 API 키로 채운다. 경로(WorkingDirectory)도 실제 위치로 확인. -->
+<plist version="1.0">
+<dict>
+  <key>Label</key>
+  <string>com.doonghwi.cowboy-bot-runner</string>
+
+  <key>ProgramArguments</key>
+  <array>
+    <string>/opt/homebrew/bin/dart</string>
+    <string>run</string>
+    <string>bin/runner.dart</string>
+  </array>
+
+  <key>WorkingDirectory</key>
+  <string>/Users/doonghwi/Documents/dailyapp/cowboy_party/bot_runner</string>
+
+  <key>EnvironmentVariables</key>
+  <dict>
+    <key>COWBOY_AUTH_API_KEY</key>
+    <string>REPLACE_WITH_SERVER_API_KEY</string>
+    <key>COWBOY_BOT_CREDS</key>
+    <string>/Users/doonghwi/Documents/dailyapp/cowboy_party/bot_runner/bot_creds.json</string>
+  </dict>
+
+  <key>RunAtLoad</key>
+  <true/>
+  <key>KeepAlive</key>
+  <true/>
+
+  <key>StandardOutPath</key>
+  <string>/Users/doonghwi/Documents/dailyapp/cowboy_party/bot_runner/runner.out.log</string>
+  <key>StandardErrorPath</key>
+  <string>/Users/doonghwi/Documents/dailyapp/cowboy_party/bot_runner/runner.err.log</string>
+
+  <!-- 크래시 폭주 방지: 재시작 최소 간격 10초 -->
+  <key>ThrottleInterval</key>
+  <integer>10</integer>
+</dict>
+</plist>

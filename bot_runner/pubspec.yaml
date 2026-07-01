@@ -1,0 +1,16 @@
+name: cowboy_bot_runner
+description: 카우보이 온라인 봇 러너 — 맥미니에서 헤드리스로 돌며 빠른시작 방을 봇으로 채운다.
+publish_to: 'none'
+version: 0.1.0
+
+environment:
+  sdk: ^3.5.0
+
+# 순수 Dart만 — Flutter 의존 없음(헤드리스). 게임 로직(char_core·party_logic·
+# cpu_ai)은 tool/sync_core.sh 로 앱에서 복사해 온다(단일 편집 소스 = 앱, 버전 스큐 방지).
+dependencies:
+  http: ^1.2.0
+
+dev_dependencies:
+  lints: ^4.0.0
+  test: ^1.25.0

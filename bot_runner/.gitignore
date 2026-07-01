@@ -1,0 +1,14 @@
+# 비밀: 봇 계정 자격증명(uid·refreshToken) — 절대 커밋 금지
+bot_creds.json
+
+# Dart
+.dart_tool/
+.packages
+pubspec.lock
+
+# 로그
+*.log
+
+# 비밀 API 키 든 로컬 실행 스크립트
+run_local.sh
+test_host_creds.json
