@@ -1,7 +1,14 @@
-<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools">
     <!-- Required for Firebase Realtime Database (online play) in release builds.
          Flutter only adds INTERNET to the debug/profile manifests by default. -->
     <uses-permission android:name="android.permission.INTERNET"/>
+    <!-- firebase_analytics(측정 SDK)가 자동 병합하는 광고 ID 권한 제거.
+         이 앱은 광고 ID를 쓰지 않는다(리텐션·이벤트는 앱 인스턴스 ID로 충분).
+         제거해야 Play 콘솔 "광고 ID 사용 안 함" 선언과 매니페스트가 일치한다. -->
+    <uses-permission android:name="com.google.android.gms.permission.AD_ID" tools:node="remove"/>
+    <uses-permission android:name="android.permission.ACCESS_ADSERVICES_AD_ID" tools:node="remove"/>
+    <uses-permission android:name="android.permission.ACCESS_ADSERVICES_ATTRIBUTION" tools:node="remove"/>
     <application
         android:label="카우보이"
         android:name="${applicationName}"
@@ -28,6 +35,10 @@
                 <category android:name="android.intent.category.LAUNCHER"/>
             </intent-filter>
         </activity>
+        <!-- Analytics가 광고 ID를 아예 수집하지 않게 명시(권한 제거와 세트). -->
+        <meta-data
+            android:name="google_analytics_adid_collection_enabled"
+            android:value="false" />
         <!-- Don't delete the meta-data below.
              This is used by the Flutter tool to generate GeneratedPluginRegistrant.java -->
         <meta-data

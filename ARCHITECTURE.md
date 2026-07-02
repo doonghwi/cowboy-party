@@ -179,6 +179,9 @@ dailyapp_stats/cowboy_party: 사용량(중앙 대시보드)
 - [x] **Stage 5**: ??? 해금 게이트(canBuyMystery, 전 캐릭터 보유 시) + 선물코드 + 에뮬 검증 + 배포.
 
 ## 최근 변경 (2026-07)
+### v13 (2026-07-02, Play 광고 ID 선언 대응)
+- v12의 firebase_analytics가 매니페스트에 `AD_ID` 권한을 자동 병합 → Play "광고 ID 선언이 불완전함" 경고. **광고 ID를 안 쓰므로 권한 제거로 대응**: AndroidManifest에 `tools:node="remove"` 3종(AD_ID·ADSERVICES_AD_ID·ATTRIBUTION) + `google_analytics_adid_collection_enabled=false`. `aapt dump permissions`로 제거 검증. 콘솔 선언 답안은 `store/data_safety.md` §5(**"사용 안 함"**, v13 이상 업로드 전제). versionCode 13·kBuildNo 13. Analytics 기능 손실 없음(앱 인스턴스 ID 기반).
+
 ### v12 (2026-07-02, 성장 배치 W1~W4 — PRODUCT_PLAN.md 로드맵 실행)
 - **W1 지표**: `meta/analytics.dart`(`Ana`) 신설 + firebase_analytics 도입. 이벤트 6종(game_start/game_end/char_buy/daily_claim/mission_done/share_result) — 이제 D1 리텐션·퍼널을 Firebase 콘솔에서 측정 가능(Analytics 대시보드 반영은 최대 24h).
 - **W2 타격감**: `widgets/juice.dart` — 피격 화면 흔들림+붉은 비네트+햅틱(강도 위계는 §위젯 참조). 게임로직 0줄, 표시 레이어만.

@@ -31,7 +31,17 @@
 
 ### 4) 보안 관행
 - 전송 중 암호화: 예. 사용자 데이터 삭제 요청 메커니즘: 예(아래 연락처).
-- 광고 SDK/서드파티 분석 SDK: 없음.
+- 광고 SDK: 없음. 분석 SDK: **Firebase Analytics**(v12+, 익명 사용 통계 — 광고 ID 미사용, 아래 5 참고).
+
+### 5) 광고 ID 선언 (앱 콘텐츠 > 광고 ID) — v13 기준 답안
+- **"앱이 광고 ID를 사용하나요?" → 아니오(사용 안 함)**
+- 근거: v12에서 firebase_analytics가 매니페스트에 `com.google.android.gms.permission.AD_ID`를
+  자동 병합해 선언 요구가 떴음 → v13에서 **권한을 `tools:node="remove"`로 제거**하고
+  `google_analytics_adid_collection_enabled=false` 메타데이터로 수집도 껐다(AndroidManifest.xml).
+  리텐션·이벤트 측정은 앱 인스턴스 ID로 동작하므로 기능 손실 없음.
+- ⚠️ 이 선언은 **매니페스트와 일치해야** 한다: "사용 안 함"으로 답하려면 반드시 **v13 이상**(AD_ID 제거본)을
+  업로드해야 하며, v12(AD_ID 포함)를 올린 채 "사용 안 함"을 고르면 콘솔이 오류를 띄운다.
+- 데이터 안전 양식의 "기기 또는 기타 ID"는 기존 답(uid 수집) 유지 — 광고 ID 항목은 계속 "수집 안 함".
 
 ---
 

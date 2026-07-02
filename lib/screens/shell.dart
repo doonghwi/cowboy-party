@@ -24,7 +24,7 @@ const bool kShowAdPlaceholder = true;
 
 /// 앱 빌드 번호(versionCode와 일치시켜 손으로 올린다). 설정에 표시해서
 /// 폰에 어떤 버전이 깔렸는지 눈으로 확인할 수 있게 한다.
-const int kBuildNo = 12;
+const int kBuildNo = 13;
 
 /// 하단 4탭 셸: [플레이] [상점] [랭킹] [보상] + 코인칩 + 설정.
 class ShellScreen extends StatefulWidget {
