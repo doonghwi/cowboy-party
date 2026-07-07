@@ -60,3 +60,6 @@ dist/
 # Firebase 플랫폼 설정파일 — 키가 스캐너에 걸림. Dart options(firebase_options.dart)만 커밋.
 **/GoogleService-Info.plist
 **/google-services.json
+
+# Play 게시 서비스 계정 키 — 출시 권한 그 자체. 절대 커밋 금지 (growth/PLAY_UPLOAD_SETUP.md)
+**/play-service-account.json

@@ -3,6 +3,12 @@
 > 새 세션에서 이 파일을 먼저 읽고 이어서 진행. 모든 작업물은 디스크에 있고 main에 커밋됨.
 > ⚠️ 아래 좌표 일부는 구 Windows 경로(C:\dev\…) — 현재는 Mac `/Users/doonghwi/Documents/dailyapp/`.
 
+## 2026-07-08 성장 계획 수립 — growth/ 폴더 신설 (리서치 5건 완료, 사용자 선택 대기)
+- **growth/**: 타격감(JUICE_PLAN)·리텐션(RETENTION_PLAN)·툴연결(TOOLS_SETUP)·업로드자동화(PLAY_UPLOAD_SETUP)·홍보(PROMO_PLAN) — 하스스톤/Brawl Stars/구스구스덕 등 리서치 기반. **README.md에 사용자 액션 요약.**
+- **tools/upload_play.sh**: fastlane supply 래퍼(트랙 기본 alpha). 서비스 계정 JSON(사용자 1회 설정, 가이드 참고)만 오면 즉시 가동 — **밀린 v13(광고ID 제거분) 업로드가 첫 실행 대상**.
+- .gitignore에 `**/play-service-account.json` 추가.
+- **사용자 대기 항목**: ① Play 서비스계정 설정(15분) ② GEMINI_API_KEY 발급(무료·5분) ③ RETENTION_PLAN 번호 선택(추천 A1~A5) ④ 유료 툴(Recraft·ElevenLabs) 여부.
+
 ## 2026-06-30 사운드 개선 — 효과음+BGM+게임흐름 **✅ 웹 라이브 · 안드로이드 v6 빌드(Play 업로드 대기)**
 > v6 신규(2026-06-30 후속): ① 메뉴BGM 끊김 수정(웹 `onPlayerComplete` 수동 루프 — audioplayers_web은 ReleaseMode.loop 미동작) + 탭 전환 시 `Bgm.ensure('menu')`. ② 백그라운드 재생 방지(`main.dart` 라이프사이클 옵저버 → `Bgm.onLifecycle`로 paused/hidden 정지·resumed 재개). ③ 컴퓨터전 자동진행 — `offline_game_screen` reveal '계속하기'·관전 '다음 턴 보기' 버튼 제거 → 타이머 자동(`_revealHold` 2.2s/`_spectateHold` 1.1s, 탭하면 즉시 스킵). 봇은 원래 자동. 공지 '🎮 컴퓨터 대결이 더 매끄러워졌어요' 추가. **승리음악은 보류(사용자가 나중에)**.
 - **효과음 합성 강화**(`tool/make_sounds.py`): 총성에 협곡 에코(reverb), 팡파레/패배에 잔향+하모닉,
