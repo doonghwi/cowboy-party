@@ -179,6 +179,10 @@ dailyapp_stats/cowboy_party: 사용량(중앙 대시보드)
 - [x] **Stage 5**: ??? 해금 게이트(canBuyMystery, 전 캐릭터 보유 시) + 선물코드 + 에뮬 검증 + 배포.
 
 ## 최근 변경 (2026-07)
+### 에셋 툴 셋업 (2026-07-12, 코드 변경 없음 — growth/TOOLS_SETUP.md 상세)
+- pubspec에 **flutter_soloud ^4.0.12(저지연 SFX)·newton_particles ^0.3.0(파티클)·haptic_kit ^2.1.2(햅틱)** 추가 — 아직 코드 미사용(타격감 1단계에서 배선 예정), analyze 통과.
+- 로컬 툴: jsfxr(`tools/sfx/gen_sfx.js` → `growth/sfx_samples/` 총성·코인·클릭 WAV)·Kenney CC0 후보 46개(`growth/audio_candidates/kenney/`)·rembg 2.0.76·ImageMagick 7.1.2(아트 후처리). Gemini 이미지 생성은 **무료 티어 폐지 확인** → 사용자 결정 대기(결제 연결 or mflux), 스크립트는 `tools/gen_test_image.py` 준비 완료.
+
 ### v13 (2026-07-02, Play 광고 ID 선언 대응)
 - v12의 firebase_analytics가 매니페스트에 `AD_ID` 권한을 자동 병합 → Play "광고 ID 선언이 불완전함" 경고. **광고 ID를 안 쓰므로 권한 제거로 대응**: AndroidManifest에 `tools:node="remove"` 3종(AD_ID·ADSERVICES_AD_ID·ATTRIBUTION) + `google_analytics_adid_collection_enabled=false`. `aapt dump permissions`로 제거 검증. 콘솔 선언 답안은 `store/data_safety.md` §5(**"사용 안 함"**, v13 이상 업로드 전제). versionCode 13·kBuildNo 13. Analytics 기능 손실 없음(앱 인스턴스 ID 기반).
 

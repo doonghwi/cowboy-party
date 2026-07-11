@@ -1,6 +1,6 @@
 # 에셋 생성 툴 연결 체크리스트 — 사용자 작업 안내
 
-> 결론: **$0 조합만으로 시작 가능** (Gemini 이미지 + jsfxr 효과음 + Kenney CC0 + pub 패키지).
+> 결론: **$0 조합만으로 시작 가능** (jsfxr 효과음 + Kenney CC0 + pub 패키지 — 이미지는 Gemini 무료 폐지로 웹 수동 or mflux, 섹션 1 참고).
 > 유료 2개(Recraft·ElevenLabs, 합계 ~$10-15/월)는 스킨 시스템·시그니처 사운드 단계에서.
 
 ## 사용자가 해줄 연결 작업 (우선순위순)
@@ -49,3 +49,9 @@
 ## 요청 이력
 - 2026-07-08 계획 수립. 사용자 키 발급 대기: GEMINI_API_KEY (1순위).
 - 2026-07-12 ✅ GEMINI_API_KEY 수령·검증(모델 목록 200 OK)·`~/.zshrc` 저장 완료. 유료 툴은 사용자 보류(스킨·시그니처 SFX 단계에서 재결정). 무료 조합(jsfxr·Kenney·pub 패키지)은 별도 툴 연결 세션에서 설치 예정.
+- 2026-07-12 (2차 세션) 무료 툴 연결 실행 결과:
+  - ❌ **Gemini 테스트 이미지 실패 — 무료 티어 이미지 생성 폐지 확인.** gemini-2.5-flash-image·3.1-flash-image·3.1-flash-lite-image 전부 429 `free_tier_requests limit: 0`(키·요청 자체는 정상 — 텍스트 모델 `gemini-flash-latest`는 무료 응답 OK). 즉 이미지 생성은 이제 결제 연결 프로젝트 전용. **사용자 결정 필요**: ① AI Studio 프로젝트에 결제 연결(pay-as-you-go, flash-image 약 $0.04/장 — 테스트+스킨 시안 수십 장이면 $1~3 수준) ② `mflux` 로컬 생성(무료 무제한, 디스크 8~24GB 승인 필요) ③ AI Studio 웹에서 수동 생성. 생성 스크립트는 `tools/gen_test_image.py`로 준비 완료(참조 캐릭터 3장+보안관 프롬프트, 키 활성화 즉시 `python3 tools/gen_test_image.py <모델명>` 실행 가능).
+  - ✅ jsfxr 설치(`tools/sfx/`, npm 로컬) + 샘플 3종 생성 → `growth/sfx_samples/` (총성 jsfxr_gunshot.wav · 코인 jsfxr_coin.wav · UI클릭 jsfxr_ui_click.wav — 파라미터는 `tools/sfx/gen_sfx.js`에서 무한 튜닝 가능).
+  - ✅ Kenney CC0 5팩(423파일) 다운로드·검토 → 서부극 후보 46개 선별 `growth/audio_candidates/kenney/` (용도별 10폴더, README에 목록·한계 정리). 진짜 총성은 Kenney에 없음 → jsfxr/ElevenLabs 몫.
+  - ✅ ImageMagick 7.1.2(brew) + rembg 2.0.76(uv tool) 설치·실동작 검증(캐릭터 PNG 배경 제거 512x512 출력 OK). python3.12에서 rembg는 `--with "numba>=0.59" --with "llvmlite>=0.42"` 필요. rembg 경로 `~/.local/bin`을 `~/.zshrc` PATH에 등록.
+  - ✅ pubspec에 flutter_soloud ^4.0.12 · newton_particles ^0.3.0 · haptic_kit ^2.1.2 추가, `flutter analyze` 통과(No issues found).
