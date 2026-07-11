@@ -5,7 +5,7 @@
     {
       "title": "🙋 사용자 대기 — 해줘야 진행되는 것",
       "items": [
-        { "t": "Gemini 결제 연결 → 이미지 생성 자동화 개통", "who": "사용자", "st": "block", "note": "사용자가 유료 자동화 의사 표명(2026-07-12). aistudio.google.com/api-keys에서 Set up Billing(카드 등록, 종량제·장당 ~$0.04~0.15) → 완료 알려주면 Claude가 tools/gen_test_image.py+샘플 6장 자동 생성해 품질 보고" },
+        { "t": "이미지 생성: Gemini 웹 수동 채택 (결제 보류)", "who": "사용자", "st": "wait", "note": "2026-07-12 사용자 웹 테스트 — 배너 합격, 캐릭터는 v1 프롬프트의 flat 지시 탓 그림체 불일치 → 키트 v2(세미리얼 음영)로 정정. 소량은 사용자가 웹에서 생성→~/Downloads에 저장→Claude가 후처리·배선. 스킨 12종(50장+) 단계에서 API 결제 재결정" },
         { "t": "유료 툴 결정 — Recraft($10 선불)·ElevenLabs($5/월)", "who": "사용자", "st": "wait", "note": "지금은 무료 조합으로 진행 중. 스킨 대량 생산·시그니처 SFX 단계에서 결정해도 됨" },
         { "t": "iOS App Store 제출 (Apple Developer $99 등록)", "who": "사용자", "st": "wait", "note": "store/ios_release.md" }
       ]
