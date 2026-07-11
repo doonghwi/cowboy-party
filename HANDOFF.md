@@ -3,6 +3,13 @@
 > 새 세션에서 이 파일을 먼저 읽고 이어서 진행. 모든 작업물은 디스크에 있고 main에 커밋됨.
 > ⚠️ 아래 좌표 일부는 구 Windows 경로(C:\dev\…) — 현재는 Mac `/Users/doonghwi/Documents/dailyapp/`.
 
+## 2026-07-12 승인 확정 + bintage 통합 대시보드 cowboy 탭 + 아트 외주 파이프라인
+- **사용자 승인**: 타격감 전체 / 리텐션 A1·A2·A4·A5+B1~B5(**광고 요소 전면 제외** — A3 탈락, 스트릭 복구는 주1회 무료) / 홍보 플랜. 다음 구현: 타격감 1단계 → 리텐션 A.
+- **GEMINI_API_KEY**: 수령·검증(200 OK)·`~/.zshrc` 저장. 유료 툴(Recraft·ElevenLabs)은 보류.
+- **bintage 슈퍼 대시보드에 프로젝트 선택기**(🧵bintage|🤠cowboy) + cowboy 할일 패널 추가(`~/bintage/1_sourcing/0_monitor/super_dashboard.py`, 데이터=이 repo `growth/todo.json`). ⚠️ bintage repo는 병렬 세션 미커밋 작업물과 섞여 있어 **커밋은 bintage 세션에 위임**(수정분 작업트리에 남김, HTML 재생성·서빙 반영 완료).
+- **⚠️ 카우보이 작업 종료 루틴 추가**: `growth/todo.json` 갱신 후 `cd ~/bintage/1_sourcing/0_monitor && /opt/homebrew/bin/python3.12 super_dashboard.py` 1줄 실행(대시보드는 정적 파일이라 재생성해야 반영. 시스템 python3=3.9는 문법 에러남, 반드시 3.12).
+- **growth/ART_PIPELINE.md 신설**: "GPT→Godot 아트 외주" 질문 답 — AI API 외주 5단계 파이프라인(스타일가이드→생성(Gemini/GPT/Recraft)→rembg 후처리→배치→에뮬 검증). OpenAI 키는 현재 불필요.
+
 ## 2026-07-08 성장 계획 수립 — growth/ 폴더 신설 (리서치 5건 완료, 사용자 선택 대기)
 - **growth/**: 타격감(JUICE_PLAN)·리텐션(RETENTION_PLAN)·툴연결(TOOLS_SETUP)·업로드자동화(PLAY_UPLOAD_SETUP)·홍보(PROMO_PLAN) — 하스스톤/Brawl Stars/구스구스덕 등 리서치 기반. **README.md에 사용자 액션 요약.**
 - **tools/upload_play.sh**: fastlane supply 래퍼(트랙 기본 alpha). 서비스 계정 JSON(사용자 1회 설정, 가이드 참고)만 오면 즉시 가동 — **밀린 v13(광고ID 제거분) 업로드가 첫 실행 대상**.
