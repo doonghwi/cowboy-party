@@ -1,0 +1,34 @@
+{
+  "updated": "2026-07-12",
+  "note": "bintage 슈퍼 대시보드의 cowboy 탭이 이 파일을 읽는다. 카우보이 세션은 작업 상태가 바뀔 때마다 이 파일을 갱신할 것(작업 종료 루틴에 포함). st: block=사용자 대기(빨강) / next=다음 작업(노랑) / wait=대기(회색) / done=완료(초록)",
+  "groups": [
+    {
+      "title": "🙋 사용자 대기 — 해줘야 진행되는 것",
+      "items": [
+        { "t": "Play 서비스계정 1회 설정 (~15분)", "who": "사용자", "st": "block", "note": "growth/PLAY_UPLOAD_SETUP.md 1~7단계. 완료되면 AAB 업로드가 영구 자동화됨" },
+        { "t": "v13 AAB 업로드 (광고ID 권한 제거분)", "who": "사용자→Claude", "st": "block", "note": "위 설정 완료 즉시 Claude가 자동 업로드. 급하면 ~/Downloads/cowboy_party-v13.aab 수동 업로드" },
+        { "t": "유료 툴 결정 — Recraft($10 선불)·ElevenLabs($5/월)", "who": "사용자", "st": "wait", "note": "지금은 무료 조합으로 진행 중. 스킨 대량 생산·시그니처 SFX 단계에서 결정해도 됨" },
+        { "t": "iOS App Store 제출 (Apple Developer $99 등록)", "who": "사용자", "st": "wait", "note": "store/ios_release.md" }
+      ]
+    },
+    {
+      "title": "🔨 승인된 작업 큐 — Claude가 순서대로 진행",
+      "items": [
+        { "t": "타격감 1단계: 발사음 3종+피치랜덤·머즐플래시·반동·피격플래시·넉백·명중파티클·히트스톱", "who": "Claude", "st": "next", "note": "growth/JUICE_PLAN.md — flutter_soloud 도입 포함" },
+        { "t": "리텐션 A1·A2·A4·A5 (스트릭 강화·계정 레벨·주간 미션·트로피 로드)", "who": "Claude", "st": "next", "note": "광고 요소 제외 확정(A3 탈락, 스트릭 복구권은 주 1회 무료로 — 광고 도입 시 전환)" },
+        { "t": "타격감 2단계: SFX 25~30종 체계·결투 예열(DRAW!)·승리 셀레브레이션·음악 4상태", "who": "Claude", "st": "wait", "note": "" },
+        { "t": "리텐션 B: B1 시즌패스(무료 30티어) → B2 스킨 12종 → B5 도감 → B4 복귀보상 → B3 미니리그", "who": "Claude", "st": "wait", "note": "스킨 에셋은 Gemini 이미지 파이프라인 사용" },
+        { "t": "스토어 에셋 리뉴얼: 아이콘 2안·피처그래픽·스크린샷(가로 16:9 포함)·30초 영상", "who": "Claude", "st": "wait", "note": "growth/PROMO_PLAN.md W1" },
+        { "t": "홍보 카피 일체: 디시 글·트윗 2주치·스트리머 섭외 메일·보도자료", "who": "Claude", "st": "wait", "note": "게시/발송만 사용자" }
+      ]
+    },
+    {
+      "title": "✅ 최근 완료",
+      "items": [
+        { "t": "성장 계획 수립 — growth/ 문서 5종 + 업로드 스크립트", "who": "Claude", "st": "done", "note": "2026-07-08" },
+        { "t": "Gemini API 키 연결·검증 (이미지 생성 무료 티어)", "who": "사용자+Claude", "st": "done", "note": "2026-07-12, ~/.zshrc GEMINI_API_KEY" },
+        { "t": "타격감·리텐션·홍보 계획 사용자 승인", "who": "사용자", "st": "done", "note": "2026-07-12 — 광고 요소만 제외" }
+      ]
+    }
+  ]
+}
