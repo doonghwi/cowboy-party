@@ -6,8 +6,8 @@
       "title": "🙋 사용자 대기 — 해줘야 진행되는 것",
       "items": [
         { "t": "Play 서비스계정 1회 설정 (~15분)", "who": "사용자", "st": "block", "note": "growth/PLAY_UPLOAD_SETUP.md 1~7단계. 완료되면 AAB 업로드가 영구 자동화됨" },
-        { "t": "v13 AAB 업로드 (광고ID 권한 제거분)", "who": "사용자→Claude", "st": "block", "note": "위 설정 완료 즉시 Claude가 자동 업로드. 급하면 ~/Downloads/cowboy_party-v13.aab 수동 업로드" },
-        { "t": "Gemini 이미지 품질 직접 확인 → 이미지 생성 경로 결정", "who": "사용자", "st": "block", "note": "~/Downloads/cowboy_art_samples/사용법_프롬프트.txt 따라 AI Studio 웹에서 5분 체험(무료). 만족→결제 연결(장당 ~$0.02~0.13) / 싫으면→mflux 로컬(무료)·Recraft. ⚠️ API 무료 티어는 이미지 생성 한도 0 실측. 경로 결정 즉시 Claude가 tools/gen_test_image.py(참조 캐릭터 3장+프롬프트)로 자동 생성 가능" },
+        { "t": "v13 AAB 업로드 (광고ID 권한 제거분)", "who": "사용자", "st": "block", "note": "사용자가 서비스계정 연결 후 다른 세션에서 진행하기로 함(2026-07-12)" },
+        { "t": "Gemini 결제 연결 → 이미지 생성 자동화 개통", "who": "사용자", "st": "block", "note": "사용자가 유료 자동화 의사 표명(2026-07-12). aistudio.google.com/api-keys에서 Set up Billing(카드 등록, 종량제·장당 ~$0.04~0.15) → 완료 알려주면 Claude가 tools/gen_test_image.py+샘플 6장 자동 생성해 품질 보고" },
         { "t": "유료 툴 결정 — Recraft($10 선불)·ElevenLabs($5/월)", "who": "사용자", "st": "wait", "note": "지금은 무료 조합으로 진행 중. 스킨 대량 생산·시그니처 SFX 단계에서 결정해도 됨" },
         { "t": "iOS App Store 제출 (Apple Developer $99 등록)", "who": "사용자", "st": "wait", "note": "store/ios_release.md" }
       ]
