@@ -1,6 +1,8 @@
+import 'dart:async';
 import 'dart:math';
 
 import 'package:flutter/material.dart';
+import 'package:flutter/scheduler.dart';
 
 /// 타격감(주스) 레이어 — 화면 흔들림 + 피격 붉은 비네트.
 ///
@@ -20,6 +22,19 @@ class JuiceController {
   void hurt({double power = 13}) {
     _state?._shake(power);
     _state?._flash();
+  }
+
+  static Timer? _hitStopTimer;
+
+  /// 히트스톱(타격감 1단계): 명중 순간 [ms]만큼 연출 시간을 사실상 정지.
+  /// timeDilation은 애니메이션 클록만 늦추므로 게임 로직·타이머·온라인
+  /// 동기화는 그대로 흐른다(로컬 연출 전용). 중첩 호출은 마지막 것이 이긴다.
+  static void hitStop({int ms = 50}) {
+    timeDilation = 10;
+    _hitStopTimer?.cancel();
+    _hitStopTimer = Timer(Duration(milliseconds: ms), () {
+      timeDilation = 1.0;
+    });
   }
 }
 
@@ -82,6 +97,7 @@ class _JuiceLayerState extends State<JuiceLayer>
     // 감쇠 사인 진동: 진폭 (1-t)^2, 두 축 주파수를 다르게 해 원운동이 아닌
     // 손맛 나는 덜컹임을 만든다.
     Offset off = Offset.zero;
+    double rot = 0;
     if (_shakeCtl.isAnimating) {
       final t = _shakeCtl.value;
       final amp = _power * (1 - t) * (1 - t);
@@ -89,13 +105,20 @@ class _JuiceLayerState extends State<JuiceLayer>
         sin(t * 34 + _phase) * amp,
         cos(t * 27 + _phase * 1.7) * amp * 0.8,
       );
+      // 미세 회전(JW Nijman 팁): 진폭에 비례한 ±0.5~1° 덜컹임.
+      rot = sin(t * 23 + _phase * 2.3) * amp * 0.0012;
     }
     // 피격 비네트: 확 떴다가 스르르 사라진다.
     final f = _flashCtl.isAnimating ? (1 - _flashCtl.value) : 0.0;
     return Stack(
       fit: StackFit.passthrough,
       children: [
-        Transform.translate(offset: off, child: widget.child),
+        Transform.translate(
+          offset: off,
+          child: rot == 0
+              ? widget.child
+              : Transform.rotate(angle: rot, child: widget.child),
+        ),
         if (f > 0)
           Positioned.fill(
             child: IgnorePointer(

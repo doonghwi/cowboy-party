@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:share_plus/share_plus.dart';
 
+import '../audio/juice_sfx.dart';
 import '../audio/sfx.dart';
 import '../game/characters.dart';
 import '../game/cpu_ai.dart';
@@ -407,6 +408,11 @@ class _OfflineGameScreenState extends State<OfflineGameScreen> {
       _juice.shake(2.5); // 발사됐지만 전부 방어/빗나감 — 잔진동만
       HapticFeedback.lightImpact();
     }
+    // 히트스톱(1단계): 탄환 코어 도착(~450ms)에 로컬 연출만 잠깐 정지.
+    if (anyHit) {
+      Timer(const Duration(milliseconds: 430),
+          () => JuiceController.hitStop(ms: (iDied || iGotHit) ? 80 : 50));
+    }
   }
 
   void _playRevealSound(TurnOutcome out) {
@@ -415,16 +421,17 @@ class _OfflineGameScreenState extends State<OfflineGameScreen> {
     } else if (out.reflectKill.any((x) => x)) {
       Sfx.play('trap');
     } else if (out.curseKill.any((x) => x)) {
-      Sfx.play('hit');
+      JuiceSfx.hit();
     } else if (out.rouletteFired.any((x) => x)) {
-      Sfx.play('shot');
-      Timer(const Duration(milliseconds: 130), () => Sfx.play('hit'));
+      JuiceSfx.shot();
+      Timer(const Duration(milliseconds: 440), JuiceSfx.hit);
     } else if (out.voodooCast.any((x) => x)) {
       Sfx.play('smoke');
     } else if (out.fired.any((x) => x)) {
-      Sfx.play('shot');
+      JuiceSfx.shot();
       if (out.hit.any((x) => x)) {
-        Timer(const Duration(milliseconds: 130), () => Sfx.play('hit'));
+        // 타격음은 탄환 코어 도착(~450ms)에 맞춘다(넉백·히트스톱과 동기).
+        Timer(const Duration(milliseconds: 440), JuiceSfx.hit);
       } else if (out.evaded.any((x) => x)) {
         Timer(const Duration(milliseconds: 130), () => Sfx.play('smoke'));
       } else {

@@ -179,6 +179,12 @@ dailyapp_stats/cowboy_party: 사용량(중앙 대시보드)
 - [x] **Stage 5**: ??? 해금 게이트(canBuyMystery, 전 캐릭터 보유 시) + 선물코드 + 에뮬 검증 + 배포.
 
 ## 최근 변경 (2026-07)
+### 타격감 1단계 (2026-07-12 — JUICE_PLAN 1단계, 전부 표시 전용·게임로직 0줄)
+- **사운드**: `audio/juice_sfx.dart` 신설 — flutter_soloud 저지연 재생, 발사음 3종 풀(assets/sounds/gunshot_a/b/c.wav, 사용자 승인 "크랙+펀치" 레이어드=jsfxr+Kenney CC0) 직전 회피 랜덤 + 피치 ±8%·볼륨 ±10%. 엔진 실패 시 audioplayers(Sfx) 폴백. 타격음(hit)은 코어 도착(~440ms)에 동기.
+- **모션**: `widgets/seat_motion.dart` 신설 — 발사자 반동(8px+2° 기울임, 즉시)·피격자 넉백(12px)+흰 플래시 80ms(430ms 지연=탄 도착). `widgets/hit_burst.dart` 신설 — 자작 명중 파티클(불꽃 스파크+파편+잔류 연기, Canvas 1장). CircularTable이 리빌 플래그·좌석 좌표로 방향 계산해 배선.
+- **히트스톱**: juice.dart `JuiceController.hitStop()` — timeDilation 스파이크(명중 50ms/내 피격·사망 80ms, 로직·타이머 무영향). 화면흔들림에 미세 회전(±~1°) 추가. effects.dart 머즐 섬광 70ms 백열 보강.
+- newton_particles는 비교 데모 후 미채택(자작 선택, tool/demo/particle_demo.dart·test/particle_capture_test.dart는 비교 도구로 잔존). 검증: analyze 0 / test 206 / 에뮬 실플레이(명중 리빌에서 섬광·플래시·스파크·연기 확인).
+
 ### 에셋 툴 셋업 (2026-07-12, 코드 변경 없음 — growth/TOOLS_SETUP.md 상세)
 - pubspec에 **flutter_soloud ^4.0.12(저지연 SFX)·newton_particles ^0.3.0(파티클)·haptic_kit ^2.1.2(햅틱)** 추가 — 아직 코드 미사용(타격감 1단계에서 배선 예정), analyze 통과.
 - 로컬 툴: jsfxr(`tools/sfx/gen_sfx.js` → `growth/sfx_samples/` 총성·코인·클릭 WAV)·Kenney CC0 후보 46개(`growth/audio_candidates/kenney/`)·rembg 2.0.76·ImageMagick 7.1.2(아트 후처리). Gemini 이미지 생성은 **무료 티어 폐지 확인** → 사용자 결정 대기(결제 연결 or mflux), 스크립트는 `tools/gen_test_image.py` 준비 완료.

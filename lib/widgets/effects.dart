@@ -352,6 +352,17 @@ class _ShotsPainter extends CustomPainter {
       canvas.drawCircle(start, (isSuper ? 7.0 : 5.0) * fl + 2,
           Paint()..color = Colors.white.withValues(alpha: 0.85 * fl));
     }
+    // 머즐 플래시 강화(타격감 1단계): 발사 순간 ~70ms 백열 섬광.
+    final mf = (1 - t / 0.07).clamp(0.0, 1.0);
+    if (mf > 0.01) {
+      canvas.drawCircle(
+        start,
+        (isSuper ? 22.0 : 16.0) * (0.6 + 0.4 * (1 - mf)),
+        Paint()
+          ..color = Colors.white.withValues(alpha: 0.9 * mf)
+          ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 5),
+      );
+    }
 
     // 4) Impact at the target once the core arrives.
     if (t > 0.45) {

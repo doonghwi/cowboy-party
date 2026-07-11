@@ -4,6 +4,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 
+import 'audio/juice_sfx.dart';
 import 'audio/sfx.dart';
 import 'firebase_options.dart';
 import 'meta/analytics.dart';
@@ -52,6 +53,8 @@ Future<void> main() async {
   }
   // 닉네임 비속어 필터는 백그라운드 로드 — 절대 시작(runApp)을 막지 않는다(#1).
   Profanity.I.init();
+  // 저지연 SFX 엔진(soloud) — 비차단, 실패 시 audioplayers 폴백이라 무해.
+  JuiceSfx.init();
   // 익명 로그인이 콘솔에서 켜져 있으면 게스트도 랭킹에 오를 수 있다(베스트에포트).
   AuthService.I.tryAnonymous();
   runApp(const CowboyPartyApp());

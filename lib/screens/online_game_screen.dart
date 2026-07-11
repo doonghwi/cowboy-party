@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:share_plus/share_plus.dart';
 
+import '../audio/juice_sfx.dart';
 import '../audio/sfx.dart';
 import '../game/characters.dart';
 import '../game/party_logic.dart';
@@ -254,6 +255,12 @@ class _OnlineGameScreenState extends State<OnlineGameScreen> {
       _juice.shake(2.5); // 발사됐지만 전부 방어/빗나감 — 잔진동만
       HapticFeedback.lightImpact();
     }
+    // 히트스톱(1단계): 탄환 코어 도착(~450ms)에 로컬 연출만 잠깐 정지.
+    if (view.seats.any((s) => s.hitThisTurn)) {
+      final mine = me?.hitThisTurn == true;
+      Timer(const Duration(milliseconds: 430),
+          () => JuiceController.hitStop(ms: mine ? 80 : 50));
+    }
   }
 
   /// 턴 결과에 맞는 효과음 — 드라마(덫/연막/자힐)가 우선, 그다음 총성.
@@ -264,9 +271,10 @@ class _OnlineGameScreenState extends State<OnlineGameScreen> {
     } else if (seats.any((s) => s.reflectedFx)) {
       Sfx.play('trap');
     } else if (seats.any((s) => s.fired)) {
-      Sfx.play('shot');
+      JuiceSfx.shot();
       if (seats.any((s) => s.hitThisTurn)) {
-        Timer(const Duration(milliseconds: 130), () => Sfx.play('hit'));
+        // 타격음은 탄환 코어 도착(~450ms)에 맞춘다(넉백·히트스톱과 동기).
+        Timer(const Duration(milliseconds: 440), JuiceSfx.hit);
       } else if (seats.any((s) => s.evadedFx)) {
         Timer(const Duration(milliseconds: 130), () => Sfx.play('smoke'));
       } else {
@@ -276,7 +284,7 @@ class _OnlineGameScreenState extends State<OnlineGameScreen> {
       Sfx.play('shield');
     } else if (seats.any((s) => s.hitThisTurn)) {
       // 총성 없는 죽음(저주·운명의 방아쇠 반사 등).
-      Sfx.play('hit');
+      JuiceSfx.hit();
     } else {
       Sfx.play('reload', volume: 0.7);
     }

@@ -6,7 +6,9 @@ import '../game/party_logic.dart';
 import '../theme.dart';
 import 'effects.dart';
 import 'emo.dart';
+import 'hit_burst.dart';
 import 'seat_card.dart';
+import 'seat_motion.dart';
 
 /// Neutral, render-ready seat data so both the offline and online screens can
 /// drive the circular table without sharing a state class.
@@ -160,13 +162,19 @@ class CircularTable extends StatelessWidget {
                   shots: _shots(positions),
                 ),
               ),
-            // Seat cards.
+            // Seat cards. 리빌 중에는 반동(발사)·넉백+흰 플래시(피격) 모션으로
+            // 감싼다 — 방향은 좌석 좌표에서 계산(표시 전용, 타격감 1단계).
             for (var s = 0; s < n; s++)
               Positioned(
                 left: positions[s].dx - cardW / 2,
                 top: positions[s].dy - cardH / 2,
                 width: cardW,
-                child: SeatCard(
+                child: SeatMotion(
+                  key: ValueKey(
+                      'mo-$s-${reveal ? _turnSig() : 'idle'}-$reveal'),
+                  recoil: reveal ? _recoilDir(s, positions) : null,
+                  knock: reveal ? _knockDir(s, positions) : null,
+                  child: SeatCard(
                   name: seats[s].name,
                   ammo: seats[s].ammo,
                   hideAmmo: seats[s].hideAmmo,
@@ -194,8 +202,25 @@ class CircularTable extends StatelessWidget {
                       : (!targetMode && seats[s].joined && onSeatInfo != null
                           ? () => onSeatInfo!.call(s)
                           : null),
+                  ),
                 ),
               ),
+            // 명중 파티클(타격감 1단계, 자작 HitBurst): 맞은 좌석 위에 불꽃
+            // 스파크+파편+잔류 연기. 탄환 코어 도착(~450ms)에 맞춰 지연 시작.
+            if (reveal)
+              for (var s = 0; s < n; s++)
+                if (seats[s].hit)
+                  Positioned.fill(
+                    child: HitBurst(
+                      key: ValueKey('hb-$s-${_turnSig()}'),
+                      center: positions[s],
+                      isSuper: _hitBySuper(s),
+                      seed: s + 1,
+                      delay: _shooterOf(s) >= 0
+                          ? const Duration(milliseconds: 430)
+                          : Duration.zero,
+                    ),
+                  ),
             // Per-action effects on the reveal: shield ring for defend, a gold
             // "+1" for reload (shots already draw a tracer arrow).
             if (reveal)
@@ -327,6 +352,37 @@ class CircularTable extends StatelessWidget {
 
   /// A signature of this turn's moves so the tracer layer re-animates each turn.
   String _turnSig() => seats.map((s) => s.lastMove?.encode() ?? '-').join('|');
+
+  /// 좌석 s를 쏜 좌석(없으면 -1) — 넉백 방향·임팩트 지연 계산용.
+  int _shooterOf(int s) {
+    for (var x = 0; x < seats.length; x++) {
+      if (!seats[x].fired || x == s) continue;
+      if (seats[x].firedTarget == s || seats[x].firedTarget2 == s) return x;
+    }
+    return -1;
+  }
+
+  /// s가 슈퍼빵야에 맞았는가 — HitBurst 증량용.
+  bool _hitBySuper(int s) => seats.any(
+      (x) => x.superFired && x.firedTarget == s);
+
+  /// 발사 반동 방향(탄 반대방향 단위벡터). 발사 안 했으면 null.
+  Offset? _recoilDir(int s, List<Offset> positions) {
+    if (!seats[s].fired) return null;
+    final t = seats[s].firedTarget;
+    if (t < 0 || t >= positions.length || t == s) return null;
+    final d = positions[s] - positions[t];
+    return d.distance < 1 ? null : d / d.distance;
+  }
+
+  /// 피격 넉백 방향(탄 진행방향 단위벡터). 총 맞은 게 아니면 null.
+  Offset? _knockDir(int s, List<Offset> positions) {
+    if (!seats[s].hit) return null;
+    final x = _shooterOf(s);
+    if (x < 0) return null;
+    final d = positions[s] - positions[x];
+    return d.distance < 1 ? null : d / d.distance;
+  }
 
   /// Build the animated shot list from the seat flags (presentation only).
   List<ShotSpec> _shots(List<Offset> positions) {
