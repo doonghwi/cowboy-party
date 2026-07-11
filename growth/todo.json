@@ -5,7 +5,6 @@
     {
       "title": "🙋 사용자 대기 — 해줘야 진행되는 것",
       "items": [
-        { "t": "이미지 생성: Gemini 웹 수동 채택 (결제 보류)", "who": "사용자", "st": "wait", "note": "2026-07-12 사용자 웹 테스트 — 배너 합격, 캐릭터는 v1 프롬프트의 flat 지시 탓 그림체 불일치 → 키트 v2(세미리얼 음영)로 정정. 소량은 사용자가 웹에서 생성→~/Downloads에 저장→Claude가 후처리·배선. 스킨 12종(50장+) 단계에서 API 결제 재결정" },
         { "t": "유료 툴 결정 — Recraft($10 선불)·ElevenLabs($5/월)", "who": "사용자", "st": "wait", "note": "지금은 무료 조합으로 진행 중. 스킨 대량 생산·시그니처 SFX 단계에서 결정해도 됨" },
         { "t": "iOS App Store 제출 (Apple Developer $99 등록)", "who": "사용자", "st": "wait", "note": "store/ios_release.md" }
       ]
@@ -24,6 +23,7 @@
     {
       "title": "✅ 최근 완료",
       "items": [
+        { "t": "이미지 외주 채용 시험 합격 — 'Gemini 웹 수동생성+Claude 후처리' 파이프라인 검증 완료", "who": "사용자+Claude", "st": "done", "note": "2026-07-12 키트 v2 프롬프트로 스킨 변형·배너 합격, 512규격 가공 시연(duelist_skin_gold_512.png). API 결제는 스킨 대량생산 단계에서 재검토" },
         { "t": "Play 서비스계정 설정+연결 검증 — AAB 업로드 영구 자동화 개통", "who": "사용자+Claude", "st": "done", "note": "2026-07-12 fastlane validate 'Successfully established connection' 확인" },
         { "t": "v13 AAB 업로드 (광고ID 권한 제거분) — 첫 자동 업로드 성공", "who": "Claude", "st": "done", "note": "2026-07-12 다른 세션에서 upload_play.sh로 alpha 트랙 업로드, 전 과정 검증됨" },
         { "t": "무료 에셋 툴 셋업 — jsfxr 샘플 3종·Kenney 후보 46종·rembg·ImageMagick·soloud/newton/haptic 패키지(analyze 통과)", "who": "Claude", "st": "done", "note": "2026-07-12. Gemini 이미지만 무료 티어 폐지로 막힘(사용자 대기 항목 참고)" },
