@@ -45,7 +45,7 @@ class _OfflineGameScreenState extends State<OfflineGameScreen> {
   @override
   void initState() {
     super.initState();
-    Bgm.play('battle', volume: 0.072); // 전투 배경음
+    Bgm.play('battle', volume: 0.22); // 전투 배경음(07-12 3배 상향)
     if (widget.forcedBots != null) {
       _botCount = widget.forcedBots!.clamp(1, 5);
       WidgetsBinding.instance.addPostFrameCallback((_) => _start());

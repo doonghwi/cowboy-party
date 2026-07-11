@@ -5,7 +5,7 @@
     {
       "title": "🙋 사용자 대기 — 해줘야 진행되는 것",
       "items": [
-        { "t": "📋 돌아오면 확인: v15 QA(총성 음질·BGM 공존·리텐션 UI) + 2단계 사운드 시청 보드 승인", "who": "사용자", "st": "block", "note": "폰 Play alpha에서 v15 수신 후 QA. 사운드 보드는 ~/Downloads/cowboy_sound_board/index.html (2단계 후보 추가분). 웹 데모: doonghwi.github.io/cowboy-party" },
+        { "t": "📋 돌아오면 확인: v16 QA(총성·BGM 3배·리텐션 UI) + 사운드/음악 시청 보드 승인 + 홍보 카피 검토", "who": "사용자", "st": "block", "note": "폰 Play alpha에서 v16 수신 후 QA. 사운드 보드는 ~/Downloads/cowboy_sound_board/index.html (2단계 후보 추가분). 웹 데모: doonghwi.github.io/cowboy-party" },
         { "t": "유료 툴 결정 — Recraft($10 선불)·ElevenLabs($5/월)", "who": "사용자", "st": "wait", "note": "지금은 무료 조합으로 진행 중. 스킨 대량 생산·시그니처 SFX 단계에서 결정해도 됨" },
         { "t": "iOS App Store 제출 (Apple Developer $99 등록)", "who": "사용자", "st": "wait", "note": "store/ios_release.md" }
       ]
@@ -22,6 +22,7 @@
     {
       "title": "✅ 최근 완료",
       "items": [
+        { "t": "BGM 볼륨 3배 상향(사용자 요청) + 2단계 사운드·음악 시청 보드 준비(Kenney 46종+MacLeod 7곡) + 홍보 카피 4종 초안(growth/PROMO_COPY.md)", "who": "Claude", "st": "done", "note": "2026-07-12 심야. BGM은 v16에 포함. 게시/발송·보드 승인만 사용자" },
         { "t": "리텐션 A — 계정 레벨(XP)·주간 미션 3종·트로피 로드 16종·스트릭 배너+주1회 무료 복구 + 대기방 준비 ✓ 전원표시 + 오프라인 결과창 조기스킵 버그 수정", "who": "Claude", "st": "done", "note": "2026-07-12. 단위 26종+에뮬 검증(패배 +40XP 확인), v15 배포" },
         { "t": "타격감 1단계 — 발사음 3종(사용자 승인 크랙+펀치)+피치랜덤(soloud)·머즐섬광·반동·피격플래시·넉백·명중파티클(자작)·히트스톱·흔들림 회전", "who": "사용자+Claude", "st": "done", "note": "2026-07-12. analyze 0/test 206/에뮬 실플레이 검증. 실기기 총성 음질·BGM 공존 확인은 사용자 QA" },
         { "t": "시크릿 백업 이중화 완료 — 구글 드라이브 자동 업로드 개통", "who": "사용자+Claude", "st": "done", "note": "2026-07-12 드라이브(mjhee2647@snu.ac.kr) '내 드라이브/dailyapp-secrets-backup'에 앱별 분류(cowboy/restrest 7종)+README(키 설명·복원법)+날짜 스냅샷. 갱신: bash _shared/backup_secrets.sh 한 줄" },

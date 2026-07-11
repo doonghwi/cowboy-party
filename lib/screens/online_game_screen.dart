@@ -94,7 +94,7 @@ class _OnlineGameScreenState extends State<OnlineGameScreen> {
   @override
   void initState() {
     super.initState();
-    Bgm.play('battle', volume: 0.072); // 전투 배경음
+    Bgm.play('battle', volume: 0.22); // 전투 배경음(07-12 3배 상향)
     _offsetSub = widget.service.serverOffsetRef().onValue.listen((e) {
       final v = e.snapshot.value;
       if (v is num && mounted) setState(() => _serverOffset = v.toInt());

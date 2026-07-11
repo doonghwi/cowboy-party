@@ -45,7 +45,7 @@ class _ShellScreenState extends State<ShellScreen> {
     Meta.I.addListener(_onMeta);
     AuthService.I.addListener(_onMeta);
     // 메뉴 배경음 — 게임 화면에서 돌아오면 게임 화면 dispose가 다시 'menu'로 전환.
-    Bgm.play('menu', volume: 0.06);
+    Bgm.play('menu', volume: 0.18); // 효과음 대비 3배 상향(사용자 요청)
     // F4: 초대 링크(?room=CODE)로 들어오면 그 방으로 바로 입장.
     final code = OnlineService.roomCodeFromUrl();
     if (code != null) {
@@ -268,7 +268,7 @@ class _ShellScreenState extends State<ShellScreen> {
           onDestinationSelected: (i) {
             if (i != _tab) Sfx.click();
             // 메뉴 탭으로 돌아다닐 때 배경음악이 꺼져 있으면 되살린다(웹 loop 끊김 대비).
-            Bgm.ensure('menu', volume: 0.06);
+            Bgm.ensure('menu', volume: 0.18);
             setState(() => _tab = i);
           },
           destinations: const [
