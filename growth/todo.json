@@ -5,8 +5,7 @@
     {
       "title": "🙋 사용자 대기 — 해줘야 진행되는 것",
       "items": [
-        { "t": "Play 서비스계정 1회 설정 (~15분)", "who": "사용자", "st": "block", "note": "growth/PLAY_UPLOAD_SETUP.md 1~7단계. 완료되면 AAB 업로드가 영구 자동화됨" },
-        { "t": "v13 AAB 업로드 (광고ID 권한 제거분)", "who": "사용자", "st": "block", "note": "사용자가 서비스계정 연결 후 다른 세션에서 진행하기로 함(2026-07-12)" },
+        { "t": "v13 AAB 업로드 (광고ID 권한 제거분)", "who": "사용자", "st": "block", "note": "서비스계정 연결 완료(검증 통과) — 다른 세션에서 `bash tools/upload_play.sh --aab ~/Downloads/cowboy_party-v13.aab` 실행하면 됨(2026-07-12)" },
         { "t": "Gemini 결제 연결 → 이미지 생성 자동화 개통", "who": "사용자", "st": "block", "note": "사용자가 유료 자동화 의사 표명(2026-07-12). aistudio.google.com/api-keys에서 Set up Billing(카드 등록, 종량제·장당 ~$0.04~0.15) → 완료 알려주면 Claude가 tools/gen_test_image.py+샘플 6장 자동 생성해 품질 보고" },
         { "t": "유료 툴 결정 — Recraft($10 선불)·ElevenLabs($5/월)", "who": "사용자", "st": "wait", "note": "지금은 무료 조합으로 진행 중. 스킨 대량 생산·시그니처 SFX 단계에서 결정해도 됨" },
         { "t": "iOS App Store 제출 (Apple Developer $99 등록)", "who": "사용자", "st": "wait", "note": "store/ios_release.md" }
@@ -26,6 +25,7 @@
     {
       "title": "✅ 최근 완료",
       "items": [
+        { "t": "Play 서비스계정 설정+연결 검증 — AAB 업로드 영구 자동화 개통", "who": "사용자+Claude", "st": "done", "note": "2026-07-12 fastlane validate 'Successfully established connection' 확인" },
         { "t": "무료 에셋 툴 셋업 — jsfxr 샘플 3종·Kenney 후보 46종·rembg·ImageMagick·soloud/newton/haptic 패키지(analyze 통과)", "who": "Claude", "st": "done", "note": "2026-07-12. Gemini 이미지만 무료 티어 폐지로 막힘(사용자 대기 항목 참고)" },
         { "t": "성장 계획 수립 — growth/ 문서 5종 + 업로드 스크립트", "who": "Claude", "st": "done", "note": "2026-07-08" },
         { "t": "Gemini API 키 연결·검증 (이미지 생성 무료 티어)", "who": "사용자+Claude", "st": "done", "note": "2026-07-12, ~/.zshrc GEMINI_API_KEY" },
