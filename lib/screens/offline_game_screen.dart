@@ -115,6 +115,9 @@ class _OfflineGameScreenState extends State<OfflineGameScreen> {
 
   // 결과 공개(reveal)·관전 자동 진행 타이머 — 멀티처럼 버튼 없이 자동으로 다음 턴.
   Timer? _autoNext;
+  // 리빌이 뜬 시각 — 행동 확인 버튼과 같은 자리라, 확인 탭 직후의 잔여/연속
+  // 탭이 "탭하면 바로"로 새서 결과창이 즉시 넘어가던 버그 가드(0.6초 무시).
+  DateTime _revealShownAt = DateTime.fromMillisecondsSinceEpoch(0);
   static const _revealHold = Duration(milliseconds: 2200); // 결과 보여주는 시간
   static const _spectateHold = Duration(milliseconds: 1100); // 관전 자동 진행 간격
 
@@ -379,6 +382,7 @@ class _OfflineGameScreenState extends State<OfflineGameScreen> {
     });
     // 멀티처럼 자동 진행 — 결과를 잠깐 보여준 뒤 버튼 없이 다음 턴으로.
     if (_phase == _Phase.reveal) {
+      _revealShownAt = DateTime.now();
       _autoNext?.cancel();
       _autoNext = Timer(_revealHold, () {
         if (mounted && _phase == _Phase.reveal) _next();
@@ -968,7 +972,14 @@ class _OfflineGameScreenState extends State<OfflineGameScreen> {
         return Padding(
           padding: const EdgeInsets.symmetric(horizontal: 24),
           child: GestureDetector(
-            onTap: _next,
+            onTap: () {
+              // 확인 탭의 여운이 스킵으로 새지 않게 초반 0.6초는 무시.
+              if (DateTime.now().difference(_revealShownAt) <
+                  const Duration(milliseconds: 600)) {
+                return;
+              }
+              _next();
+            },
             behavior: HitTestBehavior.opaque,
             child: Container(
               width: double.infinity,
@@ -991,12 +1002,15 @@ class _OfflineGameScreenState extends State<OfflineGameScreen> {
     _offlineRewarded = true;
     Ana.log('game_end',
         {'mode': 'cpu', 'players': _n, 'won': _winner == 0 ? 1 : 0});
-    final missions = Meta.I.noteGamePlayed(won: _winner == 0);
-    final bonus = missions.fold<int>(0, (a, m) => a + m.gold);
-    if (bonus > 0) {
+    final rew = Meta.I.noteGamePlayed(won: _winner == 0);
+    if (!rew.isEmpty) {
       WidgetsBinding.instance.addPostFrameCallback((_) {
         if (mounted) {
-          TopToast.show(context, message: '데일리 미션 +$bonus 코인!');
+          TopToast.show(
+              context,
+              message: rew.lines.length == 1
+                  ? '${rew.lines.first}  +${rew.coinsGained} 코인!'
+                  : '보상 ${rew.lines.length}개 달성 +${rew.coinsGained} 코인!');
         }
       });
     }

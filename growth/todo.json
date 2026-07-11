@@ -5,6 +5,7 @@
     {
       "title": "🙋 사용자 대기 — 해줘야 진행되는 것",
       "items": [
+        { "t": "📋 돌아오면 확인: v15 QA(총성 음질·BGM 공존·리텐션 UI) + 2단계 사운드 시청 보드 승인", "who": "사용자", "st": "block", "note": "폰 Play alpha에서 v15 수신 후 QA. 사운드 보드는 ~/Downloads/cowboy_sound_board/index.html (2단계 후보 추가분). 웹 데모: doonghwi.github.io/cowboy-party" },
         { "t": "유료 툴 결정 — Recraft($10 선불)·ElevenLabs($5/월)", "who": "사용자", "st": "wait", "note": "지금은 무료 조합으로 진행 중. 스킨 대량 생산·시그니처 SFX 단계에서 결정해도 됨" },
         { "t": "iOS App Store 제출 (Apple Developer $99 등록)", "who": "사용자", "st": "wait", "note": "store/ios_release.md" }
       ]
@@ -12,8 +13,7 @@
     {
       "title": "🔨 승인된 작업 큐 — Claude가 순서대로 진행",
       "items": [
-        { "t": "리텐션 A1·A2·A4·A5 (스트릭 강화·계정 레벨·주간 미션·트로피 로드)", "who": "Claude", "st": "next", "note": "광고 요소 제외 확정(A3 탈락, 스트릭 복구권은 주 1회 무료로 — 광고 도입 시 전환)" },
-        { "t": "타격감 2단계: SFX 25~30종 체계·결투 예열(DRAW!)·승리 셀레브레이션·음악 4상태", "who": "Claude", "st": "wait", "note": "" },
+        { "t": "타격감 2단계: SFX 25~30종 체계·결투 예열(DRAW!)·승리 셀레브레이션·음악 4상태", "who": "Claude", "st": "next", "note": "" },
         { "t": "리텐션 B: B1 시즌패스(무료 30티어) → B2 스킨 12종 → B5 도감 → B4 복귀보상 → B3 미니리그", "who": "Claude", "st": "wait", "note": "스킨 에셋은 Gemini 이미지 파이프라인 사용" },
         { "t": "스토어 에셋 리뉴얼: 아이콘 2안·피처그래픽·스크린샷(가로 16:9 포함)·30초 영상", "who": "Claude", "st": "wait", "note": "growth/PROMO_PLAN.md W1" },
         { "t": "홍보 카피 일체: 디시 글·트윗 2주치·스트리머 섭외 메일·보도자료", "who": "Claude", "st": "wait", "note": "게시/발송만 사용자" }
@@ -22,6 +22,7 @@
     {
       "title": "✅ 최근 완료",
       "items": [
+        { "t": "리텐션 A — 계정 레벨(XP)·주간 미션 3종·트로피 로드 16종·스트릭 배너+주1회 무료 복구 + 대기방 준비 ✓ 전원표시 + 오프라인 결과창 조기스킵 버그 수정", "who": "Claude", "st": "done", "note": "2026-07-12. 단위 26종+에뮬 검증(패배 +40XP 확인), v15 배포" },
         { "t": "타격감 1단계 — 발사음 3종(사용자 승인 크랙+펀치)+피치랜덤(soloud)·머즐섬광·반동·피격플래시·넉백·명중파티클(자작)·히트스톱·흔들림 회전", "who": "사용자+Claude", "st": "done", "note": "2026-07-12. analyze 0/test 206/에뮬 실플레이 검증. 실기기 총성 음질·BGM 공존 확인은 사용자 QA" },
         { "t": "시크릿 백업 이중화 완료 — 구글 드라이브 자동 업로드 개통", "who": "사용자+Claude", "st": "done", "note": "2026-07-12 드라이브(mjhee2647@snu.ac.kr) '내 드라이브/dailyapp-secrets-backup'에 앱별 분류(cowboy/restrest 7종)+README(키 설명·복원법)+날짜 스냅샷. 갱신: bash _shared/backup_secrets.sh 한 줄" },
         { "t": "이미지 외주 채용 시험 합격 — 'Gemini 웹 수동생성+Claude 후처리' 파이프라인 검증 완료", "who": "사용자+Claude", "st": "done", "note": "2026-07-12 키트 v2 프롬프트로 스킨 변형·배너 합격, 512규격 가공 시연(duelist_skin_gold_512.png). API 결제는 스킨 대량생산 단계에서 재검토" },

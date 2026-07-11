@@ -3,6 +3,7 @@ import 'package:flutter/services.dart';
 
 import '../audio/sfx.dart';
 import '../meta/meta_service.dart';
+import '../meta/retention.dart';
 import '../theme.dart';
 import '../widgets/top_toast.dart';
 
@@ -74,6 +75,95 @@ class _RewardsTabState extends State<RewardsTab> {
     return ListView(
       padding: const EdgeInsets.fromLTRB(16, 4, 16, 16),
       children: [
+        // A2 계정 레벨 — 승 +100 / 참가 +40 XP, 홀수 레벨 골드 보상.
+        _card(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Row(
+                children: [
+                  Container(
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 10, vertical: 4),
+                    decoration: BoxDecoration(
+                      color: CD.rust,
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                    child: Text('Lv.${meta.level}',
+                        style: posterTitle(16, color: Colors.white)),
+                  ),
+                  const SizedBox(width: 10),
+                  Text('계정 레벨', style: posterTitle(19)),
+                  const Spacer(),
+                  Text(
+                      meta.maxLevel
+                          ? 'MAX'
+                          : '${meta.xpInto} / ${meta.xpNeed} XP',
+                      style: const TextStyle(
+                          color: CD.muted, fontWeight: FontWeight.w700)),
+                ],
+              ),
+              const SizedBox(height: 10),
+              ClipRRect(
+                borderRadius: BorderRadius.circular(6),
+                child: LinearProgressIndicator(
+                  value: meta.maxLevel
+                      ? 1
+                      : (meta.xpNeed == 0
+                          ? 0
+                          : meta.xpInto / meta.xpNeed),
+                  minHeight: 9,
+                  backgroundColor: CD.sand,
+                  color: CD.rust,
+                ),
+              ),
+              const SizedBox(height: 6),
+              const Text('승리 +$kXpWin XP · 참가 +$kXpLose XP — 홀수 레벨마다 골드 보상!',
+                  style: TextStyle(fontSize: 11.5, color: CD.muted)),
+            ],
+          ),
+        ),
+        if (meta.canReviveStreak) ...[
+          const SizedBox(height: 14),
+          // A1 스트릭 복구(주 1회 무료).
+          Container(
+            padding: const EdgeInsets.all(14),
+            decoration: BoxDecoration(
+              color: const Color(0xFFB3261E).withValues(alpha: 0.92),
+              borderRadius: BorderRadius.circular(16),
+            ),
+            child: Row(
+              children: [
+                const Text('🔥', style: TextStyle(fontSize: 24)),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: Text(
+                      '연속 ${meta.brokenStreak}일 출석이 끊겼어요!\n주 1회 무료로 복구할 수 있어요',
+                      style: const TextStyle(
+                          color: Colors.white,
+                          fontWeight: FontWeight.w800,
+                          fontSize: 13)),
+                ),
+                FilledButton(
+                  onPressed: () {
+                    final n = Meta.I.reviveStreak();
+                    if (n > 0) {
+                      HapticFeedback.mediumImpact();
+                      TopToast.show(context,
+                          message: '🔥 스트릭 복구! 연속 $n일로 이어집니다');
+                    }
+                  },
+                  style: FilledButton.styleFrom(
+                      backgroundColor: Colors.white,
+                      foregroundColor: const Color(0xFFB3261E)),
+                  child: const Text('무료 복구',
+                      style: TextStyle(fontWeight: FontWeight.w900)),
+                ),
+              ],
+            ),
+          ),
+        ],
+        const SizedBox(height: 14),
         _card(
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -135,6 +225,61 @@ class _RewardsTabState extends State<RewardsTab> {
               const SizedBox(height: 4),
               const Text('게임을 끝내면 자동으로 달성·지급돼요.',
                   style: TextStyle(fontSize: 11.5, color: CD.muted)),
+            ],
+          ),
+        ),
+        const SizedBox(height: 14),
+        // A4 주간 미션 — 월요일 리셋(주간 랭킹과 같은 주).
+        _card(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Row(
+                children: [
+                  Text('주간 미션', style: posterTitle(19)),
+                  const Spacer(),
+                  const Text('매주 월요일 초기화',
+                      style: TextStyle(
+                          color: CD.muted, fontWeight: FontWeight.w700)),
+                ],
+              ),
+              const SizedBox(height: 10),
+              for (final m in kWeeklyMissions) _weeklyRow(m),
+              const SizedBox(height: 4),
+              const Text('게임을 끝내면 자동으로 달성·지급돼요.',
+                  style: TextStyle(fontSize: 11.5, color: CD.muted)),
+            ],
+          ),
+        ),
+        const SizedBox(height: 14),
+        // A5 트로피 로드 — 통산 기록 보상길(리셋 없음).
+        _card(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Row(
+                children: [
+                  Text('트로피 로드', style: posterTitle(19)),
+                  const Spacer(),
+                  Text(
+                      '달성 ${kTrophyRoad.where(meta.trophyClaimed).length}/${kTrophyRoad.length}',
+                      style: const TextStyle(
+                          color: CD.muted, fontWeight: FontWeight.w700)),
+                ],
+              ),
+              const SizedBox(height: 6),
+              Text('통산 ${meta.lifeGames}판 · ${meta.lifeWins}승 (리셋 없는 평생 기록)',
+                  style: const TextStyle(fontSize: 12, color: CD.muted)),
+              const SizedBox(height: 8),
+              for (final t
+                  in kTrophyRoad.where((t) => !meta.trophyClaimed(t)).take(4))
+                _trophyRow(t),
+              if (kTrophyRoad.every(meta.trophyClaimed))
+                const Padding(
+                  padding: EdgeInsets.symmetric(vertical: 6),
+                  child: Text('🏆 모든 트로피를 달성했어요! 대단해요, 총잡이!',
+                      style: TextStyle(fontWeight: FontWeight.w800)),
+                ),
             ],
           ),
         ),
@@ -211,6 +356,70 @@ class _RewardsTabState extends State<RewardsTab> {
           ),
         ),
       ],
+    );
+  }
+
+  Widget _weeklyRow(WeeklyMission m) {
+    final done = Meta.I.weeklyClaimed(m);
+    final prog = Meta.I.weeklyProgress(m).clamp(0, m.need);
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 5),
+      child: Row(
+        children: [
+          Icon(done ? Icons.check_circle : Icons.radio_button_unchecked,
+              size: 18, color: done ? CD.sage : CD.muted),
+          const SizedBox(width: 8),
+          Expanded(
+            child: Text('${m.label}  ($prog/${m.need})',
+                style: TextStyle(
+                    fontWeight: FontWeight.w700,
+                    color: done ? CD.muted : CD.leather,
+                    decoration: done ? TextDecoration.lineThrough : null)),
+          ),
+          Text('+${m.gold}',
+              style: TextStyle(
+                  fontWeight: FontWeight.w900,
+                  color: done ? CD.muted : CD.gold)),
+        ],
+      ),
+    );
+  }
+
+  Widget _trophyRow(TrophyMilestone t) {
+    final prog = Meta.I.trophyProgress(t).clamp(0, t.need);
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 5),
+      child: Row(
+        children: [
+          Icon(t.wins ? Icons.emoji_events : Icons.sports_esports,
+              size: 18, color: t.wins ? CD.gold : CD.sage),
+          const SizedBox(width: 8),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text('${t.label}  ($prog/${t.need})',
+                    style: const TextStyle(
+                        fontWeight: FontWeight.w700, color: CD.leather)),
+                const SizedBox(height: 3),
+                ClipRRect(
+                  borderRadius: BorderRadius.circular(4),
+                  child: LinearProgressIndicator(
+                    value: prog / t.need,
+                    minHeight: 5,
+                    backgroundColor: CD.sand,
+                    color: t.wins ? CD.gold : CD.sage,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(width: 8),
+          Text('+${t.gold}',
+              style:
+                  const TextStyle(fontWeight: FontWeight.w900, color: CD.gold)),
+        ],
+      ),
     );
   }
 

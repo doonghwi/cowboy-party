@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 
 import '../meta/meta_service.dart';
+import '../widgets/top_toast.dart';
 import '../online/online_service.dart';
 import '../theme.dart';
 import '../widgets/emo.dart';
@@ -139,6 +140,76 @@ class _PlayTabState extends State<PlayTab> {
     }
   }
 
+  /// A1: 출석 스트릭 배너 — 끊긴 날엔 복구 제안, 미출석이면 경고, 평소엔 불꽃 칩.
+  Widget _streakBanner(BuildContext context) {
+    final meta = Meta.I;
+    if (meta.canReviveStreak) {
+      return Container(
+        margin: const EdgeInsets.only(bottom: 10),
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+        decoration: BoxDecoration(
+          color: const Color(0xFFB3261E).withValues(alpha: 0.92),
+          borderRadius: BorderRadius.circular(14),
+        ),
+        child: Row(
+          children: [
+            const Text('🔥', style: TextStyle(fontSize: 22)),
+            const SizedBox(width: 10),
+            Expanded(
+              child: Text('연속 ${meta.brokenStreak}일 출석이 끊겼어요!',
+                  style: const TextStyle(
+                      color: Colors.white, fontWeight: FontWeight.w800)),
+            ),
+            FilledButton(
+              onPressed: () {
+                final n = meta.reviveStreak();
+                if (n > 0) {
+                  TopToast.show(context,
+                      message: '🔥 스트릭 복구! 연속 $n일로 이어집니다 (주 1회 무료)');
+                }
+              },
+              style: FilledButton.styleFrom(
+                  backgroundColor: Colors.white,
+                  foregroundColor: const Color(0xFFB3261E),
+                  padding: const EdgeInsets.symmetric(horizontal: 12)),
+              child: const Text('무료 복구',
+                  style: TextStyle(fontWeight: FontWeight.w900)),
+            ),
+          ],
+        ),
+      );
+    }
+    final needToday = meta.canClaimDaily && meta.dailyStreak >= 1;
+    if (!needToday && meta.dailyStreak < 2) return const SizedBox.shrink();
+    return Container(
+      margin: const EdgeInsets.only(bottom: 10),
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+      decoration: BoxDecoration(
+        color: needToday
+            ? CD.gold.withValues(alpha: 0.9)
+            : CD.leather.withValues(alpha: 0.45),
+        borderRadius: BorderRadius.circular(14),
+      ),
+      child: Row(
+        children: [
+          const Text('🔥', style: TextStyle(fontSize: 18)),
+          const SizedBox(width: 8),
+          Expanded(
+            child: Text(
+              needToday
+                  ? '연속 ${meta.dailyStreak}일 — 오늘 보상 탭에서 출석하면 이어져요!'
+                  : '연속 ${meta.dailyStreak}일 출석 중',
+              style: TextStyle(
+                  color: needToday ? CD.ink : Colors.white,
+                  fontWeight: FontWeight.w800,
+                  fontSize: 13),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return RefreshIndicator(
@@ -148,6 +219,9 @@ class _PlayTabState extends State<PlayTab> {
         physics: const AlwaysScrollableScrollPhysics(),
         padding: const EdgeInsets.fromLTRB(16, 4, 16, 16),
         children: [
+          // A1 스트릭 대문 노출 — 불꽃 배지 + 오늘 미출석 경고 + 주1회 무료 복구.
+          ListenableBuilder(
+              listenable: Meta.I, builder: (context, _) => _streakBanner(context)),
           // #2 빠른 시작 매칭 — 가장 눈에 띄게.
           InkWell(
             borderRadius: BorderRadius.circular(16),

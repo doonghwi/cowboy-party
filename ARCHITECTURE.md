@@ -179,6 +179,11 @@ dailyapp_stats/cowboy_party: 사용량(중앙 대시보드)
 - [x] **Stage 5**: ??? 해금 게이트(canBuyMystery, 전 캐릭터 보유 시) + 선물코드 + 에뮬 검증 + 배포.
 
 ## 최근 변경 (2026-07)
+### 리텐션 A + 대기방·오프라인 UX (2026-07-12, v15)
+- **리텐션 A(RETENTION_PLAN 승인분)**: `meta/retention.dart` 신설(XP 커브·주간 미션·트로피 로드·스트릭 복구 순수 로직) + Meta 통합. `noteGamePlayed`가 데일리/주간/트로피/XP를 한 번에 진행하고 `GameEndRewards`(줄 목록+코인 합)를 반환 — 두 게임 화면 토스트가 이를 사용. 보상 탭에 레벨 카드(진행바)·주간 미션·트로피 로드 추가, 플레이 탭 대문에 스트릭 배너(미출석 경고·주1회 무료 복구).
+- **대기방 준비 전원 표시(사용자 요청)**: 준비한 좌석에 ✓ 배지(제출 배지 재활용, `_seatsOf(readyOf:)`) + 중앙 배너에 "준비 n/m" 카운트.
+- **오프라인 결과창 조기 스킵 버그 수정(사용자 제보)**: 행동 확인 버튼과 같은 자리의 "탭하면 바로" 스킵이 확인 탭 여운에 눌리던 문제 — 리빌 표시 후 0.6초 스킵 무시.
+
 ### 타격감 1단계 (2026-07-12 — JUICE_PLAN 1단계, 전부 표시 전용·게임로직 0줄)
 - **사운드**: `audio/juice_sfx.dart` 신설 — flutter_soloud 저지연 재생, 발사음 3종 풀(assets/sounds/gunshot_a/b/c.wav, 사용자 승인 "크랙+펀치" 레이어드=jsfxr+Kenney CC0) 직전 회피 랜덤 + 피치 ±8%·볼륨 ±10%. 엔진 실패 시 audioplayers(Sfx) 폴백. 타격음(hit)은 코어 도착(~440ms)에 동기.
 - **모션**: `widgets/seat_motion.dart` 신설 — 발사자 반동(8px+2° 기울임, 즉시)·피격자 넉백(12px)+흰 플래시 80ms(430ms 지연=탄 도착). `widgets/hit_burst.dart` 신설 — 자작 명중 파티클(불꽃 스파크+파편+잔류 연기, Canvas 1장). CircularTable이 리빌 플래그·좌석 좌표로 방향 계산해 배선.

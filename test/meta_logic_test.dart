@@ -5,6 +5,7 @@
 // Firebase에 닿지 않는 동기 메서드 + 순수함수 nicknameChangeGate만 검증한다.
 import 'package:cowboy_party/game/characters.dart';
 import 'package:cowboy_party/meta/meta_service.dart';
+import 'package:cowboy_party/meta/retention.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
@@ -198,17 +199,23 @@ void main() {
     test('데일리 미션: 첫 승리 시 play1+firstwin 동시 달성·지급', () {
       final before = Meta.I.coins;
       final newly = Meta.I.noteGamePlayed(won: true);
-      final keys = newly.map((m) => m.key).toSet();
-      expect(keys.contains('play1'), isTrue);
-      expect(keys.contains('firstwin'), isTrue);
-      final reward =
-          kDailyMissions.where((m) => keys.contains(m.key)).fold<int>(0, (a, m) => a + m.gold);
-      expect(Meta.I.coins, before + reward, reason: '달성 보상 합산 지급');
+      bool hasDaily(GameEndRewards r, String key) => r.lines.any((l) =>
+          l.startsWith('데일리') &&
+          l.contains(kDailyMissions.firstWhere((m) => m.key == key).label));
+      expect(hasDaily(newly, 'play1'), isTrue);
+      expect(hasDaily(newly, 'firstwin'), isTrue);
+      expect(Meta.I.coins, before + newly.coinsGained, reason: '달성 보상 합산 지급');
+      expect(
+          newly.coinsGained >=
+              kDailyMissions
+                  .where((m) => m.key == 'play1' || m.key == 'firstwin')
+                  .fold<int>(0, (a, m) => a + m.gold),
+          isTrue);
       expect(Meta.I.dailyGames, 1);
       expect(Meta.I.dailyWins, 1);
       // 같은 미션 재지급 없음.
       final again = Meta.I.noteGamePlayed(won: false);
-      expect(again.map((m) => m.key).contains('play1'), isFalse);
+      expect(hasDaily(again, 'play1'), isFalse);
     });
   });
 }

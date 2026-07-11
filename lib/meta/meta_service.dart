@@ -11,6 +11,7 @@ import 'analytics.dart';
 import 'auth_service.dart';
 import 'gift_codes.dart';
 import 'profanity.dart';
+import 'retention.dart';
 import 'season_service.dart';
 
 /// 일일 출석 보상 사이클 (7일). (#9: 상향)
@@ -93,6 +94,19 @@ class Meta extends ChangeNotifier {
   Set<String> _dClaimed = {};
   bool _nicknameSet = false; // 첫 닉네임 설정 여부(첫 설정은 무료)
   bool _tutorialSeen = false; // 첫 실행 게임방법 팝업을 봤는지(#6)
+  // ── 리텐션 A(retention.dart) ──
+  int _xp = 0; // A2 누적 XP(만렙 캡)
+  String _wWeek = ''; // A4 주간 미션이 속한 주(월요일 리셋)
+  int _wGames = 0;
+  int _wWins = 0;
+  Set<int> _wChars = {}; // 이번 주 플레이한 캐릭터(장착 기준)
+  Set<String> _wClaimed = {};
+  int _lifeGames = 0; // A5 통산 판수(도입 시점부터 집계)
+  int _lifeWins = 0;
+  Set<String> _trophyClaimed = {};
+  int _brokenStreak = 0; // A1 딱 하루 놓쳐 끊긴 직전 스트릭(복구 후보)
+  String _brokenDay = ''; // 끊김을 감지한 날 — 그날만 복구 제안
+  String _reviveWeek = ''; // 주 1회 무료 복구를 사용한 주
 
   int get coins => _coins;
   String get nickname => _nickname;
@@ -109,6 +123,47 @@ class Meta extends ChangeNotifier {
   }
   int get dailyStreak => _dailyStreak;
   int get seasonPtsLocal => _seasonPtsLocal;
+
+  // ── 리텐션 A 게터 ──
+  int get xp => _xp;
+  int get level => levelForXp(_xp);
+  int get xpInto => xpIntoLevel(_xp);
+  int get xpNeed => xpNeedFor(level);
+  bool get maxLevel => level >= kMaxLevel;
+  int get weeklyGames => _wGames;
+  int get weeklyWins => _wWins;
+  int get weeklyChars => _wChars.length;
+  bool weeklyClaimed(WeeklyMission m) => _wClaimed.contains(m.key);
+  int weeklyProgress(WeeklyMission m) => switch (m.kind) {
+        WeeklyKind.games => _wGames,
+        WeeklyKind.wins => _wWins,
+        WeeklyKind.chars => _wChars.length,
+      };
+  int get lifeGames => _lifeGames;
+  int get lifeWins => _lifeWins;
+  bool trophyClaimed(TrophyMilestone t) => _trophyClaimed.contains(t.key);
+  int trophyProgress(TrophyMilestone t) => t.wins ? _lifeWins : _lifeGames;
+
+  /// A1: 끊긴 스트릭을 지금 복구할 수 있는가 — 딱 하루 놓쳤고(감지 당일),
+  /// 이번 주 무료 복구를 아직 안 썼을 때.
+  bool get canReviveStreak =>
+      _brokenStreak >= kStreakReviveMin &&
+      _brokenDay == _today() &&
+      _reviveWeek != SeasonService.seasonId;
+  int get brokenStreak => _brokenStreak;
+
+  /// A1: 주 1회 무료 스트릭 복구. 성공 시 복구된 연속일 수, 불가면 0.
+  int reviveStreak() {
+    if (!canReviveStreak) return 0;
+    _dailyStreak = _brokenStreak + 1; // 놓친 어제를 메꾸고 오늘 출석까지 반영
+    _brokenStreak = 0;
+    _brokenDay = '';
+    _reviveWeek = SeasonService.seasonId;
+    Ana.log('streak_revive', {'streak': _dailyStreak});
+    _save();
+    notifyListeners();
+    return _dailyStreak;
+  }
 
   CharId get equipped => charFromIndex(_equipped);
   int get equippedIndex => _equipped;
@@ -147,6 +202,19 @@ class Meta extends ChangeNotifier {
     _dGames = sp.getInt('d_games') ?? 0;
     _dWins = sp.getInt('d_wins') ?? 0;
     _dClaimed = (sp.getStringList('d_claimed') ?? []).toSet();
+    _xp = sp.getInt('xp') ?? 0;
+    _wWeek = sp.getString('w_week') ?? '';
+    _wGames = sp.getInt('w_games') ?? 0;
+    _wWins = sp.getInt('w_wins') ?? 0;
+    _wChars = (sp.getStringList('w_chars') ?? []).map(int.parse).toSet();
+    _wClaimed = (sp.getStringList('w_claimed') ?? []).toSet();
+    _lifeGames = sp.getInt('life_games') ?? 0;
+    _lifeWins = sp.getInt('life_wins') ?? 0;
+    _trophyClaimed = (sp.getStringList('trophy_claimed') ?? []).toSet();
+    _brokenStreak = sp.getInt('broken_streak') ?? 0;
+    _brokenDay = sp.getString('broken_day') ?? '';
+    _reviveWeek = sp.getString('revive_week') ?? '';
+    _rollWeekly(); // 주 바뀌었으면 주간 미션 리셋
     _rollDailyMissions(); // 날짜 바뀌었으면 리셋
     if (brandNew) _save();
     notifyListeners();
@@ -159,6 +227,18 @@ class Meta extends ChangeNotifier {
     if (_seasonPtsWeek != wk) {
       _seasonPtsWeek = wk;
       _seasonPtsLocal = 0;
+    }
+  }
+
+  /// 주가 바뀌면 주간 미션 진행을 리셋한다(월요일 — 주간 랭킹과 동일 기준).
+  void _rollWeekly() {
+    final wk = SeasonService.seasonId;
+    if (_wWeek != wk) {
+      _wWeek = wk;
+      _wGames = 0;
+      _wWins = 0;
+      _wChars = {};
+      _wClaimed = {};
     }
   }
 
@@ -192,6 +272,19 @@ class Meta extends ChangeNotifier {
     await sp.setInt('d_games', _dGames);
     await sp.setInt('d_wins', _dWins);
     await sp.setStringList('d_claimed', _dClaimed.toList());
+    await sp.setInt('xp', _xp);
+    await sp.setString('w_week', _wWeek);
+    await sp.setInt('w_games', _wGames);
+    await sp.setInt('w_wins', _wWins);
+    await sp.setStringList(
+        'w_chars', _wChars.map((e) => e.toString()).toList());
+    await sp.setStringList('w_claimed', _wClaimed.toList());
+    await sp.setInt('life_games', _lifeGames);
+    await sp.setInt('life_wins', _lifeWins);
+    await sp.setStringList('trophy_claimed', _trophyClaimed.toList());
+    await sp.setInt('broken_streak', _brokenStreak);
+    await sp.setString('broken_day', _brokenDay);
+    await sp.setString('revive_week', _reviveWeek);
     _mirrorToCloud();
   }
 
@@ -201,25 +294,66 @@ class Meta extends ChangeNotifier {
   bool missionClaimed(DailyMission m) => _dClaimed.contains(m.key);
   int missionProgress(DailyMission m) => m.winMission ? _dWins : _dGames;
 
-  /// 게임 1판 종료 시 호출(온/오프 공통). 데일리 카운트를 올리고, 새로 달성한
-  /// 미션 보상을 즉시 지급한다. 반환: 이번에 달성한 미션 목록(토스트용).
-  List<DailyMission> noteGamePlayed({required bool won}) {
+  /// 게임 1판 종료 시 호출(온/오프 공통). 데일리/주간 미션·트로피 로드·XP를
+  /// 한꺼번에 진행시키고 새로 달성한 보상을 즉시 지급한다(토스트용 요약 반환).
+  GameEndRewards noteGamePlayed({required bool won}) {
     _rollDailyMissions();
+    _rollWeekly();
+    final lines = <String>[];
+    var gained = 0;
+    // 데일리 미션(#9)
     _dGames += 1;
     if (won) _dWins += 1;
-    final newly = <DailyMission>[];
     for (final m in kDailyMissions) {
       if (_dClaimed.contains(m.key)) continue;
       if (missionProgress(m) >= m.need) {
         _dClaimed.add(m.key);
         _coins += m.gold;
-        newly.add(m);
+        gained += m.gold;
+        lines.add('데일리 · ${m.label}');
         Ana.log('mission_done', {'mission': m.key, 'gold': m.gold});
       }
     }
+    // A4 주간 미션
+    _wGames += 1;
+    if (won) _wWins += 1;
+    _wChars.add(_equipped);
+    for (final m in kWeeklyMissions) {
+      if (_wClaimed.contains(m.key)) continue;
+      if (weeklyProgress(m) >= m.need) {
+        _wClaimed.add(m.key);
+        _coins += m.gold;
+        gained += m.gold;
+        lines.add('주간 · ${m.label}');
+        Ana.log('mission_done', {'mission': m.key, 'gold': m.gold});
+      }
+    }
+    // A5 트로피 로드(통산, 리셋 없음)
+    _lifeGames += 1;
+    if (won) _lifeWins += 1;
+    for (final t in kTrophyRoad) {
+      if (_trophyClaimed.contains(t.key)) continue;
+      if (trophyProgress(t) >= t.need) {
+        _trophyClaimed.add(t.key);
+        _coins += t.gold;
+        gained += t.gold;
+        lines.add('트로피 · ${t.label}');
+        Ana.log('trophy_done', {'trophy': t.key, 'gold': t.gold});
+      }
+    }
+    // A2 계정 레벨 XP(패배도 성장)
+    final before = level;
+    _xp = (_xp + (won ? kXpWin : kXpLose)).clamp(0, kMaxTotalXp);
+    for (var l = before + 1; l <= level; l++) {
+      final g = levelUpGold(l);
+      _coins += g;
+      gained += g;
+      lines.add(g > 0 ? '레벨 $l 달성! (+$g골드)' : '레벨 $l 달성!');
+      Ana.log('level_up', {'level': l, 'gold': g});
+    }
     _save();
     notifyListeners();
-    return newly;
+    return GameEndRewards(lines, gained);
   }
 
   /// 저수준 닉네임 설정 — 첫 진입/로비에서 직접 정할 때만 사용(첫 설정 무료).
@@ -424,6 +558,13 @@ class Meta extends ChangeNotifier {
     final yesterday = DateTime.now().subtract(const Duration(days: 1));
     final yKey =
         '${yesterday.year}-${yesterday.month.toString().padLeft(2, '0')}-${yesterday.day.toString().padLeft(2, '0')}';
+    // A1: 딱 하루 놓쳐 스트릭이 끊기는 순간이면 직전 값을 기억(당일 복구 제안).
+    if (_dailyLast != yKey &&
+        _dailyStreak >= kStreakReviveMin &&
+        missedExactlyOneDay(_dailyLast, DateTime.now())) {
+      _brokenStreak = _dailyStreak;
+      _brokenDay = today;
+    }
     _dailyStreak = (_dailyLast == yKey) ? _dailyStreak + 1 : 1;
     _dailyLast = today;
     final amount = kDailyCycle[(_dailyStreak - 1) % kDailyCycle.length];

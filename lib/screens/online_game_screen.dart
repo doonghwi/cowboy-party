@@ -527,14 +527,13 @@ class _OnlineGameScreenState extends State<OnlineGameScreen> {
       CharStats.I.record(view.seats[view.mySeat].char, won: iWon);
     }
     // #9 데일리 미션 진행 + 달성 보상.
-    final missions = Meta.I.noteGamePlayed(won: iWon);
-    final bonus = missions.fold<int>(0, (a, m) => a + m.gold);
+    final rew = Meta.I.noteGamePlayed(won: iWon);
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted) return;
       TopToast.show(
         context,
-        message: bonus > 0
-            ? '${iWon ? "승리" : "참가"} +$coins · 데일리 미션 +$bonus 코인!'
+        message: !rew.isEmpty
+            ? '${iWon ? "승리" : "참가"} +$coins · 보상 ${rew.lines.length}개 +${rew.coinsGained} 코인!'
             : (iWon ? '승리 보상 +$coins 코인!' : '참가 보상 +$coins 코인'),
       );
     });
@@ -621,7 +620,11 @@ class _OnlineGameScreenState extends State<OnlineGameScreen> {
           child: Padding(
             padding: const EdgeInsets.all(10),
             child: CircularTable(
-              seats: _seatsOf(view, false),
+              seats: _seatsOf(view, false,
+                  readyOf: needReady
+                      ? (seat) =>
+                          seat != hostSeat && readyMap['p$seat'] == true
+                      : null),
               mySeat: view.mySeat < 0 ? 0 : view.mySeat,
               onSeatInfo:
                   view.isHost ? (s) => _hostSeatAction(view, s) : null,
@@ -632,8 +635,21 @@ class _OnlineGameScreenState extends State<OnlineGameScreen> {
                   color: CD.leather.withValues(alpha: 0.6),
                   borderRadius: BorderRadius.circular(13),
                 ),
-                child: Text('${view.joinedCount} / ${view.capacity}',
-                    style: posterTitle(22, color: Colors.white)),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text('${view.joinedCount} / ${view.capacity}',
+                        style: posterTitle(22, color: Colors.white)),
+                    if (needReady && nonHost.isNotEmpty)
+                      Text('준비 $readyCount/${nonHost.length}',
+                          style: TextStyle(
+                              color: readyCount == nonHost.length
+                                  ? CD.sage
+                                  : CD.parchment,
+                              fontSize: 12.5,
+                              fontWeight: FontWeight.w800)),
+                  ],
+                ),
               ),
             ),
           ),
@@ -712,7 +728,11 @@ class _OnlineGameScreenState extends State<OnlineGameScreen> {
 
   // ---- Table -------------------------------------------------------------
 
-  List<TableSeat> _seatsOf(RoomView view, bool reveal) => [
+  /// [readyOf]가 주어지면(대기실) 제출 ✓ 배지 자리를 "준비 완료" 표시로 쓴다
+  /// — 다른 사람이 준비했는지 모두가 볼 수 있게(2026-07-12 사용자 요청).
+  List<TableSeat> _seatsOf(RoomView view, bool reveal,
+          {bool Function(int seat)? readyOf}) =>
+      [
         for (final sv in view.seats)
           TableSeat(
             name: view.started && !sv.joined ? '나감' : sv.name,
@@ -720,7 +740,9 @@ class _OnlineGameScreenState extends State<OnlineGameScreen> {
             alive: sv.alive,
             isMe: sv.isMe,
             joined: sv.joined || !view.started,
-            submitted: sv.submittedThisTurn && view.phase != OnlinePhase.over,
+            submitted: readyOf != null
+                ? (sv.joined && readyOf(sv.seat))
+                : (sv.submittedThisTurn && view.phase != OnlinePhase.over),
             hit: sv.hitThisTurn && reveal,
             lastMove: sv.lastMove,
             fired: sv.fired,
