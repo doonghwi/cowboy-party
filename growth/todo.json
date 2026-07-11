@@ -5,7 +5,6 @@
     {
       "title": "🙋 사용자 대기 — 해줘야 진행되는 것",
       "items": [
-        { "t": "시크릿 백업 tar를 iCloud/USB로 복사 (5분)", "who": "사용자", "st": "block", "note": "~/Desktop/dailyapp-secrets-backup/secrets_20260712.tar.gz — 업로드 키스토어 등 git 밖 복구불가 7종. 이 맥이 죽으면 이 파일이 유일한 생명줄. 갱신은 bash _shared/backup_secrets.sh" },
         { "t": "유료 툴 결정 — Recraft($10 선불)·ElevenLabs($5/월)", "who": "사용자", "st": "wait", "note": "지금은 무료 조합으로 진행 중. 스킨 대량 생산·시그니처 SFX 단계에서 결정해도 됨" },
         { "t": "iOS App Store 제출 (Apple Developer $99 등록)", "who": "사용자", "st": "wait", "note": "store/ios_release.md" }
       ]
@@ -24,6 +23,7 @@
       "title": "✅ 최근 완료",
       "items": [
         { "t": "타격감 1단계 — 발사음 3종(사용자 승인 크랙+펀치)+피치랜덤(soloud)·머즐섬광·반동·피격플래시·넉백·명중파티클(자작)·히트스톱·흔들림 회전", "who": "사용자+Claude", "st": "done", "note": "2026-07-12. analyze 0/test 206/에뮬 실플레이 검증. 실기기 총성 음질·BGM 공존 확인은 사용자 QA" },
+        { "t": "시크릿 백업 이중화 완료 — 구글 드라이브 자동 업로드 개통", "who": "사용자+Claude", "st": "done", "note": "2026-07-12 드라이브(mjhee2647@snu.ac.kr) '내 드라이브/dailyapp-secrets-backup'에 앱별 분류(cowboy/restrest 7종)+README(키 설명·복원법)+날짜 스냅샷. 갱신: bash _shared/backup_secrets.sh 한 줄" },
         { "t": "이미지 외주 채용 시험 합격 — 'Gemini 웹 수동생성+Claude 후처리' 파이프라인 검증 완료", "who": "사용자+Claude", "st": "done", "note": "2026-07-12 키트 v2 프롬프트로 스킨 변형·배너 합격, 512규격 가공 시연(duelist_skin_gold_512.png). API 결제는 스킨 대량생산 단계에서 재검토" },
         { "t": "Play 서비스계정 설정+연결 검증 — AAB 업로드 영구 자동화 개통", "who": "사용자+Claude", "st": "done", "note": "2026-07-12 fastlane validate 'Successfully established connection' 확인" },
         { "t": "v13 AAB 업로드 (광고ID 권한 제거분) — 첫 자동 업로드 성공", "who": "Claude", "st": "done", "note": "2026-07-12 다른 세션에서 upload_play.sh로 alpha 트랙 업로드, 전 과정 검증됨" },
