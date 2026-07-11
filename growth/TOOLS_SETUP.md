@@ -5,10 +5,14 @@
 
 ## 사용자가 해줄 연결 작업 (우선순위순)
 
-### 1. [무료·5분·지금] Gemini API 키 — 이미지 생성
-- https://aistudio.google.com → "Get API key" → 발급
-- `~/.zshrc`에 `export GEMINI_API_KEY=...` 추가
-- 효과: 하루 ~500장 무료(Nano Banana 계열). 프로모 아트·스토어 그래픽 배경·캐릭터 시안·**기존 캐릭터 이미지를 참조한 스킨 변형**에 사용. Claude가 REST로 직접 호출.
+### 1. Gemini API 키 — 이미지 생성 ⚠️ 2026-07-12 실측 정정
+- ~~하루 ~500장 무료~~ → **틀림. API 무료 티어는 이미지 생성 한도 0**(전 이미지 모델 429 `limit: 0` 실측). 텍스트 모델만 무료.
+- 품질 확인은 **AI Studio 웹**(aistudio.google.com)에서 무료 체험 — `~/Downloads/cowboy_art_samples/사용법_프롬프트.txt` 키트 참고.
+- API 자동화(Claude가 직접 생성)하려면 셋 중 하나:
+  (a) **Gemini 결제 연결**(Cloud billing) — 장당 약 $0.02~0.13, 이미지 편집·참조 변형 강점
+  (b) **mflux 로컬**(무료 무제한, 디스크 8~24GB, 맥 M시리즈) — `pip install mflux`
+  (c) **Recraft**($10 선불) — 스타일 고정 시리즈 생산에 최적
+- 키 자체는 `~/.zshrc` `GEMINI_API_KEY`로 저장됨(텍스트 모델 검증 OK. 단 gemini-2.5-flash는 신규 사용자 404 — gemini-3 계열 사용).
 
 ### 2. [무료·승인만] jsfxr + Kenney — 효과음
 - 사용자 작업 없음. Claude가 `npm i jsfxr` + Kenney CC0 오디오팩 다운로드.
