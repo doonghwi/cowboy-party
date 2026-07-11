@@ -31,5 +31,5 @@ fastlane supply \
   --package_name com.doonghwi.cowboy_party \
   --skip_upload_metadata --skip_upload_images --skip_upload_screenshots \
   --release_status completed \
-  "${EXTRA[@]}"
+  ${EXTRA[@]+"${EXTRA[@]}"}  # 맥 기본 bash 3.2는 set -u에서 빈 배열 "${EXTRA[@]}" 확장이 에러
 echo "== 완료 — 심사 자동 제출됨(관리형 게시 ON이면 콘솔에서 게시 클릭 필요) =="

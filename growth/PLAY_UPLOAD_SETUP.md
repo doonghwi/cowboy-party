@@ -43,6 +43,8 @@ fastlane run validate_play_store_json_key json_key:android/play-service-account.
 - `edits.commit` 시 자동으로 심사 제출됨(콘솔 클릭 불필요). 단 **관리형 게시(managed publishing) ON이면 수동 "게시" 클릭 필요** — 완전 자동화 원하면 꺼둘 것.
 - `changes_not_sent_for_review` 에러가 나면(거절 이력 등) 그때만 `--changes_not_sent_for_review true` + 콘솔 수동 전송 1회.
 - 서비스 계정은 앱 업데이트만 가능(새 앱 생성 불가) — 새 앱은 첫 AAB 수동 업로드 필요.
+- **설정 완료(2026-07-12)**: v13 업로드로 전 과정 검증됨. 트랙명 `alpha` 확인. Play Console "사용자 및 권한" 메뉴는 앱 안에서는 안 보임 — 계정 홈(모든 앱) 좌측 메뉴 또는 https://play.google.com/console/users-and-permissions 직행.
+- **맥 기본 bash 3.2**: `set -u`에서 빈 배열 `"${arr[@]}"` 확장이 unbound variable 에러 → `${arr[@]+"${arr[@]}"}` 패턴 필요 (upload_play.sh에서 실제 발생, 수정됨).
 
 ## 출처
 - https://developers.google.com/android-publisher/getting_started (연결 불필요 명시)
