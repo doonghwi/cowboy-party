@@ -54,6 +54,10 @@ class BotClient {
       _cpu.beginGame(); // 이 게임용 성격·실력 리롤
       _applyPersonality(seat); // 공격/수비 성향 봇이면 프로필 강제
       await _gameLoop(code, seat);
+      // 결과를 좀 보다가 나간다 — 게임이 끝나는 순간 전원이 즉시 증발하면
+      // 어색하다. 봇마다 랜덤 여운이라 하나씩 자연스럽게 빠진다.
+      await Future<void>.delayed(
+          Duration(milliseconds: 2500 + _rng.nextInt(5000)));
     } catch (e) {
       _log('오류: $e');
     } finally {
@@ -274,12 +278,28 @@ class BotClient {
   Future<void> hostRefereeGame(String code) async {
     final deadline = DateTime.now().add(const Duration(minutes: 5));
     DateTime? firstValidAt;
+    // 스톨 감지 — 게임이 끝나지도 진행되지도 않으면(사람이 수를 안 두고 떠남 등)
+    // 심판도 포기해야 한다. 안 그러면 봇들은 30초에 포기했는데 심판 혼자 5분간
+    // Future.wait 를 붙잡아 방이 오래 "게임 중"으로 남는다.
+    var lastProgress = '';
+    var lastProgressAt = DateTime.now();
     while (DateTime.now().isBefore(deadline)) {
       await Future<void>.delayed(Duration(milliseconds: Config.gamePollMs));
       final data = _asMap(await _rtdb.get('rooms/$code'));
       if (data == null || data['started'] != true) return;
       final r = replay(data, code);
-      if (!r.over) continue;
+      if (!r.over) {
+        final progress = '${r.currentTurn}:${r.submitted}';
+        if (progress != lastProgress) {
+          lastProgress = progress;
+          lastProgressAt = DateTime.now();
+        } else if (DateTime.now().difference(lastProgressAt).inMilliseconds >
+            Config.gameStallTimeoutMs + 8000) {
+          _log('결투 심판: 게임 진전 없음 → 심판 종료');
+          return;
+        }
+        continue;
+      }
       if (r.status == GameStatus.won) return; // 승부 남(결투 승자 포함)
       if (r.drawTurn < 0 || r.drawParticipants.isEmpty) return;
 
@@ -445,9 +465,16 @@ class BotClient {
     } catch (_) {}
   }
 
+  /// 방장 인수 — host uid만 바꾸면 로비에 **이전 호스트 이름의 방**("티모의
+  /// 결투장")이 남아, 티모가 새 방을 파면 같은 이름 방이 2개로 보인다.
+  /// 제목·호스트명까지 함께 갱신한다.
   Future<void> becomeHost(String code) async {
     try {
-      await _rtdb.put('rooms/$code/host', _cred.uid, auth: await _tok);
+      await _rtdb.patch('rooms/$code', {
+        'host': _cred.uid,
+        'hostName': _cred.name,
+        'title': '${_cred.name}의 결투장',
+      }, auth: await _tok);
     } catch (_) {}
   }
 

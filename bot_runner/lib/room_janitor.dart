@@ -28,6 +28,33 @@ class RoomJanitor {
     }
   }
 
+  /// 러너 시작 직후 1회: **모든 플레이어가 우리 봇 uid인 방**을 즉시 삭제.
+  /// 러너가 죽으면(재시작·크래시) 봇 방이 청소 못 된 채 남는데, 스테일 기준
+  /// (120초)까지 기다리는 동안 새 러너가 같은 이름의 방을 또 파서 로비에
+  /// "같은 봇의 결투장"이 2개로 보인다(사용자 제보). 막 시작한 시점엔 어떤
+  /// 봇도 정당하게 앉아있을 수 없으므로 봇 전용 방=고아 방. 사람이 한 명이라도
+  /// 있으면 건드리지 않는다.
+  Future<void> sweepOrphanBotRooms(Set<String> botUids) async {
+    final rooms = _asMap(await _rtdb.get('rooms')) ?? const {};
+    var deleted = 0;
+    for (final e in rooms.entries) {
+      final room = _asMap(e.value);
+      final players = _asMap(room?['players']);
+      if (players == null || players.isEmpty) continue;
+      final allBots = players.values.every((v) {
+        final id = _asMap(v)?['id'];
+        return id is String && botUids.contains(id);
+      });
+      if (allBots) {
+        try {
+          await _authBot.deleteRoom(e.key.toString());
+          deleted++;
+        } catch (_) {}
+      }
+    }
+    if (deleted > 0) _log('시작 스윕: 이전 러너의 고아 봇 방 $deleted개 정리');
+  }
+
   Future<void> _scan() async {
     final rooms = _asMap(await _rtdb.get('rooms')) ?? const {};
     final now = DateTime.now().millisecondsSinceEpoch;

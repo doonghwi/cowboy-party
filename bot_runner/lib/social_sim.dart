@@ -55,10 +55,12 @@ class SocialSim {
     var hostSeat = 0;
     final code = _code();
     final members = <int, BotClient>{0: host}; // 봇 좌석만 추적(사람은 앱이 관리)
-    final lifeEnd = DateTime.now().add(Duration(
+    final joinedAt = <String, DateTime>{host.uid: DateTime.now()};
+    var lifeEnd = DateTime.now().add(Duration(
         milliseconds: _between(
             Config.socialRoomLifeMinMs, Config.socialRoomLifeMaxMs)));
     DateTime? humanSince; // 사람이 들어온 시점(grace 시작 판단용)
+    var lastRoundEnd = DateTime.fromMillisecondsSinceEpoch(0);
 
     // 방 스냅샷 기준으로 members 좌석·호스트를 **uid로 재동기화**한다.
     // (startGame 좌석 압축·이탈 뒤 옛 좌석 키로 하트비트하면 seen만 있는
@@ -106,7 +108,7 @@ class SocialSim {
       final targetMembers =
           _between(Config.socialMinMembers, Config.socialMaxMembers);
 
-      while (DateTime.now().isBefore(lifeEnd)) {
+      while (true) {
         final data = await host.getRoom(code);
         if (data == null) {
           _log('$code 사라짐 → 종료');
@@ -116,6 +118,18 @@ class SocialSim {
         if (!await resync(data)) {
           _log('$code 봇 전원 이탈 → 종료');
           return;
+        }
+        final humans = _humanCount(data, botUids);
+
+        // 방 수명 — **사람이 있으면 절대 해산하지 않는다**(놀던 방이 눈앞에서
+        // 사라지는 것 방지). 사람이 나가고 나서야 수명 만료로 해산.
+        if (!DateTime.now().isBefore(lifeEnd)) {
+          if (humans > 0) {
+            lifeEnd = DateTime.now()
+                .add(Duration(milliseconds: _between(60000, 150000)));
+          } else {
+            break; // 수명 끝 + 사람 없음 → 해산
+          }
         }
 
         // 유령 노드(id 없음)·하트비트 끊긴 사람 좌석 청소(호스트 역할, 대기실만).
@@ -156,6 +170,7 @@ class SocialSim {
               final b = crew.first;
               await b.joinSeat(code, seat);
               members[seat] = b;
+              joinedAt[b.uid] = DateTime.now();
               _log('$code ← ${b.name} 좌석 $seat 입장 (${members.length}명)');
               _scheduleReady(b, code);
             } else {
@@ -164,21 +179,31 @@ class SocialSim {
           }
         }
 
-        // 중간 이탈(호스트 제외).
-        if (members.length > 2 && _rand() < 0.12) {
-          final leavers =
-              members.keys.where((s) => s != hostSeat).toList();
-          final s = leavers[_rng.nextInt(leavers.length)];
-          final b = members.remove(s)!;
-          await b.leaveSeat(code, s);
-          _pool.release(b);
-          _log('$code → 좌석 $s 이탈 (${members.length}명)');
+        // 중간 이탈(호스트 제외). **막 들어온 봇은 안 나간다**(입장하자마자
+        // 나가면 어색) + 사람이 기다리는 방은 덜 빠진다(곧 게임할 거니까).
+        final churnP = humans > 0 ? 0.06 : 0.12;
+        if (members.length > 2 && _rand() < churnP) {
+          final leavers = members.keys.where((s) {
+            if (s == hostSeat) return false;
+            final since = joinedAt[members[s]!.uid];
+            return since == null ||
+                DateTime.now().difference(since).inMilliseconds > 25000;
+          }).toList();
+          if (leavers.isNotEmpty) {
+            final s = leavers[_rng.nextInt(leavers.length)];
+            final b = members.remove(s)!;
+            await b.leaveSeat(code, s);
+            joinedAt.remove(b.uid);
+            _pool.release(b);
+            _log('$code → 좌석 $s 이탈 (${members.length}명)');
+          }
         }
 
-        // 호스트 교체.
+        // 호스트 교체(제목·호스트명도 새 호스트로 갱신됨 — becomeHost).
         if (members.length >= 2 && _rand() < 0.08) {
           final old = members.remove(hostSeat)!;
           await old.leaveSeat(code, hostSeat);
+          joinedAt.remove(old.uid);
           _pool.release(old);
           hostSeat = members.keys.reduce((a, b) => a < b ? a : b);
           host = members[hostSeat]!;
@@ -188,8 +213,7 @@ class SocialSim {
 
         // 시작 조건: **살아있는(하트비트 최신) 사람이 최소 1명** 있어야 하고
         // (봇끼리·유령·끊긴 좌석으로는 시작 안 함), 그 사람들이 모두 준비돼야
-        // 한다(방장 봇이 준비 확인 후 시작).
-        final humans = _humanCount(data, botUids);
+        // 한다(방장 봇이 준비 확인 후 시작). humans는 틱 상단에서 계산.
         humanSince = humans > 0 ? (humanSince ?? DateTime.now()) : null;
         final totalPresent = _presentCount(data);
         final ready = _humansReady(data, botUids, hostSeat);
@@ -197,7 +221,15 @@ class SocialSim {
         final waited = humanSince != null &&
             DateTime.now().difference(humanSince).inMilliseconds >
                 Config.socialHumanStartGraceMs;
-        if (humans >= 1 && totalPresent >= 2 && _rand() < 0.6 && (ready || waited)) {
+        // 직전 라운드 종료 후 12초 쿨다운 — 떠나는 봇의 시차 퇴장(2~9초)이 끝나기
+        // 전에 다음 판이 시작돼 게임 도중 좌석이 사라지는 것 방지 + 숨 고르기.
+        final cooled =
+            DateTime.now().difference(lastRoundEnd).inMilliseconds > 12000;
+        if (cooled &&
+            humans >= 1 &&
+            totalPresent >= 2 &&
+            _rand() < 0.6 &&
+            (ready || waited)) {
           _log('$code ▶ 게임 시작 (사람 $humans + 봇 ${members.length}, 준비=$ready 대기시작=$waited)');
           await host.hostStartGame(code);
           // 시작 시 좌석이 압축됐으니 **다시 읽어 좌석 재동기화** 후 플레이
@@ -218,14 +250,29 @@ class SocialSim {
           // 결과가 눈 깜짝할 새 사라진다).
           await Future<void>.delayed(Duration(milliseconds: _between(4000, 7000)));
           await host.resetToLobby(code);
-          // 라운드 뒤 비-호스트 봇들은 대개 흩어진다(자연스러운 churn).
-          final leaving =
-              members.entries.where((e) => e.key != hostSeat).toList();
-          for (final e in leaving) {
-            await e.value.leaveSeat(code, e.key);
-            _pool.release(e.value);
-            members.remove(e.key);
+          lastRoundEnd = DateTime.now();
+          // 라운드 뒤 **일부만** 떠난다(사람처럼 — 예전엔 전원 해산이라 "한 판
+          // 하면 무조건 다 나가"로 보였다). 떠나는 봇도 몇 초 시차를 두고,
+          // 남는 봇은 다음 판 준비를 다시 켠다.
+          for (final e in members.entries.toList()) {
+            if (e.key == hostSeat) continue;
+            if (_rand() < 0.35) {
+              members.remove(e.key);
+              final b = e.value;
+              joinedAt.remove(b.uid);
+              Future<void>.delayed(
+                  Duration(milliseconds: _between(2000, 9000)), () async {
+                try {
+                  await b.leaveSeat(code, e.key);
+                } catch (_) {}
+                _pool.release(b);
+                _log('$code → ${b.name} 한 판 하고 떠남 (${members.length}명)');
+              });
+            } else {
+              _scheduleReady(e.value, code);
+            }
           }
+          _scheduleReady(host, code);
         }
 
         await Future<void>.delayed(Duration(seconds: _between(2, 6)));
@@ -233,16 +280,16 @@ class SocialSim {
     } catch (e) {
       _log('$code 오류: $e');
     } finally {
-      // 해산: 남은 봇 전부 퇴장 + 방 삭제.
-      for (final e in members.entries) {
-        try {
-          await e.value.leaveSeat(code, e.key);
-        } catch (_) {}
-        _pool.release(e.value);
-      }
+      // 해산: **방 삭제를 먼저**, 봇 반납은 그 다음. 순서가 반대면 방금 반납된
+      // 호스트가 곧장 새 방을 파서, 옛 방이 지워지기 전 잠깐 로비에 같은 이름
+      // 방이 2개로 보인다(사용자 제보). 방을 지우면 좌석도 같이 사라지므로
+      // 개별 leaveSeat은 불필요.
       try {
         await host.deleteRoom(code);
       } catch (_) {}
+      for (final e in members.entries) {
+        _pool.release(e.value);
+      }
       _log('$code 해산');
     }
   }

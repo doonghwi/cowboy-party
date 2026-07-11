@@ -221,8 +221,10 @@ dailyapp_stats/cowboy_party: 사용량(중앙 대시보드)
 - **봇 성향**: config `BotSpec(name, fixedChar, personality, reloadOnly)`. personality는 `CpuAi.setProfile(seat, aggression/caution...)`로 주입(앱 cpu_ai에 setProfile 추가).
 - **운영**: 실행 `bash bot_runner/run_local.sh`(키 gitignore) / 상시 `com.doonghwi.cowboy-bot-runner.plist` / 계정 `bot_creds.json`(비밀). 서버 API키=`COWBOY_AUTH_API_KEY`(Cloud Console 애플리케이션제한 없는 키. google-services Android키는 서버 차단됨).
 - **e2e 검증(07-02 심야)**: ⓐ testgame 풀게임(봇 채움→턴 진행→승자·랭킹) ⓑ 유령 방=봇 미투입+janitor 즉시 삭제 ⓒ 가짜 사람 시나리오=활동 사람 준비→3초 시작 / 사람 잠적→**유령 재시작 0회**·47초 좌석 청소 ⓓ showdowntest 결투 PASS. 러너 재시작 후 오류·포기퇴장 0건.
+- **퇴장 자연화(07-12, 사용자 제보 반영)**: ①빠른시작 봇=게임 끝나도 2.5~7.5초 여운 후 **시차 퇴장**(즉시 증발 X. 매칭방은 앱 설계상 다시하기 없음→한 판 후 떠나는 건 정상) ②공개방 봇=라운드 후 **35%만** 2~9초 시차로 떠나고 나머지는 남아 재준비(전원 해산 폐지), 다음 판은 12초 쿨다운 후 ③방 수명 만료여도 **사람 있으면 해산 안 함**(수명 연장) ④막 입장(25초 미만) 봇은 이탈 금지+사람 있으면 이탈 확률 절반.
+- **같은 이름 방 중복 수정(07-12, 사용자 제보)**: 원인 3중 — ⓐ호스트 교체가 host uid만 바꾸고 title·hostName 방치("티모의 결투장"이 티모 없이 남음)→becomeHost가 셋 다 갱신 ⓑBotPool.acquire가 항상 목록 앞(티모·공격…)만 선발→**셔플 랜덤 선발**(40명 골고루) ⓒ**러너 재시작 고아 방**(pkill 시 봇 방이 안 지워진 채 120초 잔존, 새 러너가 같은 이름 방 생성)→시작 시 `janitor.sweepOrphanBotRooms`(전원이 우리 봇 uid인 방 즉시 삭제, 사람 있으면 보존) + 해산 시 방 삭제를 봇 반납보다 먼저.
 - **주의**: 앱 규칙 바꾸면 `bash tool/sync_core.sh`+`dart test`(재현 테스트 6개). 봇 랭킹 반영은 실유저 늘면 `bot_client._recordWin` 가드로 끄기(README).
-- **남음**: v11 빌드(관전·iAmOut) · 폰 실기기 확인 · 사회성 튜닝(빈도·인원) 실사용 관찰.
+- **남음**: 폰 실기기 확인(멀티라운드 잔류·중복 방 해소 체감) · 사회성 튜닝(빈도·인원) 실사용 관찰.
 
 ## 후속(선택)
 - 그림자/파파라치 등 신규 캐릭터의 SeatView 발동 배지(현재 일부는 배너+사운드로만 표시).
