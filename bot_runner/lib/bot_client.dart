@@ -135,6 +135,10 @@ class BotClient {
   Future<void> _gameLoop(String code, int hintSeat) async {
     var lastSubmitted = -1;
     var lastProgressAt = DateTime.now();
+    var lastBeatAt = DateTime.fromMillisecondsSinceEpoch(0);
+    // 스톨 포기 한계는 봇마다 조금씩 다르게 — 전원이 같은 순간 우르르 나가면
+    // 기계 티가 난다(사용자 제보 "상대가 한 번에 나가버림").
+    final stallLimitMs = Config.gameStallTimeoutMs + _rng.nextInt(15000);
 
     while (true) {
       final data = _asMap(await _rtdb.get('rooms/$code'));
@@ -154,6 +158,17 @@ class BotClient {
       if (seat < 0) {
         _log('게임에 내 좌석 없음(원래 $hintSeat) → 종료');
         return;
+      }
+
+      // 게임 중에도 주기적으로 하트비트 — 앱은 kPresenceGraceMs(14초) 넘게 조용한
+      // 좌석을 "나감"으로 숨긴다. 제출 때만 찍으면 긴 턴·결과 화면에서 봇들이
+      // 전부 사라졌다가 일제히 돌아오는 것처럼 보인다(사용자 제보).
+      if (DateTime.now().difference(lastBeatAt).inMilliseconds > 5000) {
+        lastBeatAt = DateTime.now();
+        try {
+          await _rtdb.put('rooms/$code/players/p$seat/seen',
+              Rtdb.serverTimestamp, auth: await _tok);
+        } catch (_) {}
       }
 
       final r = replay(data, code);
@@ -207,13 +222,35 @@ class BotClient {
         }
       }
 
-      if (DateTime.now().difference(lastProgressAt).inMilliseconds >
-          Config.gameStallTimeoutMs) {
-        _log('진전 없음(상대 이탈?) → 포기 퇴장');
-        return;
+      final stalledMs =
+          DateTime.now().difference(lastProgressAt).inMilliseconds;
+      if (stalledMs > stallLimitMs) {
+        // 기다리는 상대가 **접속 중**(하트비트 신선)이면 참는다 — 생각이 길거나
+        // 잠깐 자리를 비운 사람 때문에 봇들이 우르르 나가지 않게. 접속이 끊긴
+        // 상대(하트비트 스테일)거나 너무 오래(2분) 지나면 포기.
+        if (stalledMs < 120000 && _awaitedSeatConnected(data, r, seat)) {
+          // 인내 — 사람이 두길 기다린다.
+        } else {
+          _log('진전 없음(상대 이탈?) → 포기 퇴장');
+          return;
+        }
       }
       await Future<void>.delayed(Duration(milliseconds: Config.gamePollMs));
     }
+  }
+
+  /// 아직 제출 안 한 생존 좌석 중 하트비트가 신선한(=접속 중) 좌석이 있는가.
+  /// 봇은 몇 초 안에 두므로, 오래 미제출인데 신선하면 사실상 사람이다.
+  bool _awaitedSeatConnected(Map data, ReplayResult r, int mySeat) {
+    final players = _asMap(data['players']) ?? const {};
+    final nowMs = DateTime.now().millisecondsSinceEpoch;
+    for (var s = 0; s < r.n; s++) {
+      if (s == mySeat || !r.alive[s] || r.submitted[s]) continue;
+      final pv = _asMap(players['p$s']);
+      final seen = _asInt(pv?['seen']) ?? 0;
+      if (nowMs - seen < 12000) return true;
+    }
+    return false;
   }
 
   /// 방 데이터에서 **내 uid가 앉은 좌석**을 찾는다(없으면 -1). 시작 시 좌석 압축에
@@ -445,6 +482,22 @@ class BotClient {
       if (s < 0) return;
       await _rtdb.put('rooms/$code/ready/p$s', ready ? true : null,
           auth: await _tok);
+    } catch (_) {}
+  }
+
+  /// 결과 화면에서 "다시하기" 투표 — **사람이 방장인 방**에서 게임이 끝났을 때
+  /// 사용. 앱은 참석자 전원이 rematch를 눌러야 다음 판(resetBoard)으로 넘어가는데,
+  /// 봇이 안 누르면 사람이 다시하기를 눌러도 영영 시작이 안 된다.
+  Future<void> pressRematch(String code) async {
+    try {
+      final data = _asMap(await _rtdb.get('rooms/$code'));
+      if (data == null || data['started'] != true) return;
+      final s = _seatOfUid(data);
+      if (s < 0) return;
+      final n = _asInt(data['seatCount']) ?? 0;
+      if (n > 0 && s >= n) return; // 이번 판 참가자 아님(다음 판 관전)
+      await _rtdb.put('rooms/$code/rematch/p$s', true, auth: await _tok);
+      _log('$code 다시하기 누름');
     } catch (_) {}
   }
 

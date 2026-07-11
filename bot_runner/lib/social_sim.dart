@@ -59,8 +59,9 @@ class SocialSim {
     var lifeEnd = DateTime.now().add(Duration(
         milliseconds: _between(
             Config.socialRoomLifeMinMs, Config.socialRoomLifeMaxMs)));
-    DateTime? humanSince; // 사람이 들어온 시점(grace 시작 판단용)
     var lastRoundEnd = DateTime.fromMillisecondsSinceEpoch(0);
+    var lastPlayedGame = -1; // 참전을 마친 판 번호(중복 참전·재시작 방지)
+    var rematchPressedGame = -1; // "다시하기"를 눌러둔 판 번호
 
     // 방 스냅샷 기준으로 members 좌석·호스트를 **uid로 재동기화**한다.
     // (startGame 좌석 압축·이탈 뒤 옛 좌석 키로 하트비트하면 seen만 있는
@@ -92,9 +93,11 @@ class SocialSim {
       if (hs != null) {
         hostSeat = hs;
       } else {
+        // 관리 봇이 방에서 사라짐 → 남은 봇 중 최저 좌석이 관리 승계.
+        // (RTDB host 필드/제목 인수는 대기실에서 **봇이 상석일 때만** — 앱 규약상
+        //  방장=가장 낮은 좌석이라, 사람이 상석이면 방장은 사람이다.)
         hostSeat = members.keys.reduce((a, b) => a < b ? a : b);
         host = members[hostSeat]!;
-        await host.becomeHost(code);
       }
       return true;
     }
@@ -132,6 +135,93 @@ class SocialSim {
           }
         }
 
+        final startedFlag = data['started'] == true;
+        final gameNo = _asInt(data['game']) ?? 0;
+        // 앱 규약: 방장 = 참여 좌석 중 가장 낮은 좌석(끊긴 좌석 제외). 그 자리가
+        // 사람이면 이 방의 주인은 사람 — 봇은 시작·리셋·방장 인수를 하지 않는다.
+        // (사용자 제보 "내가 방장인데 시작도 안 했는데 시작됨" 수정.)
+        final bossId = _bossUid(data, botUids);
+        final humanIsBoss = bossId != null && !botUids.contains(bossId);
+
+        // 하트비트(봇 좌석 유지) — 대기실·결과 화면 가리지 않고 매 틱. **await
+        // 필수**: 안 기다리면 같은 틱 뒤쪽의 이탈 delete/시작 압축과 경합해,
+        // 늦게 도착한 seen PUT이 지워진 좌석 경로를 되살려 유령 노드를 만든다.
+        for (final e in members.entries) {
+          await e.value.heartbeat(code, e.key);
+        }
+
+        // ── 시작된 게임 처리(봇 방장이 시작했든 **사람 방장이 시작**했든) ──
+        if (startedFlag) {
+          if (gameNo != lastPlayedGame && members.isNotEmpty) {
+            lastPlayedGame = gameNo;
+            _log('$code ▶ 판 #$gameNo 참전 (봇 ${members.length}${humanIsBoss ? ", 방장=사람" : ""})');
+            await Future.wait([
+              for (final e in members.entries)
+                e.value.playSeatedGame(code, e.key),
+              if (!humanIsBoss) host.hostRefereeGame(code),
+            ]);
+            _log('$code ■ 라운드 종료');
+            lastRoundEnd = DateTime.now();
+            if (!humanIsBoss) {
+              // 결과를 볼 시간을 주고 대기실로. (사람 방장 방은 사람 앱이
+              // rematch 리셋을 관리하므로 봇이 손대지 않는다.)
+              await Future<void>.delayed(
+                  Duration(milliseconds: _between(4000, 7000)));
+              await host.resetToLobby(code);
+            }
+            // 라운드 뒤 **일부만** 떠난다(예전엔 전원 해산이라 "한 판 하면
+            // 무조건 다 나가"로 보였다). 남는 봇은 다음 판 준비를 켠다.
+            for (final e in members.entries.toList()) {
+              if (!humanIsBoss && e.key == hostSeat) continue;
+              if (_rand() < 0.35) {
+                members.remove(e.key);
+                final b = e.value;
+                joinedAt.remove(b.uid);
+                Future<void>.delayed(
+                    Duration(milliseconds: _between(2000, 9000)), () async {
+                  try {
+                    await b.leaveSeat(code, e.key);
+                  } catch (_) {}
+                  _pool.release(b);
+                  _log('$code → ${b.name} 한 판 하고 떠남');
+                });
+              } else if (!humanIsBoss) {
+                _scheduleReady(e.value, code);
+              }
+            }
+            if (!humanIsBoss) _scheduleReady(host, code);
+          } else if (humanIsBoss && rematchPressedGame != gameNo) {
+            // 사람 방장 방의 결과 화면 — 남은 봇들이 "다시하기"를 눌러 둔다.
+            // (전원이 눌러야 앱이 다음 판으로 넘어가므로, 봇이 안 누르면 사람이
+            //  다시하기를 눌러도 영영 시작이 안 된다.)
+            rematchPressedGame = gameNo;
+            for (final e in members.entries) {
+              final b = e.value;
+              Future<void>.delayed(
+                  Duration(milliseconds: _between(2000, 7000)),
+                  () => b.pressRematch(code));
+            }
+          }
+          await Future<void>.delayed(Duration(seconds: _between(2, 5)));
+          continue;
+        }
+
+        // ── 이하 대기실(로비) 관리 ──
+
+        // 봇이 상석이면 상석 봇이 방장 노릇(RTDB host 필드·방 제목을 그 봇으로).
+        // 사람이 상석이 되면 손대지 않는다(앱의 ensureHost가 사람에게 넘김).
+        if (!humanIsBoss && members.isNotEmpty) {
+          final lowest = members.keys.reduce((a, b) => a < b ? a : b);
+          if (members[lowest] != host) {
+            host = members[lowest]!;
+            hostSeat = lowest;
+          }
+          if (data['host'] != host.uid) {
+            await host.becomeHost(code);
+            _log('$code 방장 인수 → ${host.name}');
+          }
+        }
+
         // 유령 노드(id 없음)·하트비트 끊긴 사람 좌석 청소(호스트 역할, 대기실만).
         if (data['started'] != true) {
           final nowMs = DateTime.now().millisecondsSinceEpoch;
@@ -151,13 +241,6 @@ class SocialSim {
               }
             }
           }
-        }
-
-        // 하트비트(봇 좌석 유지) — resync 직후라 좌석 키가 최신. **await 필수**:
-        // 안 기다리면 같은 틱 뒤쪽의 이탈 delete/시작 압축과 경합해, 늦게 도착한
-        // seen PUT이 지워진 좌석 경로를 되살려 유령 노드를 만든다.
-        for (final e in members.entries) {
-          await e.value.heartbeat(code, e.key);
         }
 
         // 모집: 시차 두고 한 명씩.
@@ -199,80 +282,47 @@ class SocialSim {
           }
         }
 
-        // 호스트 교체(제목·호스트명도 새 호스트로 갱신됨 — becomeHost).
-        if (members.length >= 2 && _rand() < 0.08) {
-          final old = members.remove(hostSeat)!;
-          await old.leaveSeat(code, hostSeat);
+        // 호스트 교체(봇이 상석일 때만). 교체 후 상석이 사람이 되면(사람 좌석이
+        // 더 낮으면) becomeHost 하지 않는다 — 방장은 사람에게 넘어간다.
+        if (!humanIsBoss && members.length >= 2 && _rand() < 0.08) {
+          final oldSeat = hostSeat;
+          final old = members.remove(oldSeat)!;
+          await old.leaveSeat(code, oldSeat);
           joinedAt.remove(old.uid);
           _pool.release(old);
           hostSeat = members.keys.reduce((a, b) => a < b ? a : b);
           host = members[hostSeat]!;
-          await host.becomeHost(code);
-          _log('$code ⤳ 호스트 교체 → 좌석 $hostSeat (${host.name})');
+          final players = _asMap(data['players']) ?? const {};
+          var humanLower = false;
+          players.forEach((k, v) {
+            final s = int.tryParse('$k'.substring(1));
+            final id = _asMap(v)?['id'];
+            if (s != null && s != oldSeat && id is String &&
+                !botUids.contains(id) && s < hostSeat) {
+              humanLower = true;
+            }
+          });
+          if (!humanLower) await host.becomeHost(code);
+          _log('$code ⤳ 호스트 교체 → ${humanLower ? "사람에게 넘김" : "좌석 $hostSeat (${host.name})"}');
         }
 
-        // 시작 조건: **살아있는(하트비트 최신) 사람이 최소 1명** 있어야 하고
-        // (봇끼리·유령·끊긴 좌석으로는 시작 안 함), 그 사람들이 모두 준비돼야
-        // 한다(방장 봇이 준비 확인 후 시작). humans는 틱 상단에서 계산.
-        humanSince = humans > 0 ? (humanSince ?? DateTime.now()) : null;
+        // 시작 조건(**봇이 상석일 때만**): 살아있는(하트비트 최신) 사람이 최소
+        // 1명 + 그 사람들 **전원 준비**. 예전의 "15초 지나면 준비 없이도 시작"
+        // grace는 제거 — "준비 안 눌렀는데 시작된다"는 제보의 원인이었다.
+        // 직전 라운드 종료 후 12초 쿨다운(떠나는 봇의 시차 퇴장과 안 겹치게).
         final totalPresent = _presentCount(data);
         final ready = _humansReady(data, botUids, hostSeat);
-        // 사람이 준비했거나(신버전) 오래 기다렸으면(구버전 대응) 시작.
-        final waited = humanSince != null &&
-            DateTime.now().difference(humanSince).inMilliseconds >
-                Config.socialHumanStartGraceMs;
-        // 직전 라운드 종료 후 12초 쿨다운 — 떠나는 봇의 시차 퇴장(2~9초)이 끝나기
-        // 전에 다음 판이 시작돼 게임 도중 좌석이 사라지는 것 방지 + 숨 고르기.
         final cooled =
             DateTime.now().difference(lastRoundEnd).inMilliseconds > 12000;
-        if (cooled &&
+        if (!humanIsBoss &&
+            cooled &&
             humans >= 1 &&
             totalPresent >= 2 &&
-            _rand() < 0.6 &&
-            (ready || waited)) {
-          _log('$code ▶ 게임 시작 (사람 $humans + 봇 ${members.length}, 준비=$ready 대기시작=$waited)');
+            ready &&
+            _rand() < 0.6) {
+          _log('$code ▶ 게임 시작 (사람 $humans 전원 준비, 봇 ${members.length})');
           await host.hostStartGame(code);
-          // 시작 시 좌석이 압축됐으니 **다시 읽어 좌석 재동기화** 후 플레이
-          // (옛 좌석으로 플레이하면 성향 프로필이 엉뚱한 좌석에 적용됨).
-          final started = await host.getRoom(code);
-          if (started == null || !await resync(started)) {
-            _log('$code 시작 직후 방/봇 소실 → 종료');
-            return;
-          }
-          // 봇 좌석들만 플레이(사람은 앱이 플레이) + 호스트 봇은 결투 심판도
-          // 겸한다(무승부 시 showdown 생성·승자 확정 — 앱에선 사람 호스트 몫).
-          await Future.wait([
-            for (final e in members.entries) e.value.playSeatedGame(code, e.key),
-            host.hostRefereeGame(code),
-          ]);
-          _log('$code ■ 라운드 종료');
-          // 사람이 결과 화면을 볼 시간을 주고 대기실로(봇들이 즉시 리셋하면 승부
-          // 결과가 눈 깜짝할 새 사라진다).
-          await Future<void>.delayed(Duration(milliseconds: _between(4000, 7000)));
-          await host.resetToLobby(code);
-          lastRoundEnd = DateTime.now();
-          // 라운드 뒤 **일부만** 떠난다(사람처럼 — 예전엔 전원 해산이라 "한 판
-          // 하면 무조건 다 나가"로 보였다). 떠나는 봇도 몇 초 시차를 두고,
-          // 남는 봇은 다음 판 준비를 다시 켠다.
-          for (final e in members.entries.toList()) {
-            if (e.key == hostSeat) continue;
-            if (_rand() < 0.35) {
-              members.remove(e.key);
-              final b = e.value;
-              joinedAt.remove(b.uid);
-              Future<void>.delayed(
-                  Duration(milliseconds: _between(2000, 9000)), () async {
-                try {
-                  await b.leaveSeat(code, e.key);
-                } catch (_) {}
-                _pool.release(b);
-                _log('$code → ${b.name} 한 판 하고 떠남 (${members.length}명)');
-              });
-            } else {
-              _scheduleReady(e.value, code);
-            }
-          }
-          _scheduleReady(host, code);
+          // 참전은 다음 틱의 started 브랜치가 처리(좌석 재동기화 포함).
         }
 
         await Future<void>.delayed(Duration(seconds: _between(2, 6)));
@@ -280,12 +330,22 @@ class SocialSim {
     } catch (e) {
       _log('$code 오류: $e');
     } finally {
-      // 해산: **방 삭제를 먼저**, 봇 반납은 그 다음. 순서가 반대면 방금 반납된
-      // 호스트가 곧장 새 방을 파서, 옛 방이 지워지기 전 잠깐 로비에 같은 이름
-      // 방이 2개로 보인다(사용자 제보). 방을 지우면 좌석도 같이 사라지므로
-      // 개별 leaveSeat은 불필요.
+      // 해산. **사람이 남아 있으면 방을 지우지 않는다**(놀고 있는 방을 봇이
+      // 없애면 안 됨) — 봇들만 자리 비우고 나온다. 사람이 없으면 방 삭제를
+      // **먼저** 하고 봇 반납은 그 다음(순서가 반대면 방금 반납된 호스트가 곧장
+      // 새 방을 파서, 옛 방이 지워지기 전 같은 이름 방이 2개로 보인다).
       try {
-        await host.deleteRoom(code);
+        final data = await host.getRoom(code);
+        final humansLeft = data != null && _humanCount(data, _pool.uids) > 0;
+        if (humansLeft) {
+          for (final e in members.entries) {
+            try {
+              await e.value.leaveSeat(code, e.key);
+            } catch (_) {}
+          }
+        } else {
+          await host.deleteRoom(code);
+        }
       } catch (_) {}
       for (final e in members.entries) {
         _pool.release(e.value);
@@ -313,6 +373,30 @@ class SocialSim {
       if (!occupied.contains(s)) return s;
     }
     return null;
+  }
+
+  /// 방장(상석) 주인 uid — 앱 규약: 참여 좌석 중 **가장 낮은 좌석**이 방장.
+  /// 유령(id 없음)과 하트비트 끊긴 사람 좌석(앱이 "나감"으로 침)은 제외.
+  /// 봇 좌석은 러너가 매 틱 하트비트하므로 항상 신선 취급.
+  String? _bossUid(Map data, Set<String> botUids) {
+    final players = _asMap(data['players']) ?? const {};
+    final nowMs = DateTime.now().millisecondsSinceEpoch;
+    var best = 1 << 30;
+    String? boss;
+    for (final e in players.entries) {
+      final s = int.tryParse('${e.key}'.substring(1));
+      final pv = _asMap(e.value);
+      final id = pv?['id'];
+      if (s == null || id is! String) continue;
+      final seen = _asInt(pv?['seen']) ?? 0;
+      final fresh = botUids.contains(id) || nowMs - seen < 14000;
+      if (!fresh) continue;
+      if (s < best) {
+        best = s;
+        boss = id;
+      }
+    }
+    return boss;
   }
 
   /// 자리에 앉은(정상 엔트리=id 있는) 인원 수. 유령 노드는 제외.
