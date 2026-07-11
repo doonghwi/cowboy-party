@@ -6,6 +6,7 @@
       "title": "🙋 사용자 대기 — 해줘야 진행되는 것",
       "items": [
         { "t": "시크릿 백업 tar를 iCloud/USB로 복사 (5분)", "who": "사용자", "st": "block", "note": "~/Desktop/dailyapp-secrets-backup/secrets_20260712.tar.gz — 업로드 키스토어 등 git 밖 복구불가 7종. 이 맥이 죽으면 이 파일이 유일한 생명줄. 갱신은 bash _shared/backup_secrets.sh" },
+        { "t": "FileVault 켜기 (5분) — 디스크 암호화", "who": "사용자", "st": "block", "note": "시스템 설정→개인정보 보호 및 보안→FileVault. 현재 OFF라 맥 분실 시 키스토어·서비스계정 키 평문 노출(2026-07-12 보안 감사, SECURITY_FINDINGS.md)" },
         { "t": "유료 툴 결정 — Recraft($10 선불)·ElevenLabs($5/월)", "who": "사용자", "st": "wait", "note": "지금은 무료 조합으로 진행 중. 스킨 대량 생산·시그니처 SFX 단계에서 결정해도 됨" },
         { "t": "iOS App Store 제출 (Apple Developer $99 등록)", "who": "사용자", "st": "wait", "note": "store/ios_release.md" }
       ]
