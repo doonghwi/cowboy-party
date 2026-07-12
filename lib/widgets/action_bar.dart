@@ -5,6 +5,7 @@ import 'package:flutter/services.dart';
 
 import '../game/party_logic.dart';
 import '../theme.dart';
+import 'juice3.dart';
 
 /// The bottom action panel: pick one of 장전 / 방어 / 빵야, then lock it in.
 ///
@@ -254,7 +255,9 @@ class ActionBar extends StatelessWidget {
           style: const TextStyle(color: CD.muted, fontSize: 12.5),
         ),
         const SizedBox(height: 10),
-        SizedBox(
+        TapScale(
+            enabled: _ready,
+            child: SizedBox(
           width: double.infinity,
           child: FilledButton.icon(
             onPressed: _ready ? onConfirm : null,
@@ -271,7 +274,7 @@ class ActionBar extends StatelessWidget {
               style: posterTitle(18, color: Colors.white),
             ),
           ),
-        ),
+        )),
       ],
     );
   }
@@ -285,6 +288,8 @@ class ActionBar extends StatelessWidget {
         child: _DeniedShake(
           enabled: enabled,
           onTap: () => onSelect(kind),
+          child: TapScale(
+          enabled: enabled,
           child: AnimatedContainer(
             duration: const Duration(milliseconds: 120),
             padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 6),
@@ -317,6 +322,7 @@ class ActionBar extends StatelessWidget {
                             : CD.muted)),
               ],
             ),
+          ),
           ),
         ),
       ),

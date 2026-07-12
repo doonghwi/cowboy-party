@@ -26,6 +26,16 @@ class JuiceController {
 
   static Timer? _hitStopTimer;
 
+  /// 킬 슬로모(3단계): 게임을 끝내는 마지막 킬을 [ms]만큼 슬로모션으로.
+  /// 히트스톱과 같은 원리(timeDilation) — 로직·타이머는 실시간 그대로.
+  static void slowMo({int ms = 420, double factor = 3.2}) {
+    timeDilation = factor;
+    _hitStopTimer?.cancel();
+    _hitStopTimer = Timer(Duration(milliseconds: ms), () {
+      timeDilation = 1.0;
+    });
+  }
+
   /// 히트스톱(타격감 1단계): 명중 순간 [ms]만큼 연출 시간을 사실상 정지.
   /// timeDilation은 애니메이션 클록만 늦추므로 게임 로직·타이머·온라인
   /// 동기화는 그대로 흐른다(로컬 연출 전용). 중첩 호출은 마지막 것이 이긴다.

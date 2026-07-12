@@ -7,6 +7,7 @@ import '../theme.dart';
 import 'effects.dart';
 import 'emo.dart';
 import 'hit_burst.dart';
+import 'juice3.dart';
 import 'seat_card.dart';
 import 'seat_motion.dart';
 
@@ -115,6 +116,10 @@ class CircularTable extends StatelessWidget {
   /// Show the tracer lines + revealed moves.
   final bool reveal;
 
+  /// 3단계 탄흔 영속 — (좌석, 시드) 목록(화면이 상한 50으로 관리).
+  /// 좌석 위치는 레이아웃마다 달라 여기서 픽셀로 변환한다.
+  final List<(int, int)> bulletHoles;
+
   /// Emoji reactions to float over seats (seat -> emoji asset name).
   final Map<int, String> reactions;
 
@@ -130,6 +135,7 @@ class CircularTable extends StatelessWidget {
     this.onSeatInfo,
     this.reveal = false,
     this.reactions = const {},
+    this.bulletHoles = const [],
   });
 
   @override
@@ -157,6 +163,22 @@ class CircularTable extends StatelessWidget {
 
         return Stack(
           children: [
+            // 3단계: 게임 동안 쌓인 탄흔(맨 바닥 레이어).
+            if (bulletHoles.isNotEmpty)
+              Positioned.fill(
+                child: BulletHolesLayer(holes: [
+                  for (final (seat, seed) in bulletHoles)
+                    if (seat >= 0 && seat < n)
+                      (
+                        positions[seat] +
+                            Offset(
+                              sin(seed * 12.9898) * 30,
+                              cos(seed * 78.233) * 26 + 26,
+                            ),
+                        seed
+                      ),
+                ]),
+              ),
             // Animated bullet tracers behind the cards (muzzle flash, travelling
             // core, hit/blocked/missed impact). Keyed per turn so it replays.
             if (reveal)
@@ -178,6 +200,8 @@ class CircularTable extends StatelessWidget {
                       'mo-$s-${reveal ? _turnSig() : 'idle'}-$reveal'),
                   recoil: reveal ? _recoilDir(s, positions) : null,
                   knock: reveal ? _knockDir(s, positions) : null,
+                  child: Breathing(
+                  phase: s / (n == 0 ? 1 : n),
                   child: SeatCard(
                   name: seats[s].name,
                   ammo: seats[s].ammo,
@@ -208,10 +232,32 @@ class CircularTable extends StatelessWidget {
                           ? () => onSeatInfo!.call(s)
                           : null),
                   ),
+                  ),
                 ),
               ),
             // 명중 파티클(타격감 1단계, 자작 HitBurst): 맞은 좌석 위에 불꽃
             // 스파크+파편+잔류 연기. 탄환 코어 도착(~450ms)에 맞춰 지연 시작.
+            // 3단계: 데미지 숫자 팝 + 사망 모자 굴러감(탄 도착 타이밍).
+            if (reveal)
+              for (var s = 0; s < n; s++)
+                if (seats[s].hit) ...[
+                  Positioned.fill(
+                    child: DamagePop(
+                      key: ValueKey('dp-$s-${_turnSig()}'),
+                      center: positions[s],
+                      delay: Duration(
+                          milliseconds: _shooterOf(s) >= 0 ? 470 : 40),
+                    ),
+                  ),
+                  if (!seats[s].alive)
+                    Positioned.fill(
+                      child: DeathHatRoll(
+                        key: ValueKey('hat-$s-${_turnSig()}'),
+                        center: positions[s].translate(0, -22),
+                        seed: s + 1,
+                      ),
+                    ),
+                ],
             if (reveal)
               for (var s = 0; s < n; s++)
                 if (seats[s].hit)

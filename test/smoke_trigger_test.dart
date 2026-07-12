@@ -27,12 +27,14 @@ void main() {
   testWidgets('smoke raised but not shot → puff still shows', (tester) async {
     await tester.pumpWidget(_table(_seats(smoked: true, evaded: false)));
     expect(find.byType(SmokePuff), findsOneWidget);
-    await tester.pumpAndSettle();
+    // 3단계 idle 숨쉬기(무한 반복)가 들어와 pumpAndSettle은 영영 안 끝난다 —
+    // 유한 pump로 연출 시간을 흘려보낸다.
+    await tester.pump(const Duration(seconds: 2));
   });
 
   testWidgets('no smoke raised → no puff', (tester) async {
     await tester.pumpWidget(_table(_seats(smoked: false, evaded: false)));
     expect(find.byType(SmokePuff), findsNothing);
-    await tester.pumpAndSettle();
+    await tester.pump(const Duration(seconds: 2));
   });
 }

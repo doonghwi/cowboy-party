@@ -17,6 +17,7 @@ import '../widgets/action_bar.dart';
 import '../widgets/celebration.dart';
 import '../widgets/circular_table.dart';
 import '../widgets/juice.dart';
+import '../widgets/juice3.dart';
 import '../widgets/seat_profile.dart';
 import '../widgets/top_toast.dart';
 import '../widgets/desert_background.dart';
@@ -116,6 +117,9 @@ class _OfflineGameScreenState extends State<OfflineGameScreen> {
 
   // 결과 공개(reveal)·관전 자동 진행 타이머 — 멀티처럼 버튼 없이 자동으로 다음 턴.
   Timer? _autoNext;
+  // 3단계 탄흔 영속 — (좌석, 시드), 게임 단위로 쌓이고 새 게임에 비운다.
+  final List<(int, int)> _bulletHoles = [];
+  int _holeSeed = 0;
   // 리빌이 뜬 시각 — 행동 확인 버튼과 같은 자리라, 확인 탭 직후의 잔여/연속
   // 탭이 "탭하면 바로"로 새서 결과창이 즉시 넘어가던 버그 가드(0.6초 무시).
   DateTime _revealShownAt = DateTime.fromMillisecondsSinceEpoch(0);
@@ -350,6 +354,13 @@ class _OfflineGameScreenState extends State<OfflineGameScreen> {
       turn: _turn,
     );
     _pstate = out.stateAfter!;
+    // 3단계: 이번 턴 피격 좌석에 탄흔을 남긴다(상한 50).
+    for (var s = 0; s < out.hit.length; s++) {
+      if (out.hit[s]) _bulletHoles.add((s, _holeSeed++));
+    }
+    if (_bulletHoles.length > kMaxBulletHoles) {
+      _bulletHoles.removeRange(0, _bulletHoles.length - kMaxBulletHoles);
+    }
     if (out.superFired.any((x) => x)) _fireSuperFlash();
     _playRevealSound(out);
     _playRevealJuice(out, aliveBefore);
@@ -419,10 +430,14 @@ class _OfflineGameScreenState extends State<OfflineGameScreen> {
       _juice.shake(2.5); // 발사됐지만 전부 방어/빗나감 — 잔진동만
       HapticFeedback.lightImpact();
     }
-    // 히트스톱(1단계): 탄환 코어 도착(~450ms)에 로컬 연출만 잠깐 정지.
+    // 히트스톱(1단계) / 킬 슬로모(3단계): 게임을 끝내는 마지막 킬은 슬로모.
     if (anyHit) {
-      Timer(const Duration(milliseconds: 430),
-          () => JuiceController.hitStop(ms: (iDied || iGotHit) ? 80 : 50));
+      final endsGame = out.status == GameStatus.won;
+      Timer(
+          const Duration(milliseconds: 430),
+          () => endsGame
+              ? JuiceController.slowMo()
+              : JuiceController.hitStop(ms: (iDied || iGotHit) ? 80 : 50));
     }
   }
 
@@ -816,6 +831,7 @@ class _OfflineGameScreenState extends State<OfflineGameScreen> {
                   seats: seats,
                   mySeat: 0,
                   reveal: reveal,
+                  bulletHoles: _bulletHoles,
                   targetMode: targetMode,
                   selectedTarget: _selTarget,
                   selectedTarget2: _selTarget2,
@@ -1121,7 +1137,10 @@ class _OfflineGameScreenState extends State<OfflineGameScreen> {
               const SizedBox(width: 12),
               Expanded(
                 child: FilledButton(
-                  onPressed: () => setState(() => _phase = _Phase.setup),
+                  onPressed: () => setState(() {
+                    _phase = _Phase.setup;
+                    _bulletHoles.clear(); // 새 판 — 탄흔 리셋
+                  }),
                   style: FilledButton.styleFrom(
                     backgroundColor: CD.rust,
                     padding: const EdgeInsets.symmetric(vertical: 13),

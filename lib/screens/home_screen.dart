@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../theme.dart';
 import '../widgets/desert_background.dart';
+import '../widgets/juice3.dart';
 import '../widgets/emo.dart';
 import 'how_to_play_screen.dart';
 import 'offline_game_screen.dart';
@@ -112,7 +113,8 @@ class _MenuButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Material(
+    return TapScale(
+        child: Material(
       color: Colors.transparent,
       child: InkWell(
         onTap: onTap,
@@ -157,6 +159,6 @@ class _MenuButton extends StatelessWidget {
           ),
         ),
       ),
-    );
+    ));
   }
 }

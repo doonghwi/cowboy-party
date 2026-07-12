@@ -23,6 +23,7 @@ import '../widgets/seat_profile.dart';
 import '../widgets/desert_background.dart';
 import '../widgets/emoji_bar.dart';
 import '../widgets/juice.dart';
+import '../widgets/juice3.dart';
 import '../widgets/online_showdown.dart';
 import '../widgets/super_flash.dart';
 import '../widgets/top_toast.dart';
@@ -93,6 +94,9 @@ class _OnlineGameScreenState extends State<OnlineGameScreen> {
 
   // 제출 자가치유 워치독: 내가 이 턴에 제출한 행동을 기억해 뒀다가
   // 뷰에 반영이 안 되면(쓰기 유실) 다시 쓴다.
+  // 3단계 탄흔 영속 — (좌석, 시드).
+  final List<(int, int)> _bulletHoles = [];
+  int _holeSeed = 0;
   int _submittedTurn = -1;
   Move? _submittedMoveObj;
   int _resubmits = 0;
@@ -230,6 +234,7 @@ class _OnlineGameScreenState extends State<OnlineGameScreen> {
     if (view.phase == OnlinePhase.waiting) {
       _shownTurn = 0;
       _loggedStart = false; // 다음 판 game_start 재로깅용
+      _bulletHoles.clear(); // 새 판 — 탄흔 리셋
       return;
     }
     if (!_loggedStart) {
@@ -261,6 +266,13 @@ class _OnlineGameScreenState extends State<OnlineGameScreen> {
     final me = view.mySeat >= 0 && view.mySeat < view.seats.length
         ? view.seats[view.mySeat]
         : null;
+    // 3단계: 피격 좌석 탄흔(상한 50).
+    for (final s in view.seats) {
+      if (s.hitThisTurn) _bulletHoles.add((s.seat, _holeSeed++));
+    }
+    if (_bulletHoles.length > kMaxBulletHoles) {
+      _bulletHoles.removeRange(0, _bulletHoles.length - kMaxBulletHoles);
+    }
     if (me?.hitThisTurn == true) {
       _juice.hurt();
       HapticFeedback.mediumImpact(); // 피격=medium(사망·승리만 heavy)
@@ -274,11 +286,16 @@ class _OnlineGameScreenState extends State<OnlineGameScreen> {
       _juice.shake(2.5); // 발사됐지만 전부 방어/빗나감 — 잔진동만
       HapticFeedback.lightImpact();
     }
-    // 히트스톱(1단계): 탄환 코어 도착(~450ms)에 로컬 연출만 잠깐 정지.
+    // 히트스톱(1단계) / 킬 슬로모(3단계): 게임이 끝나는 리빌이면 슬로모.
     if (view.seats.any((s) => s.hitThisTurn)) {
       final mine = me?.hitThisTurn == true;
-      Timer(const Duration(milliseconds: 430),
-          () => JuiceController.hitStop(ms: mine ? 80 : 50));
+      final endsGame = view.phase == OnlinePhase.over ||
+          view.status == GameStatus.won;
+      Timer(
+          const Duration(milliseconds: 430),
+          () => endsGame
+              ? JuiceController.slowMo()
+              : JuiceController.hitStop(ms: mine ? 80 : 50));
     }
   }
 
@@ -831,6 +848,7 @@ class _OnlineGameScreenState extends State<OnlineGameScreen> {
                   seats: _seatsOf(view, reveal),
                   mySeat: view.mySeat < 0 ? 0 : view.mySeat,
                   reveal: reveal,
+                  bulletHoles: _bulletHoles,
                   targetMode: targetMode,
                   selectedTarget: _selTarget,
                   selectedTarget2: _selTarget2,
