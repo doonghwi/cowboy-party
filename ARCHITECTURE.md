@@ -179,6 +179,12 @@ dailyapp_stats/cowboy_party: 사용량(중앙 대시보드)
 - [x] **Stage 5**: ??? 해금 게이트(canBuyMystery, 전 캐릭터 보유 시) + 선물코드 + 에뮬 검증 + 배포.
 
 ## 최근 변경 (2026-07)
+### 대기실·턴 진행 안정화 (2026-07-13, v19 — 사용자 제보 4건)
+- **준비 풀림/오염 수정**: ready 값 = 좌석 주인의 clientId(구버전 true 호환). computeView가 `readySeats`(좌석+주인 id 매칭)·`iAmReady`(id 기준 — 하트비트 순단에도 유지)를 파생, UI는 이것만 사용. 회귀 테스트 3종.
+- **방장 왕관 배지**: RoomView.hostSeat → TableSeat.isHostSeat → SeatCard 👑(대기실).
+- **레디 독촉(크아식)**: 방장이 미준비 상태에서 시작 시도 → `nudge` 노드 기록 → 미준비 비방장에게 토스트+미디엄 햅틱+준비 버튼 흔들림(입장 전 과거 신호는 기준만 잡고 무시).
+- **무한대기 자가치유**: submitMove 3회 백오프 재시도(+4초 타임아웃) + 화면 워치독(내가 제출한 (턴,행동)을 기억, 뷰에 미반영이면 2초 간격 최대 4회 재제출) — 연결 순단으로 쓰기가 유실되면 그 턴이 영영 안 끝나던 제보의 유력 원인.
+
 ### 리텐션 B1·B4·B5(1차) + SFX 확정 + 방장 버그 (2026-07-12 심야3, v18)
 - **B1 시즌 패스**: retention.dart에 4주 시즌(passIdFor/passLastWeek/passTierForXp/passGoldOf) + Meta(_passXp 등, `_gainPassXp` 자동 티어 지급, 미션→패스XP 연결). 보상 탭 패스 카드. 신규 계정 코인 = 시작골드+1티어(테스트 갱신).
 - **B4 웰컴백**: 7일+ 미접속 감지(init, last_open_day) → 800G 즉시 지급+1회 토스트(play_tab). **B5 1차**: 상점 도감 수집률 헤더.

@@ -29,6 +29,53 @@ Map<String, Object?> startedRoom({
 }
 
 void main() {
+  group('대기실 준비 판정 — 좌석+주인 id (2026-07-12 준비 풀림/오염 제보)', () {
+    Map<String, Object?> lobby(Map<String, Object?> players,
+            {Map<String, Object?>? ready}) =>
+        {
+          'host': 'h',
+          'capacity': 6,
+          'players': players,
+          'ready': ?ready,
+        };
+
+    final players = <String, Object?>{
+      'p0': {'id': 'h', 'name': '방장', 'seen': 999, 'at': 1},
+      'p1': {'id': 'me', 'name': '나', 'seen': 999, 'at': 2},
+      'p2': {'id': 'you', 'name': '너', 'seen': 999, 'at': 3},
+    };
+
+    test('내 id로 기록된 준비는 인정, 좌석 주인이 바뀐 잔재는 무시', () {
+      final v = OnlineService.computeView(
+        lobby(players, ready: {
+          'p1': 'me', // 정상: 내 좌석에 내 id
+          'p2': 'ghost', // 오염: 남의 좌석에 이전 점유자 id → 무시돼야
+        }),
+        'me',
+      );
+      expect(v.readySeats, contains(1));
+      expect(v.readySeats.contains(2), isFalse,
+          reason: '좌석 주인(you)과 다른 id(ghost)의 준비는 무효');
+      expect(v.iAmReady, isTrue);
+    });
+
+    test('구버전 true 값도 그대로 인정(호환)', () {
+      final v = OnlineService.computeView(
+        lobby(players, ready: {'p2': true}),
+        'you',
+      );
+      expect(v.readySeats, contains(2));
+      expect(v.iAmReady, isTrue);
+    });
+
+    test('준비 안 눌렀으면 비어 있음', () {
+      final v = OnlineService.computeView(lobby(players), 'me');
+      expect(v.readySeats, isEmpty);
+      expect(v.iAmReady, isFalse);
+    });
+  });
+
+
   group('방장 승계 — 입장 오래된 순(2026-07-12 제보: 신규 입장자가 방장 뺏던 버그)', () {
     Map<String, Object?> lobby({
       required Map<String, Object?> players,

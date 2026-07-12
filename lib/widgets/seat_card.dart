@@ -18,6 +18,9 @@ class SeatCard extends StatelessWidget {
   final bool joined;
   final bool submitted;
   final bool hit;
+
+  /// 방장 좌석 — 대기실에서 왕관 배지(누가 시작 권한자인지).
+  final bool isHost;
   final Move? lastMove;
 
   /// 그림자: 탄약 수를 '?'로 가린다.
@@ -59,6 +62,7 @@ class SeatCard extends StatelessWidget {
     this.joined = true,
     this.submitted = false,
     this.hit = false,
+    this.isHost = false,
     this.lastMove,
     this.hideAmmo = false,
     this.fired = false,
@@ -133,6 +137,19 @@ class SeatCard extends StatelessWidget {
                             size: avatar,
                           ),
                         ),
+              if (isHost)
+                Positioned(
+                  left: -6,
+                  top: -6,
+                  child: Container(
+                    padding: const EdgeInsets.all(2.5),
+                    decoration: const BoxDecoration(
+                      color: CD.gold,
+                      shape: BoxShape.circle,
+                    ),
+                    child: const Text('👑', style: TextStyle(fontSize: 11)),
+                  ),
+                ),
               if (submitted && alive)
                 Positioned(
                   right: -6,

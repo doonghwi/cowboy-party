@@ -129,6 +129,13 @@ class RoomView {
   /// 유효 방장의 좌석(대기실 표시용, 모름/무관이면 -1) — 승계 규칙(입장 오래된 순)과
   /// 항상 일치한다. UI가 "최저 좌석=방장"을 다시 파생하지 말 것.
   final int hostSeat;
+
+  /// 대기실 준비 좌석 — 값이 구버전 `true`거나 **그 좌석 주인의 id**일 때만 인정
+  /// (좌석 재사용으로 남의 준비를 물려받던 버그 수정, 2026-07-12 제보).
+  final Set<int> readySeats;
+
+  /// 내가 준비 상태인가 — 내 id 기준(하트비트 순단으로 좌석이 잠깐 -1이어도 유지).
+  final bool iAmReady;
   final OnlinePhase phase;
   final int turn;
   final int mySeat; // -1 if I'm not seated
@@ -187,6 +194,8 @@ class RoomView {
     required this.started,
     required this.isHost,
     this.hostSeat = -1,
+    this.readySeats = const {},
+    this.iAmReady = false,
     required this.phase,
     required this.turn,
     required this.mySeat,
@@ -783,16 +792,39 @@ class OnlineService {
     });
   }
 
-  Future<void> submitMove(String code, int turn, int seat, Move m) {
-    room(code).child('players/${slotKey(seat)}/seen').set(_now);
-    return room(code).child('turns/t$turn/${slotKey(seat)}').set(m.encode());
+  /// 행동 제출. 연결 순단으로 쓰기가 유실되면 그 턴이 영영 안 끝나는
+  /// 무한대기가 됐다(2026-07-12 제보) → 짧은 백오프로 3회까지 재시도.
+  /// 화면 쪽 워치독이 "제출했는데 뷰에 안 보임"도 재제출로 자가치유한다.
+  Future<bool> submitMove(String code, int turn, int seat, Move m) async {
+    room(code).child('players/${slotKey(seat)}/seen').set(_now).catchError((_) {});
+    for (var attempt = 0; attempt < 3; attempt++) {
+      try {
+        await room(code)
+            .child('turns/t$turn/${slotKey(seat)}')
+            .set(m.encode())
+            .timeout(const Duration(seconds: 4));
+        return true;
+      } catch (_) {
+        await Future<void>.delayed(Duration(milliseconds: 350 * (attempt + 1)));
+      }
+    }
+    return false;
   }
 
-  /// 대기실 '준비' 토글(방장 제외). true면 준비, false면 해제(노드 제거).
+  /// 대기실 '준비' 토글(방장 제외). 값은 **내 clientId** — 좌석이 재사용돼도
+  /// (나갔다 다른 좌석으로 재입장, 남이 그 좌석에 앉음) 남의 준비를 물려받거나
+  /// 내 준비가 증발하지 않도록 좌석+본인 id로 판정한다(2026-07-12 제보 수정).
+  /// 구버전 클라가 쓴 `true` 값은 읽는 쪽에서 그대로 인정(호환).
   Future<void> setReady(String code, int seat, bool ready) {
     return room(code)
         .child('ready/${slotKey(seat)}')
-        .set(ready ? true : null);
+        .set(ready ? clientId : null);
+  }
+
+  /// 크레이지아케이드식 "레디 독촉": 방장이 시작을 시도했는데 미준비자가 있으면
+  /// 대기실 전원에게 신호를 쏜다(미준비 본인 화면이 강조됨).
+  Future<void> nudgeReady(String code) {
+    return room(code).child('nudge').set({'at': _now, 'by': clientId});
   }
 
   /// 파파라치 엿보기 시작: 이 턴에 한 명을 엿보기로 지목(아직 내 행동은 제출 안 함).
@@ -1044,6 +1076,20 @@ class OnlineService {
     seatId.forEach((s, id) {
       if (id == effHostId && id.isNotEmpty) effHostSeat = s;
     });
+    // 대기실 준비 판정 — 좌석+주인 id 매칭(구버전 true 호환).
+    final readyRaw = _asMap(data['ready']) ?? const {};
+    final readySeats = <int>{};
+    var iAmReady = false;
+    readyRaw.forEach((k, v) {
+      final s = seatOf(k.toString());
+      if (s < 0) return;
+      final owner = seatId[s] ?? '';
+      final ok = v == true || (v is String && v.isNotEmpty && v == owner);
+      if (ok) readySeats.add(s);
+      if (v == myClientId || (v == true && owner == myClientId)) {
+        iAmReady = true;
+      }
+    });
     // 화면이 새 방장을 RTDB에 확정(베스트에포트)해야 하는지.
     final iShouldClaimHost = isHost &&
         recordedHostId != myClientId &&
@@ -1087,6 +1133,8 @@ class OnlineService {
         started: false,
         isHost: isHost,
         hostSeat: effHostSeat,
+        readySeats: readySeats,
+        iAmReady: iAmReady,
         phase: OnlinePhase.waiting,
         turn: 0,
         mySeat: present(mySeat) ? mySeat : -1,

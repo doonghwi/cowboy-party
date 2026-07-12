@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:math' as math;
 
 import 'package:firebase_database/firebase_database.dart';
 import 'package:flutter/material.dart';
@@ -85,6 +86,17 @@ class _OnlineGameScreenState extends State<OnlineGameScreen> {
   int _serverOffset = 0;
   StreamSubscription<DatabaseEvent>? _offsetSub;
   Timer? _heartbeat;
+
+  // 레디 독촉(크아식): 마지막으로 본 nudge 시각(0=아직 기준 미설정).
+  int _seenNudgeAt = -1;
+  int _nudgeKey = 0; // 준비 버튼 흔들림 트리거
+
+  // 제출 자가치유 워치독: 내가 이 턴에 제출한 행동을 기억해 뒀다가
+  // 뷰에 반영이 안 되면(쓰기 유실) 다시 쓴다.
+  int _submittedTurn = -1;
+  Move? _submittedMoveObj;
+  int _resubmits = 0;
+  int _lastResubmitMs = 0;
   Timer? _staleTick;
 
   // Emoji reactions floating over seats.
@@ -346,6 +358,8 @@ class _OnlineGameScreenState extends State<OnlineGameScreen> {
                 _track(view);
                 _handleReveal(view);
                 _handleReactions(data);
+                _handleNudge(data, view);
+                _ensureSubmitDelivered(view);
                 _maybeReset(view, data['scored'] == true);
                 _maybeReward(view);
                 _manageTurnTimer(view);
@@ -569,7 +583,6 @@ class _OnlineGameScreenState extends State<OnlineGameScreen> {
     // 준비 상태(방장 제외 전원 준비해야 시작). 방장 = 참여 좌석 중 가장 낮은 좌석.
     // 빠른시작(match) 방은 봇이 준비를 안 누르므로 게이트 제외(항상 시작 가능).
     final isMatch = data['match'] == true;
-    final readyMap = (data['ready'] is Map) ? data['ready'] as Map : const {};
     final present = [for (final s in view.seats) if (s.joined) s.seat];
     // 방장 좌석은 서비스의 승계 규칙(입장 오래된 순)을 그대로 쓴다 —
     // "최저 좌석=방장" 파생은 신규 입장자가 방장으로 보이던 버그의 원인.
@@ -577,11 +590,13 @@ class _OnlineGameScreenState extends State<OnlineGameScreen> {
         ? view.hostSeat
         : (present.isEmpty ? 0 : present.reduce((a, b) => a < b ? a : b));
     final nonHost = present.where((s) => s != hostSeat).toList();
-    final readyCount = nonHost.where((s) => readyMap['p$s'] == true).length;
+    // 준비 판정은 computeView(좌석+주인 id 매칭) 것을 그대로 쓴다 —
+    // 좌석 재사용·하트비트 순단으로 준비가 풀리던 버그 수정(2026-07-12 제보).
+    final readyCount = nonHost.where(view.readySeats.contains).length;
     final needReady = !isMatch;
     final allReady =
         !needReady || (nonHost.isNotEmpty && readyCount == nonHost.length);
-    final iAmReady = view.mySeat >= 0 && readyMap['p${view.mySeat}'] == true;
+    final iAmReady = view.iAmReady;
     return Column(
       children: [
         const SizedBox(height: 12),
@@ -634,8 +649,9 @@ class _OnlineGameScreenState extends State<OnlineGameScreen> {
                   // 방장은 준비 개념이 없으므로 항상 준비한 것으로 표시.
                   readyOf: needReady
                       ? (seat) =>
-                          seat == hostSeat || readyMap['p$seat'] == true
-                      : null),
+                          seat == hostSeat || view.readySeats.contains(seat)
+                      : null,
+                  hostSeat: hostSeat),
               mySeat: view.mySeat < 0 ? 0 : view.mySeat,
               onSeatInfo:
                   view.isHost ? (s) => _hostSeatAction(view, s) : null,
@@ -698,7 +714,17 @@ class _OnlineGameScreenState extends State<OnlineGameScreen> {
                           style: TextStyle(
                               color: CD.leather, fontWeight: FontWeight.w700)),
                     )
-                  : SizedBox(
+                  : TweenAnimationBuilder<double>(
+                      // 방장의 레디 독촉이 오면(_nudgeKey 증가) 버튼이 좌우로 떨린다.
+                      key: ValueKey('nudge-$_nudgeKey'),
+                      tween: Tween(begin: _nudgeKey == 0 ? 1.0 : 0.0, end: 1.0),
+                      duration: const Duration(milliseconds: 500),
+                      builder: (context, tv, child) => Transform.translate(
+                        offset: Offset(
+                            math.sin(tv * math.pi * 6) * 6 * (1 - tv), 0),
+                        child: child,
+                      ),
+                      child: SizedBox(
                       width: double.infinity,
                       child: FilledButton.icon(
                         onPressed: view.mySeat < 0
@@ -718,17 +744,19 @@ class _OnlineGameScreenState extends State<OnlineGameScreen> {
                             style: posterTitle(18, color: Colors.white)),
                       ),
                     ),
+                    ),
         ),
         const SizedBox(height: 12),
       ],
     );
   }
 
-  /// 방장 시작 버튼: 전원 준비돼야 시작, 아니면 안내 스낵바.
+  /// 방장 시작 버튼: 전원 준비돼야 시작, 아니면 대기실 전원에게 레디 독촉 신호.
   void _hostStart(bool allReady) {
     if (allReady) {
       widget.service.startGame(widget.code);
     } else {
+      widget.service.nudgeReady(widget.code); // 미준비자 화면이 울린다
       ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
         behavior: SnackBarBehavior.floating,
         content: Text('아직 준비하지 않은 사람이 있어요. 모두 "준비"를 누르면 시작할 수 있어요.'),
@@ -742,10 +770,11 @@ class _OnlineGameScreenState extends State<OnlineGameScreen> {
   /// [readyOf]가 주어지면(대기실) 제출 ✓ 배지 자리를 "준비 완료" 표시로 쓴다
   /// — 다른 사람이 준비했는지 모두가 볼 수 있게(2026-07-12 사용자 요청).
   List<TableSeat> _seatsOf(RoomView view, bool reveal,
-          {bool Function(int seat)? readyOf}) =>
+          {bool Function(int seat)? readyOf, int hostSeat = -1}) =>
       [
         for (final sv in view.seats)
           TableSeat(
+            isHostSeat: sv.seat == hostSeat,
             name: view.started && !sv.joined ? '나감' : sv.name,
             ammo: sv.ammo,
             alive: sv.alive,
@@ -926,6 +955,9 @@ class _OnlineGameScreenState extends State<OnlineGameScreen> {
           if (_secondsLeft <= 0) {
             _turnTicker?.cancel();
             // 시간초과 → 아무것도 안 함(가만히) 자동 제출.
+            _submittedTurn = turn;
+            _submittedMoveObj = const Move.idle();
+            _resubmits = 0;
             widget.service
                 .submitMove(widget.code, turn, mySeat, const Move.idle());
           }
@@ -935,6 +967,49 @@ class _OnlineGameScreenState extends State<OnlineGameScreen> {
       _turnTicker?.cancel();
       _timerTurn = -1;
     }
+  }
+
+  /// 방장의 레디 독촉 신호 처리 — 미준비 본인에게 토스트+햅틱+버튼 흔들림.
+  void _handleNudge(Map data, RoomView view) {
+    final n = data['nudge'];
+    final at = (n is Map) ? (n['at'] is int ? n['at'] as int : null) : null;
+    if (at == null) return;
+    if (_seenNudgeAt < 0) {
+      _seenNudgeAt = at; // 입장 시점의 과거 신호는 무시(기준만 잡음)
+      return;
+    }
+    if (at <= _seenNudgeAt) return;
+    _seenNudgeAt = at;
+    if (view.phase != OnlinePhase.waiting || view.isHost) return;
+    if (view.iAmReady) return;
+    HapticFeedback.mediumImpact();
+    _nudgeKey++;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      setState(() {});
+      TopToast.show(context, message: '🔔 방장이 시작하려고 해요 — 준비를 눌러주세요!');
+    });
+  }
+
+  /// 제출 워치독: 제출했다고 믿는 턴이 뷰에 미제출로 남아 있으면 재제출(2초 간격,
+  /// 최대 4회). 연결 순단으로 쓰기가 유실돼 게임이 영영 안 넘어가던 버그의 자가치유.
+  void _ensureSubmitDelivered(RoomView view) {
+    if (_submittedTurn < 0 || _submittedMoveObj == null) return;
+    if (view.phase != OnlinePhase.choosing || view.turn != _submittedTurn) {
+      if (view.turn != _submittedTurn) {
+        _submittedTurn = -1; // 턴이 넘어갔으면 임무 완료
+        _submittedMoveObj = null;
+        _resubmits = 0;
+      }
+      return;
+    }
+    if (view.me?.submittedThisTurn == true) return; // 정상 반영됨
+    final now = DateTime.now().millisecondsSinceEpoch;
+    if (_resubmits >= 4 || now - _lastResubmitMs < 2000) return;
+    _resubmits++;
+    _lastResubmitMs = now;
+    widget.service.submitMove(
+        widget.code, _submittedTurn, view.mySeat, _submittedMoveObj!);
   }
 
   void _resetPendingFor(int turn) {
@@ -1140,6 +1215,9 @@ class _OnlineGameScreenState extends State<OnlineGameScreen> {
               m.kind != ActKind.trap) {
             m = m.withSmoke(true);
           }
+          _submittedTurn = view.turn; // 워치독: 유실 시 재제출용 기억
+          _submittedMoveObj = m;
+          _resubmits = 0;
           widget.service.submitMove(widget.code, view.turn, view.mySeat, m);
         },
           ),
