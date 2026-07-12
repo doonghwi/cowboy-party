@@ -378,21 +378,36 @@ class SocialSim {
   /// 방장(상석) 주인 uid — 앱 규약: 참여 좌석 중 **가장 낮은 좌석**이 방장.
   /// 유령(id 없음)과 하트비트 끊긴 사람 좌석(앱이 "나감"으로 침)은 제외.
   /// 봇 좌석은 러너가 매 틱 하트비트하므로 항상 신선 취급.
+  /// 방장 판정 — 앱 규약(2026-07-13 변경)과 동일해야 한다:
+  /// ① RTDB `host` 필드의 주인이 신선하게 앉아 있으면 그가 방장.
+  /// ② 아니면 입장 시각(at) 오름차순, at 없는 구노드는 좌석 순으로 뒤처짐.
+  /// 예전 "최저 좌석" 규약은 사람이 승계 방장일 때 낮은 좌석 봇이 방장을
+  /// 뺏는(becomeHost) 사고를 냈다.
   String? _bossUid(Map data, Set<String> botUids) {
     final players = _asMap(data['players']) ?? const {};
     final nowMs = DateTime.now().millisecondsSinceEpoch;
-    var best = 1 << 30;
+    bool fresh(Map? pv, String id) =>
+        botUids.contains(id) ||
+        nowMs - (_asInt(pv?['seen']) ?? 0) < 14000;
+    // ① 기록된 host가 착석·신선하면 그대로.
+    final recorded = data['host'];
+    if (recorded is String && recorded.isNotEmpty) {
+      for (final e in players.entries) {
+        final pv = _asMap(e.value);
+        if (pv?['id'] == recorded && fresh(pv, recorded)) return recorded;
+      }
+    }
+    // ② 승계: at 오름차순(없으면 좌석 순 뒤로) — 앱 computeView와 동일 키.
+    var bestKey = 1 << 62;
     String? boss;
     for (final e in players.entries) {
       final s = int.tryParse('${e.key}'.substring(1));
       final pv = _asMap(e.value);
       final id = pv?['id'];
-      if (s == null || id is! String) continue;
-      final seen = _asInt(pv?['seen']) ?? 0;
-      final fresh = botUids.contains(id) || nowMs - seen < 14000;
-      if (!fresh) continue;
-      if (s < best) {
-        best = s;
+      if (s == null || id is! String || !fresh(pv, id)) continue;
+      final key = (_asInt(pv?['at']) ?? (1 << 50)) * 64 + s;
+      if (key < bestKey) {
+        bestKey = key;
         boss = id;
       }
     }

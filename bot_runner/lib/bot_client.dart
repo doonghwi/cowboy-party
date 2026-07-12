@@ -108,6 +108,7 @@ class BotClient {
       'id': _cred.uid, // 봇의 클라이언트 식별자 = uid
       'name': _cred.name,
       'seen': Rtdb.serverTimestamp,
+      'at': Rtdb.serverTimestamp, // 입장 시각 — 앱 방장 승계(오래된 순) 규약
       'char': charIdx,
     }, auth: await _tok);
     return seat;
@@ -456,6 +457,7 @@ class BotClient {
           'id': _cred.uid,
           'name': _cred.name,
           'seen': Rtdb.serverTimestamp,
+          'at': Rtdb.serverTimestamp,
           'char': _randCharIdx(),
         }
       },
@@ -469,6 +471,7 @@ class BotClient {
       'id': _cred.uid,
       'name': _cred.name,
       'seen': Rtdb.serverTimestamp,
+      'at': Rtdb.serverTimestamp,
       'char': _randCharIdx(),
     }, auth: await _tok);
   }
@@ -562,6 +565,7 @@ class BotClient {
         'id': entries[i].value['id'],
         'name': entries[i].value['name'],
         'seen': Rtdb.serverTimestamp,
+        'at': entries[i].value['at'] ?? Rtdb.serverTimestamp, // 승계 기준 보존
         'char': ci,
       };
       charsMap['p$i'] = ci;

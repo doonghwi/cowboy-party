@@ -770,6 +770,8 @@ class OnlineService {
         'id': entries[i].value['id'],
         'name': entries[i].value['name'],
         'seen': _now,
+        // 입장 시각 보존 — 방장 승계(오래된 순) 기준이 판을 넘어도 유지되게.
+        'at': _asInt(entries[i].value['at']) ?? _now,
         'char': charIdx,
       };
       chars[slotKey(i)] = charIdx;
