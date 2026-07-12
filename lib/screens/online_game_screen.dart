@@ -200,8 +200,13 @@ class _OnlineGameScreenState extends State<OnlineGameScreen> {
       if (!_endSoundPlayed) {
         _endSoundPlayed = true;
         if (view.status == GameStatus.won) {
-          view.iWon ? Sfx.win() : Sfx.lose();
-          if (view.iWon) Bgm.sting('sting'); // 승리 팡파레(Cowboy Sting)
+          if (view.iWon) {
+            // 승리: 배경음을 걷어내고 Cowboy Sting만(사용자 결정 — win.wav 제거).
+            Bgm.stop();
+            Bgm.sting('sting');
+          } else {
+            Sfx.lose();
+          }
         }
         // 마지막 한 방(리빌 창 없이 바로 종료)에도 손맛을 준다.
         _playRevealJuice(view, view.seats.any((s) => s.superFired));
@@ -566,8 +571,11 @@ class _OnlineGameScreenState extends State<OnlineGameScreen> {
     final isMatch = data['match'] == true;
     final readyMap = (data['ready'] is Map) ? data['ready'] as Map : const {};
     final present = [for (final s in view.seats) if (s.joined) s.seat];
-    final hostSeat =
-        present.isEmpty ? 0 : present.reduce((a, b) => a < b ? a : b);
+    // 방장 좌석은 서비스의 승계 규칙(입장 오래된 순)을 그대로 쓴다 —
+    // "최저 좌석=방장" 파생은 신규 입장자가 방장으로 보이던 버그의 원인.
+    final hostSeat = view.hostSeat >= 0
+        ? view.hostSeat
+        : (present.isEmpty ? 0 : present.reduce((a, b) => a < b ? a : b));
     final nonHost = present.where((s) => s != hostSeat).toList();
     final readyCount = nonHost.where((s) => readyMap['p$s'] == true).length;
     final needReady = !isMatch;

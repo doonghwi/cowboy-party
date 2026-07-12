@@ -29,6 +29,66 @@ Map<String, Object?> startedRoom({
 }
 
 void main() {
+  group('방장 승계 — 입장 오래된 순(2026-07-12 제보: 신규 입장자가 방장 뺏던 버그)', () {
+    Map<String, Object?> lobby({
+      required Map<String, Object?> players,
+      String host = 'gone',
+    }) =>
+        {
+          'host': host, // 나간 사람의 id — 승계 상황
+          'capacity': 6,
+          'players': players,
+        };
+
+    test('기록된 방장이 없으면 at이 가장 오래된 사람이 방장(좌석 번호 무관)', () {
+      final v = OnlineService.computeView(
+        lobby(players: {
+          'p0': {'id': 'newbie', 'name': '신규', 'seen': 999, 'at': 900},
+          'p3': {'id': 'me', 'name': '나', 'seen': 999, 'at': 100},
+        }),
+        'me',
+      );
+      expect(v.isHost, isTrue, reason: '좌석 3이어도 먼저 들어온 내가 방장');
+      expect(v.hostSeat, 3);
+      final nv = OnlineService.computeView(
+        lobby(players: {
+          'p0': {'id': 'newbie', 'name': '신규', 'seen': 999, 'at': 900},
+          'p3': {'id': 'me', 'name': '나', 'seen': 999, 'at': 100},
+        }),
+        'newbie',
+      );
+      expect(nv.isHost, isFalse, reason: '낮은 좌석 신규 입장자가 방장을 뺏으면 안 됨');
+    });
+
+    test('at이 없는 구버전 노드는 좌석 순으로 뒤처짐(호환)', () {
+      final v = OnlineService.computeView(
+        lobby(players: {
+          'p0': {'id': 'old0', 'name': 'A', 'seen': 999}, // at 없음
+          'p2': {'id': 'stayer', 'name': 'B', 'seen': 999, 'at': 50},
+        }),
+        'stayer',
+      );
+      expect(v.isHost, isTrue, reason: 'at 있는 사람이 우선');
+    });
+
+    test('기록된 방장이 자리에 있으면 그대로 유지', () {
+      final v = OnlineService.computeView(
+        {
+          'host': 'boss',
+          'capacity': 6,
+          'players': {
+            'p0': {'id': 'x', 'name': 'X', 'seen': 999, 'at': 1},
+            'p1': {'id': 'boss', 'name': '보스', 'seen': 999, 'at': 999},
+          },
+        },
+        'boss',
+      );
+      expect(v.isHost, isTrue);
+      expect(v.hostSeat, 1);
+    });
+  });
+
+
   group('computeView — a departing player never freezes the game', () {
     test('last player standing wins when everyone else has left (node gone)',
         () {

@@ -1,4 +1,7 @@
+import 'dart:math' as math;
+
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 
 import '../game/party_logic.dart';
 import '../theme.dart';
@@ -279,8 +282,9 @@ class ActionBar extends StatelessWidget {
     return Expanded(
       child: Opacity(
         opacity: enabled ? 1 : 0.4,
-        child: GestureDetector(
-          onTap: enabled ? () => onSelect(kind) : null,
+        child: _DeniedShake(
+          enabled: enabled,
+          onTap: () => onSelect(kind),
           child: AnimatedContainer(
             duration: const Duration(milliseconds: 120),
             padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 6),
@@ -354,6 +358,48 @@ class ActionBar extends StatelessWidget {
           ],
         ),
       ),
+    );
+  }
+}
+
+/// 불가 행동 탭 피드백(타격감 2단계, 사용자 결정: 소리 대신 은은한 표시).
+/// 비활성 버튼을 눌러도 무반응이면 "고장났나?" 싶다 — 좌우 3px 잔떨림과
+/// 가벼운 햅틱으로 "안 된다"를 알려준다.
+class _DeniedShake extends StatefulWidget {
+  const _DeniedShake(
+      {required this.enabled, required this.onTap, required this.child});
+  final bool enabled;
+  final VoidCallback onTap;
+  final Widget child;
+
+  @override
+  State<_DeniedShake> createState() => _DeniedShakeState();
+}
+
+class _DeniedShakeState extends State<_DeniedShake>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _c = AnimationController(
+      vsync: this, duration: const Duration(milliseconds: 220))
+    ..addListener(() => setState(() {}));
+
+  @override
+  void dispose() {
+    _c.dispose();
+    super.dispose();
+  }
+
+  void _denied() {
+    HapticFeedback.lightImpact();
+    _c.forward(from: 0);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final dx =
+        _c.isAnimating ? math.sin(_c.value * math.pi * 4) * 3 * (1 - _c.value) : 0.0;
+    return GestureDetector(
+      onTap: widget.enabled ? widget.onTap : _denied,
+      child: Transform.translate(offset: Offset(dx, 0), child: widget.child),
     );
   }
 }

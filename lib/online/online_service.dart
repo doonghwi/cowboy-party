@@ -125,6 +125,10 @@ class RoomView {
   final int seatCount;
   final bool started;
   final bool isHost;
+
+  /// 유효 방장의 좌석(대기실 표시용, 모름/무관이면 -1) — 승계 규칙(입장 오래된 순)과
+  /// 항상 일치한다. UI가 "최저 좌석=방장"을 다시 파생하지 말 것.
+  final int hostSeat;
   final OnlinePhase phase;
   final int turn;
   final int mySeat; // -1 if I'm not seated
@@ -182,6 +186,7 @@ class RoomView {
     required this.seatCount,
     required this.started,
     required this.isHost,
+    this.hostSeat = -1,
     required this.phase,
     required this.turn,
     required this.mySeat,
@@ -382,7 +387,7 @@ class OnlineService {
       'hostName': name,
       'game': 0,
       'players': {
-        'p0': {'id': clientId, 'name': name, 'seen': _now, 'char': charIndex},
+        'p0': {'id': clientId, 'name': name, 'seen': _now, 'at': _now, 'char': charIndex},
       },
       'turns': null,
       'rematch': null,
@@ -487,7 +492,7 @@ class OnlineService {
         'hostName': name,
         'game': 0,
         'players': {
-          'p0': {'id': clientId, 'name': name, 'seen': _now, 'char': charIndex},
+          'p0': {'id': clientId, 'name': name, 'seen': _now, 'at': _now, 'char': charIndex},
         },
         'createdAt': ServerValue.timestamp,
       });
@@ -607,6 +612,7 @@ class OnlineService {
         'id': clientId,
         'name': name,
         'seen': _now,
+        'at': _now, // 입장 시각 — 방장 승계는 "가장 오래 있던 사람" 순
         'char': charIndex,
         if (started) 'late': true,
       };
@@ -691,19 +697,23 @@ class OnlineService {
     final hostHere =
         players.values.any((v) => _asMap(v)?['id'] == host && here(_asMap(v)));
     if (hostHere) return;
-    var lowest = 1 << 30;
-    String? lowestId;
+    // 승계 후보 = 가장 오래 있던 사람(at 오름차순, 없으면 좌석 순 뒤로) —
+    // RoomView의 effHost 폴백과 반드시 같은 순서여야 한다.
+    var bestKey = 1 << 62;
+    String? candidateId;
     players.forEach((k, v) {
       final m = _asMap(v);
       if (m != null && here(m)) {
         final s = seatOf(k.toString());
-        if (s < lowest) {
-          lowest = s;
-          lowestId = m['id'] as String?;
+        final at = _asInt(m['at']);
+        final key = (at ?? (1 << 50)) * 64 + s;
+        if (key < bestKey) {
+          bestKey = key;
+          candidateId = m['id'] as String?;
         }
       }
     });
-    if (lowestId != clientId) return;
+    if (candidateId != clientId) return;
     await room(code).child('host').runTransaction((cur) {
       // 다른 클라가 먼저 가져갔으면 양보.
       if (cur == host || cur == null || cur == clientId) {
@@ -972,6 +982,7 @@ class OnlineService {
     final lateSeat = <int, bool>{};
     final seatCharIdx = <int, int>{};
     final seatId = <int, String>{};
+    final seatAt = <int, int?>{}; // 입장 시각(방장 승계 순서)
     for (final e in players.entries) {
       final v = _asMap(e.value);
       if (v == null) continue;
@@ -983,6 +994,7 @@ class OnlineService {
       lateSeat[s] = v['late'] == true;
       seatCharIdx[s] = _asInt(v['char']) ?? 0;
       seatId[s] = (v['id'] as String?) ?? '';
+      seatAt[s] = _asInt(v['at']);
       if (v['id'] == myClientId) mySeat = s;
     }
     // The room-level snapshot (written at start) wins over live player nodes —
@@ -1015,14 +1027,23 @@ class OnlineService {
     final recordedHostHere = seatId.entries
         .any((e) => e.value == recordedHostId && present(e.key));
     if (!recordedHostHere) {
+      // 가장 오래 있던 사람이 승계(at 오름차순, 없으면 좌석 순 뒤로) —
+      // 신규 입장자가 낮은 좌석을 받아 방장을 뺏던 버그 수정(2026-07-12 제보).
+      var bestKey = 1 << 62;
       for (var s = 0; s < capacity; s++) {
-        if (present(s) && (seatId[s] ?? '').isNotEmpty) {
+        if (!present(s) || (seatId[s] ?? '').isEmpty) continue;
+        final key = (seatAt[s] ?? (1 << 50)) * 64 + s;
+        if (key < bestKey) {
+          bestKey = key;
           effHostId = seatId[s]!;
-          break;
         }
       }
     }
     final isHost = effHostId.isNotEmpty && effHostId == myClientId;
+    var effHostSeat = -1;
+    seatId.forEach((s, id) {
+      if (id == effHostId && id.isNotEmpty) effHostSeat = s;
+    });
     // 화면이 새 방장을 RTDB에 확정(베스트에포트)해야 하는지.
     final iShouldClaimHost = isHost &&
         recordedHostId != myClientId &&
@@ -1065,6 +1086,7 @@ class OnlineService {
         seatCount: joinedCount,
         started: false,
         isHost: isHost,
+        hostSeat: effHostSeat,
         phase: OnlinePhase.waiting,
         turn: 0,
         mySeat: present(mySeat) ? mySeat : -1,

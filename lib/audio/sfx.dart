@@ -39,9 +39,9 @@ class Sfx {
     } catch (_) {}
   }
 
-  /// UI 탭 피드백 — 클릭 효과음 대신 가벼운 햅틱(선택 틱).
-  /// OS에서 햅틱이 꺼져 있으면 조용히 무시된다(소리는 나지 않는다).
+  /// UI 탭 피드백 — 가벼운 클릭음(사용자 채택: Kenney click_001) + 햅틱 틱.
   static void click() {
+    play('click', volume: 0.3);
     try {
       HapticFeedback.selectionClick();
     } catch (_) {}

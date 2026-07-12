@@ -373,8 +373,13 @@ class _OfflineGameScreenState extends State<OfflineGameScreen> {
         _winner = out.winner;
         _phase = out.status == GameStatus.ongoing ? _Phase.reveal : _Phase.over;
         if (_phase == _Phase.over) {
-          _winner == 0 ? Sfx.win() : Sfx.lose();
-          if (_winner == 0) Bgm.sting('sting'); // 승리 팡파레
+          if (_winner == 0) {
+            // 승리: 배경음을 걷어내고 Cowboy Sting만(사용자 결정 — win.wav 제거).
+            Bgm.stop();
+            Bgm.sting('sting');
+          } else {
+            Sfx.lose();
+          }
         }
       }
       _selKind = null;
@@ -594,8 +599,12 @@ class _OfflineGameScreenState extends State<OfflineGameScreen> {
   void _finishShowdown(int winner) {
     _sdPrep?.cancel();
     _sdGo?.cancel();
-    Bgm.play('battle', volume: 0.22); // 쇼다운 트랙 종료
-    if (winner == 0) Bgm.sting('sting'); // 승리 팡파레(Cowboy Sting)
+    if (winner == 0) {
+      Bgm.stop(); // 승리: 배경음 정리 후 스팅만
+      Bgm.sting('sting');
+    } else {
+      Bgm.play('battle', volume: 0.22); // 쇼다운 트랙 종료
+    }
     setState(() {
       _sdStage = _SdStage.result;
       _winner = winner;
