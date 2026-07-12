@@ -5,6 +5,7 @@ import 'package:http/http.dart' as http;
 import 'package:cowboy_bot_runner/auth.dart';
 import 'package:cowboy_bot_runner/bot_client.dart';
 import 'package:cowboy_bot_runner/bot_pool.dart';
+import 'package:cowboy_bot_runner/bot_wars.dart';
 import 'package:cowboy_bot_runner/config.dart';
 import 'package:cowboy_bot_runner/matchmaker.dart';
 import 'package:cowboy_bot_runner/room_janitor.dart';
@@ -54,11 +55,12 @@ Future<void> main(List<String> args) async {
   final mm = Matchmaker(rtdb, pool);
   final social = SocialSim(rtdb, pool);
   final janitor = RoomJanitor(rtdb, janitorBot);
+  final wars = BotWars(rtdb, pool);
   // 이전 러너가 남긴 고아 봇 방부터 치우고 시작(같은 이름 방 중복 방지).
   try {
     await janitor.sweepOrphanBotRooms(pool.uids);
   } catch (e) {
     stderr.writeln('고아 방 스윕 실패(계속 진행): $e');
   }
-  await Future.wait([mm.run(), social.run(), janitor.run()]);
+  await Future.wait([mm.run(), social.run(), janitor.run(), wars.run()]);
 }

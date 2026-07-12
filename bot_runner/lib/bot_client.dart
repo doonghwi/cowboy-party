@@ -438,13 +438,14 @@ class BotClient {
           kPlayableCharIds[_rng.nextInt(kPlayableCharIds.length)])
       .index;
 
-  /// 공개방 생성 + 좌석0 호스트로 입장.
-  Future<void> createPublicRoom(String code) async {
+  /// 방 생성 + 좌석0 호스트로 입장. [public]=false면 비공개(로비에 안 보이고
+  /// 사람이 못 들어옴 — 봇 자체전용).
+  Future<void> createPublicRoom(String code, {bool public = true}) async {
     await _rtdb.put('rooms/$code', {
       'host': _cred.uid,
       'capacity': 6,
       'started': false,
-      'public': true,
+      'public': public,
       'pw': '',
       'match': false,
       'title': '${_cred.name}의 결투장',
