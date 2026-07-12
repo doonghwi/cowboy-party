@@ -481,6 +481,12 @@ class _ShellScreenState extends State<ShellScreen> {
                 child: Text('카우보이  v1.0.0 · 빌드 $kBuildNo',
                     style: const TextStyle(fontSize: 11, color: CD.muted)),
               ),
+              const SizedBox(height: 2),
+              const Center(
+                child: Text(
+                    'Music: Kevin MacLeod (incompetech.com), CC BY 4.0',
+                    style: TextStyle(fontSize: 10, color: CD.muted)),
+              ),
             ],
           ),
         ),

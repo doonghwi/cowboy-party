@@ -16,6 +16,7 @@ import '../meta/season_service.dart';
 import '../online/online_service.dart';
 import '../theme.dart';
 import '../widgets/action_bar.dart';
+import '../widgets/celebration.dart';
 import '../widgets/circular_table.dart';
 import '../widgets/seat_profile.dart';
 import '../widgets/desert_background.dart';
@@ -200,6 +201,7 @@ class _OnlineGameScreenState extends State<OnlineGameScreen> {
         _endSoundPlayed = true;
         if (view.status == GameStatus.won) {
           view.iWon ? Sfx.win() : Sfx.lose();
+          if (view.iWon) Bgm.sting('sting'); // 승리 팡파레(Cowboy Sting)
         }
         // 마지막 한 방(리빌 창 없이 바로 종료)에도 손맛을 준다.
         _playRevealJuice(view, view.seats.any((s) => s.superFired));
@@ -244,7 +246,7 @@ class _OnlineGameScreenState extends State<OnlineGameScreen> {
         : null;
     if (me?.hitThisTurn == true) {
       _juice.hurt();
-      HapticFeedback.heavyImpact();
+      HapticFeedback.mediumImpact(); // 피격=medium(사망·승리만 heavy)
     } else if (hadSuper) {
       _juice.shake(12);
       HapticFeedback.heavyImpact();
@@ -621,9 +623,10 @@ class _OnlineGameScreenState extends State<OnlineGameScreen> {
             padding: const EdgeInsets.all(10),
             child: CircularTable(
               seats: _seatsOf(view, false,
+                  // 방장은 준비 개념이 없으므로 항상 준비한 것으로 표시.
                   readyOf: needReady
                       ? (seat) =>
-                          seat != hostSeat && readyMap['p$seat'] == true
+                          seat == hostSeat || readyMap['p$seat'] == true
                       : null),
               mySeat: view.mySeat < 0 ? 0 : view.mySeat,
               onSeatInfo:
@@ -641,7 +644,7 @@ class _OnlineGameScreenState extends State<OnlineGameScreen> {
                     Text('${view.joinedCount} / ${view.capacity}',
                         style: posterTitle(22, color: Colors.white)),
                     if (needReady && nonHost.isNotEmpty)
-                      Text('준비 $readyCount/${nonHost.length}',
+                      Text('준비 ${readyCount + 1}/${present.length}',
                           style: TextStyle(
                               color: readyCount == nonHost.length
                                   ? CD.sage
@@ -676,7 +679,7 @@ class _OnlineGameScreenState extends State<OnlineGameScreen> {
                             ? '2명 이상 모이면 시작'
                             : allReady
                                 ? '시작! (${view.joinedCount}명)'
-                                : '준비 대기 ($readyCount/${nonHost.length})',
+                                : '준비 대기 (${readyCount + 1}/${present.length})',
                         style: posterTitle(18, color: Colors.white)),
                   ),
                 )
@@ -833,6 +836,11 @@ class _OnlineGameScreenState extends State<OnlineGameScreen> {
                   Positioned.fill(
                     child: SuperBbangyaFlash(
                         key: ValueKey('sf-$_superFlashKey')),
+                  ),
+                // 승리 셀레브레이션(2단계): 내가 이긴 순간 금색 콘페티.
+                if (view.phase == OnlinePhase.over && view.iWon)
+                  const Positioned.fill(
+                    child: Celebration(key: ValueKey('celebrate')),
                   ),
               ],
               ),

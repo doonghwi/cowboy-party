@@ -3,6 +3,8 @@ import 'dart:math';
 
 import 'package:flutter/material.dart';
 
+import '../audio/sfx.dart';
+
 import '../online/online_service.dart';
 import 'reaction_panel.dart';
 
@@ -62,6 +64,8 @@ class _OnlineShowdownState extends State<OnlineShowdown> {
   @override
   void initState() {
     super.initState();
+    // 2단계: 쇼다운 전용 트랙(Smoking Gun).
+    Bgm.play('showdown', volume: 0.26);
     _sync();
   }
 
@@ -73,6 +77,7 @@ class _OnlineShowdownState extends State<OnlineShowdown> {
 
   @override
   void dispose() {
+    Bgm.play('battle', volume: 0.22); // 쇼다운 트랙 종료
     _flip?.cancel();
     _arb?.cancel();
     super.dispose();

@@ -14,6 +14,7 @@ import '../meta/analytics.dart';
 import '../meta/meta_service.dart';
 import '../theme.dart';
 import '../widgets/action_bar.dart';
+import '../widgets/celebration.dart';
 import '../widgets/circular_table.dart';
 import '../widgets/juice.dart';
 import '../widgets/seat_profile.dart';
@@ -373,6 +374,7 @@ class _OfflineGameScreenState extends State<OfflineGameScreen> {
         _phase = out.status == GameStatus.ongoing ? _Phase.reveal : _Phase.over;
         if (_phase == _Phase.over) {
           _winner == 0 ? Sfx.win() : Sfx.lose();
+          if (_winner == 0) Bgm.sting('sting'); // 승리 팡파레
         }
       }
       _selKind = null;
@@ -401,7 +403,7 @@ class _OfflineGameScreenState extends State<OfflineGameScreen> {
       HapticFeedback.heavyImpact();
     } else if (iGotHit) {
       _juice.hurt();
-      HapticFeedback.heavyImpact();
+      HapticFeedback.mediumImpact(); // 피격=medium(사망·승리만 heavy)
     } else if (anySuper) {
       _juice.shake(12);
       HapticFeedback.heavyImpact();
@@ -561,6 +563,8 @@ class _OfflineGameScreenState extends State<OfflineGameScreen> {
     _sdIFalse = false;
     _sdStage = _SdStage.prep;
     _phase = _Phase.showdown;
+    // 2단계: 쇼다운 전용 트랙(Smoking Gun) — 긴장 전환.
+    Bgm.play('showdown', volume: 0.26);
     _sdPrep?.cancel();
     _sdGo?.cancel();
     final prepMs = 500 + _rand.nextInt(900); // 0.5~1.4s
@@ -590,6 +594,8 @@ class _OfflineGameScreenState extends State<OfflineGameScreen> {
   void _finishShowdown(int winner) {
     _sdPrep?.cancel();
     _sdGo?.cancel();
+    Bgm.play('battle', volume: 0.22); // 쇼다운 트랙 종료
+    if (winner == 0) Bgm.sting('sting'); // 승리 팡파레(Cowboy Sting)
     setState(() {
       _sdStage = _SdStage.result;
       _winner = winner;
@@ -820,6 +826,13 @@ class _OfflineGameScreenState extends State<OfflineGameScreen> {
                   Positioned.fill(
                     child: SuperBbangyaFlash(
                         key: ValueKey('sf-$_superFlashKey')),
+                  ),
+                // 승리 셀레브레이션(2단계): 내가 이긴 순간 금색 콘페티.
+                if (_winner == 0 &&
+                    _status == GameStatus.won &&
+                    (_phase == _Phase.over || _phase == _Phase.showdown))
+                  const Positioned.fill(
+                    child: Celebration(key: ValueKey('celebrate')),
                   ),
               ],
               ),

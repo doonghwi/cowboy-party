@@ -179,6 +179,11 @@ dailyapp_stats/cowboy_party: 사용량(중앙 대시보드)
 - [x] **Stage 5**: ??? 해금 게이트(canBuyMystery, 전 캐릭터 보유 시) + 선물코드 + 에뮬 검증 + 배포.
 
 ## 최근 변경 (2026-07)
+### 타격감 2단계 1차 + 준비 카운트 (2026-07-12 심야, v17)
+- **음악 3상태(사용자 선정)**: menu=Cattails(교체)·showdown=Smoking Gun(결투 중 전환, online_showdown/offline _beginShowdown)·승리 스팅=Cowboy Sting 페이드인(`Bgm.sting()` 원샷). 설정 화면에 CC-BY 표기, CREDITS 갱신.
+- **결투 의식**: reaction_panel 예열(어두운 배경+펄스)→DRAW! 슬램(easeOutBack+백열 플래시+헤비 햅틱). **승리 셀레브레이션**: `widgets/celebration.dart`(금색 콘페티 44개 낙하, Canvas 1장) — 양 화면 over 오버레이. 햅틱 계층화(피격 medium/사망·승리 heavy).
+- **대기실 준비 카운트 방장 포함**(봇러너 세션 인계분): 좌석 ✓에 방장 포함, "준비 n/전원" 표기.
+
 ### 리텐션 A + 대기방·오프라인 UX (2026-07-12, v15)
 - **리텐션 A(RETENTION_PLAN 승인분)**: `meta/retention.dart` 신설(XP 커브·주간 미션·트로피 로드·스트릭 복구 순수 로직) + Meta 통합. `noteGamePlayed`가 데일리/주간/트로피/XP를 한 번에 진행하고 `GameEndRewards`(줄 목록+코인 합)를 반환 — 두 게임 화면 토스트가 이를 사용. 보상 탭에 레벨 카드(진행바)·주간 미션·트로피 로드 추가, 플레이 탭 대문에 스트릭 배너(미출석 경고·주1회 무료 복구).
 - **대기방 준비 전원 표시(사용자 요청)**: 준비한 좌석에 ✓ 배지(제출 배지 재활용, `_seatsOf(readyOf:)`) + 중앙 배너에 "준비 n/m" 카운트.

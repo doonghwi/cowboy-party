@@ -167,6 +167,17 @@ class Bgm {
     }
   }
 
+  /// 원샷 뮤직 스팅(승리 팡파레 등) — 루프 없이 한 번 재생하고 끝.
+  /// 배경음과 섞여 재생된다(AudioContext가 포커스를 안 뺏음).
+  static void sting(String name, {double volume = 0.5}) {
+    if (Sfx.muted) return;
+    try {
+      final p = AudioPlayer();
+      p.onPlayerComplete.listen((_) => p.dispose());
+      p.play(AssetSource('music/$name.mp3'), volume: volume);
+    } catch (_) {}
+  }
+
   /// 배경음 정지(페이드아웃). 트랙 기억도 해제.
   static Future<void> stop() async {
     _current = null;

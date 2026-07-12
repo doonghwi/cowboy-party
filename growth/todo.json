@@ -3,36 +3,149 @@
   "note": "bintage 슈퍼 대시보드의 cowboy 탭이 이 파일을 읽는다. 카우보이 세션은 작업 상태가 바뀔 때마다 이 파일을 갱신할 것(작업 종료 루틴에 포함). st: block=사용자 대기(빨강) / next=다음 작업(노랑) / wait=대기(회색) / done=완료(초록)",
   "groups": [
     {
-      "title": "🙋 사용자 대기 — 해줘야 진행되는 것",
+      "title": "📱 사용자 차례 ① — QA·승인 (돌아오면 여기부터)",
       "items": [
-        { "t": "📋 돌아오면 확인: v16 QA(총성·BGM 3배·리텐션 UI) + 사운드/음악 시청 보드 승인 + 홍보 카피 검토", "who": "사용자", "st": "block", "note": "폰 Play alpha에서 v16 수신 후 QA. 사운드 보드는 ~/Downloads/cowboy_sound_board/index.html (2단계 후보 추가분). 웹 데모: doonghwi.github.io/cowboy-party" },
-        { "t": "유료 툴 결정 — Recraft($10 선불)·ElevenLabs($5/월)", "who": "사용자", "st": "wait", "note": "지금은 무료 조합으로 진행 중. 스킨 대량 생산·시그니처 SFX 단계에서 결정해도 됨" },
-        { "t": "iOS App Store 제출 (Apple Developer $99 등록)", "who": "사용자", "st": "wait", "note": "store/ios_release.md" }
+        {
+          "t": "📱 v17 QA — APK: http://192.168.0.10:8899 (와이파이) 또는 Play alpha",
+          "who": "사용자",
+          "st": "block",
+          "note": "체크: ①총성 3변형·타격감 ②BGM 3배 크기 ③새 로비 음악(밴조)·쇼다운 곡·승리 팡파레 ④레벨/주간미션/트로피 UI ⑤대기방 준비 ✓(방장 포함 카운트) ⑥컴퓨터전 결과창 안 넘어가는지"
+        },
+        {
+          "t": "🔊 SFX 상황별 비교판 승인 — ~/Downloads/cowboy_sound_board/index.html 섹션3",
+          "who": "사용자",
+          "st": "block",
+          "note": "13개 상황별로 '지금 소리 vs 후보' 버튼. \"2번은 후보A, 4번은 유지\"처럼만 답하면 됨. 음악(섹션4)은 이미 반영 완료"
+        },
+        {
+          "t": "📣 홍보 카피 검토 — growth/PROMO_COPY.md",
+          "who": "사용자",
+          "st": "wait",
+          "note": "디시 글(선물코드 5개 치환 필요)·트윗 2주치·섭외 메일·보도자료. 게시/발송만 사용자"
+        }
+      ]
+    },
+    {
+      "title": "🔑 사용자 차례 ② — 설정·결제",
+      "items": [
+        {
+          "t": "유료 툴 결정 — Recraft($10 선불)·ElevenLabs($5/월)",
+          "who": "사용자",
+          "st": "wait",
+          "note": "지금은 무료 조합으로 진행 중. 스킨 대량 생산·시그니처 SFX 단계에서 결정해도 됨"
+        },
+        {
+          "t": "iOS App Store 제출 (Apple Developer $99 등록)",
+          "who": "사용자",
+          "st": "wait",
+          "note": "store/ios_release.md"
+        }
       ]
     },
     {
       "title": "🔨 승인된 작업 큐 — Claude가 순서대로 진행",
       "items": [
-        { "t": "타격감 2단계: SFX 25~30종 체계·결투 예열(DRAW!)·승리 셀레브레이션·음악 4상태", "who": "Claude", "st": "next", "note": "" },
-        { "t": "리텐션 B: B1 시즌패스(무료 30티어) → B2 스킨 12종 → B5 도감 → B4 복귀보상 → B3 미니리그", "who": "Claude", "st": "wait", "note": "스킨 에셋은 Gemini 이미지 파이프라인 사용" },
-        { "t": "스토어 에셋 리뉴얼: 아이콘 2안·피처그래픽·스크린샷(가로 16:9 포함)·30초 영상", "who": "Claude", "st": "wait", "note": "growth/PROMO_PLAN.md W1" },
-        { "t": "홍보 카피 일체: 디시 글·트윗 2주치·스트리머 섭외 메일·보도자료", "who": "Claude", "st": "wait", "note": "게시/발송만 사용자" }
+        {
+          "t": "타격감 2단계: SFX 25~30종 체계·결투 예열(DRAW!)·승리 셀레브레이션·음악 4상태",
+          "who": "Claude",
+          "st": "next",
+          "note": ""
+        },
+        {
+          "t": "리텐션 B: B1 시즌패스(무료 30티어) → B2 스킨 12종 → B5 도감 → B4 복귀보상 → B3 미니리그",
+          "who": "Claude",
+          "st": "wait",
+          "note": "스킨 에셋은 Gemini 이미지 파이프라인 사용"
+        },
+        {
+          "t": "스토어 에셋 리뉴얼: 아이콘 2안·피처그래픽·스크린샷(가로 16:9 포함)·30초 영상",
+          "who": "Claude",
+          "st": "wait",
+          "note": "growth/PROMO_PLAN.md W1"
+        },
+        {
+          "t": "홍보 카피 일체: 디시 글·트윗 2주치·스트리머 섭외 메일·보도자료",
+          "who": "Claude",
+          "st": "wait",
+          "note": "게시/발송만 사용자"
+        }
       ]
     },
     {
       "title": "✅ 최근 완료",
       "items": [
-        { "t": "BGM 볼륨 3배 상향(사용자 요청) + 2단계 사운드·음악 시청 보드 준비(Kenney 46종+MacLeod 7곡) + 홍보 카피 4종 초안(growth/PROMO_COPY.md)", "who": "Claude", "st": "done", "note": "2026-07-12 심야. BGM은 v16에 포함. 게시/발송·보드 승인만 사용자" },
-        { "t": "리텐션 A — 계정 레벨(XP)·주간 미션 3종·트로피 로드 16종·스트릭 배너+주1회 무료 복구 + 대기방 준비 ✓ 전원표시 + 오프라인 결과창 조기스킵 버그 수정", "who": "Claude", "st": "done", "note": "2026-07-12. 단위 26종+에뮬 검증(패배 +40XP 확인), v15 배포" },
-        { "t": "타격감 1단계 — 발사음 3종(사용자 승인 크랙+펀치)+피치랜덤(soloud)·머즐섬광·반동·피격플래시·넉백·명중파티클(자작)·히트스톱·흔들림 회전", "who": "사용자+Claude", "st": "done", "note": "2026-07-12. analyze 0/test 206/에뮬 실플레이 검증. 실기기 총성 음질·BGM 공존 확인은 사용자 QA" },
-        { "t": "시크릿 백업 이중화 완료 — 구글 드라이브 자동 업로드 개통", "who": "사용자+Claude", "st": "done", "note": "2026-07-12 드라이브(mjhee2647@snu.ac.kr) '내 드라이브/dailyapp-secrets-backup'에 앱별 분류(cowboy/restrest 7종)+README(키 설명·복원법)+날짜 스냅샷. 갱신: bash _shared/backup_secrets.sh 한 줄" },
-        { "t": "이미지 외주 채용 시험 합격 — 'Gemini 웹 수동생성+Claude 후처리' 파이프라인 검증 완료", "who": "사용자+Claude", "st": "done", "note": "2026-07-12 키트 v2 프롬프트로 스킨 변형·배너 합격, 512규격 가공 시연(duelist_skin_gold_512.png). API 결제는 스킨 대량생산 단계에서 재검토" },
-        { "t": "Play 서비스계정 설정+연결 검증 — AAB 업로드 영구 자동화 개통", "who": "사용자+Claude", "st": "done", "note": "2026-07-12 fastlane validate 'Successfully established connection' 확인" },
-        { "t": "v13 AAB 업로드 (광고ID 권한 제거분) — 첫 자동 업로드 성공", "who": "Claude", "st": "done", "note": "2026-07-12 다른 세션에서 upload_play.sh로 alpha 트랙 업로드, 전 과정 검증됨" },
-        { "t": "무료 에셋 툴 셋업 — jsfxr 샘플 3종·Kenney 후보 46종·rembg·ImageMagick·soloud/newton/haptic 패키지(analyze 통과)", "who": "Claude", "st": "done", "note": "2026-07-12. Gemini 이미지만 무료 티어 폐지로 막힘(사용자 대기 항목 참고)" },
-        { "t": "성장 계획 수립 — growth/ 문서 5종 + 업로드 스크립트", "who": "Claude", "st": "done", "note": "2026-07-08" },
-        { "t": "Gemini API 키 연결·검증 (이미지 생성 무료 티어)", "who": "사용자+Claude", "st": "done", "note": "2026-07-12, ~/.zshrc GEMINI_API_KEY" },
-        { "t": "타격감·리텐션·홍보 계획 사용자 승인", "who": "사용자", "st": "done", "note": "2026-07-12 — 광고 요소만 제외" }
+        {
+          "t": "타격감 2단계 1차 — 음악 3곡(사용자 선정: Cattails·Smoking Gun·Cowboy Sting 페이드인)+CC-BY 표기·DRAW! 슬램 예열·승리 콘페티·햅틱 계층화 + 준비 카운트 방장 포함(봇러너 인계분)",
+          "who": "사용자+Claude",
+          "st": "done",
+          "note": "2026-07-12 심야. 위젯테스트 2종+에뮬 검증, v17 배포. SFX 교체는 보드 승인 대기"
+        },
+        {
+          "t": "BGM 볼륨 3배 상향(사용자 요청) + 2단계 사운드·음악 시청 보드 준비(Kenney 46종+MacLeod 7곡) + 홍보 카피 4종 초안(growth/PROMO_COPY.md)",
+          "who": "Claude",
+          "st": "done",
+          "note": "2026-07-12 심야. BGM은 v16에 포함. 게시/발송·보드 승인만 사용자"
+        },
+        {
+          "t": "리텐션 A — 계정 레벨(XP)·주간 미션 3종·트로피 로드 16종·스트릭 배너+주1회 무료 복구 + 대기방 준비 ✓ 전원표시 + 오프라인 결과창 조기스킵 버그 수정",
+          "who": "Claude",
+          "st": "done",
+          "note": "2026-07-12. 단위 26종+에뮬 검증(패배 +40XP 확인), v15 배포"
+        },
+        {
+          "t": "타격감 1단계 — 발사음 3종(사용자 승인 크랙+펀치)+피치랜덤(soloud)·머즐섬광·반동·피격플래시·넉백·명중파티클(자작)·히트스톱·흔들림 회전",
+          "who": "사용자+Claude",
+          "st": "done",
+          "note": "2026-07-12. analyze 0/test 206/에뮬 실플레이 검증. 실기기 총성 음질·BGM 공존 확인은 사용자 QA"
+        },
+        {
+          "t": "시크릿 백업 이중화 완료 — 구글 드라이브 자동 업로드 개통",
+          "who": "사용자+Claude",
+          "st": "done",
+          "note": "2026-07-12 드라이브(mjhee2647@snu.ac.kr) '내 드라이브/dailyapp-secrets-backup'에 앱별 분류(cowboy/restrest 7종)+README(키 설명·복원법)+날짜 스냅샷. 갱신: bash _shared/backup_secrets.sh 한 줄"
+        },
+        {
+          "t": "이미지 외주 채용 시험 합격 — 'Gemini 웹 수동생성+Claude 후처리' 파이프라인 검증 완료",
+          "who": "사용자+Claude",
+          "st": "done",
+          "note": "2026-07-12 키트 v2 프롬프트로 스킨 변형·배너 합격, 512규격 가공 시연(duelist_skin_gold_512.png). API 결제는 스킨 대량생산 단계에서 재검토"
+        },
+        {
+          "t": "Play 서비스계정 설정+연결 검증 — AAB 업로드 영구 자동화 개통",
+          "who": "사용자+Claude",
+          "st": "done",
+          "note": "2026-07-12 fastlane validate 'Successfully established connection' 확인"
+        },
+        {
+          "t": "v13 AAB 업로드 (광고ID 권한 제거분) — 첫 자동 업로드 성공",
+          "who": "Claude",
+          "st": "done",
+          "note": "2026-07-12 다른 세션에서 upload_play.sh로 alpha 트랙 업로드, 전 과정 검증됨"
+        },
+        {
+          "t": "무료 에셋 툴 셋업 — jsfxr 샘플 3종·Kenney 후보 46종·rembg·ImageMagick·soloud/newton/haptic 패키지(analyze 통과)",
+          "who": "Claude",
+          "st": "done",
+          "note": "2026-07-12. Gemini 이미지만 무료 티어 폐지로 막힘(사용자 대기 항목 참고)"
+        },
+        {
+          "t": "성장 계획 수립 — growth/ 문서 5종 + 업로드 스크립트",
+          "who": "Claude",
+          "st": "done",
+          "note": "2026-07-08"
+        },
+        {
+          "t": "Gemini API 키 연결·검증 (이미지 생성 무료 티어)",
+          "who": "사용자+Claude",
+          "st": "done",
+          "note": "2026-07-12, ~/.zshrc GEMINI_API_KEY"
+        },
+        {
+          "t": "타격감·리텐션·홍보 계획 사용자 승인",
+          "who": "사용자",
+          "st": "done",
+          "note": "2026-07-12 — 광고 요소만 제외"
+        }
       ]
     }
   ]
