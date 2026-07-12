@@ -123,6 +123,63 @@ class _RewardsTabState extends State<RewardsTab> {
             ],
           ),
         ),
+        const SizedBox(height: 14),
+        // B1 시즌 패스(무료 30티어/4주) — 도달 시 자동 지급, 여긴 진행 표시.
+        _card(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Row(
+                children: [
+                  Container(
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 10, vertical: 4),
+                    decoration: BoxDecoration(
+                      color: CD.sage,
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                    child: Text('티어 ${meta.passTier}',
+                        style: posterTitle(16, color: Colors.white)),
+                  ),
+                  const SizedBox(width: 10),
+                  Text('시즌 패스', style: posterTitle(19)),
+                  const Spacer(),
+                  Text(
+                      passLastWeek(DateTime.now())
+                          ? '⚡마지막 주 XP 2배!'
+                          : 'D-${passDaysLeft(DateTime.now()) + 1}',
+                      style: TextStyle(
+                          color: passLastWeek(DateTime.now())
+                              ? CD.rust
+                              : CD.muted,
+                          fontWeight: FontWeight.w800)),
+                ],
+              ),
+              const SizedBox(height: 10),
+              ClipRRect(
+                borderRadius: BorderRadius.circular(6),
+                child: LinearProgressIndicator(
+                  value: meta.passTier >= kPassMaxTier
+                      ? 1
+                      : (meta.passXp % kPassTierXp) / kPassTierXp,
+                  minHeight: 9,
+                  backgroundColor: CD.sand,
+                  color: CD.sage,
+                ),
+              ),
+              const SizedBox(height: 6),
+              Text(
+                  meta.passTier >= kPassMaxTier
+                      ? '🏆 시즌 패스 완주! 다음 시즌에서 만나요'
+                      : '다음 보상: 티어 ${meta.passTier + 1} — +${passGoldOf(meta.passTier + 1)}골드 '
+                          '(${meta.passXp % kPassTierXp}/$kPassTierXp XP) · 총 30티어',
+                  style: const TextStyle(fontSize: 11.5, color: CD.muted)),
+              const SizedBox(height: 2),
+              const Text('게임·미션이 패스 XP를 채워요. 티어 보상은 자동 지급!',
+                  style: TextStyle(fontSize: 11.5, color: CD.muted)),
+            ],
+          ),
+        ),
         if (meta.canReviveStreak) ...[
           const SizedBox(height: 14),
           // A1 스트릭 복구(주 1회 무료).

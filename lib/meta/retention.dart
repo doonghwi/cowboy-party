@@ -117,6 +117,69 @@ bool missedExactlyOneDay(String lastClaim, DateTime now) {
 /// 복구를 제안할 최소 스트릭 — 1~2일짜리는 복구 가치가 없어 노이즈만 된다.
 const int kStreakReviveMin = 3;
 
+// ── B1. 시즌 패스(무료 단일트랙 30티어 / 4주) ────────────────────────────
+
+/// 시즌 앵커: 2026-07-06(월). 이후 28일 단위로 P1, P2, …
+final DateTime kPassAnchor = DateTime(2026, 7, 6);
+
+/// 티어 간격 XP. 티어 n은 누적 (n-1)×500 XP에서 열린다(1티어 즉시 지급).
+const int kPassTierXp = 500;
+const int kPassMaxTier = 30;
+
+int _passIndex(DateTime now) {
+  final d = now.difference(DateTime(kPassAnchor.year, kPassAnchor.month,
+          kPassAnchor.day))
+      .inDays;
+  return d < 0 ? -1 : d ~/ 28;
+}
+
+/// 시즌 패스 id — 예: 'P1'.
+String passIdFor(DateTime now) => 'P${_passIndex(now) + 1}';
+
+/// 시즌 몇 일째(0~27).
+int passDayOf(DateTime now) {
+  final d = now
+      .difference(
+          DateTime(kPassAnchor.year, kPassAnchor.month, kPassAnchor.day))
+      .inDays;
+  return d < 0 ? 0 : d % 28;
+}
+
+/// 마지막 주(22일째~)면 패스 XP 2배(캐치업).
+bool passLastWeek(DateTime now) => passDayOf(now) >= 21;
+
+/// 시즌 종료까지 남은 일수(오늘 포함 안 함, 0~27).
+int passDaysLeft(DateTime now) => 27 - passDayOf(now);
+
+/// 누적 패스 XP → 현재 티어(1~30).
+int passTierForXp(int xp) {
+  final t = xp ~/ kPassTierXp + 1;
+  return t > kPassMaxTier ? kPassMaxTier : t;
+}
+
+/// 티어별 골드 보상 — 1 즉시감(200), 5·10·20 스파이크, 30 피날레.
+/// 30티어 시즌 한정 스킨은 B2 스킨 시스템 도입 후 소급(문서 참고).
+int passGoldOf(int tier) => switch (tier) {
+      1 => 200,
+      5 => 500,
+      10 => 1000,
+      15 => 700,
+      20 => 1500,
+      25 => 1000,
+      30 => 3000,
+      _ => 150,
+    };
+
+/// 미션 달성이 패스 XP를 먹인다(계층 연결): 데일리 +100, 주간 +300.
+const int kPassXpDaily = 100;
+const int kPassXpWeekly = 300;
+
+// ── B4. 복귀 보상 ──────────────────────────────────────────────────────────
+
+/// 이 일수 이상 미접속 후 돌아오면 웰컴백 패키지를 준다.
+const int kWelcomeBackDays = 7;
+const int kWelcomeBackGold = 800;
+
 // ── 게임 종료 보상 묶음(토스트용) ─────────────────────────────────────────
 
 class GameEndRewards {

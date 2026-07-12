@@ -96,8 +96,9 @@ void main() {
       await Meta.I.init();
     });
 
-    test('신규 계정은 시작 골드 + 기본 캐릭터 장착', () {
-      expect(Meta.I.coins, kNewAccountGold);
+    test('신규 계정은 시작 골드(+패스 1티어 즉시 지급) + 기본 캐릭터 장착', () {
+      // B1 시즌 패스가 접속 즉시 1티어 골드를 준다(부여된 진행).
+      expect(Meta.I.coins, kNewAccountGold + passGoldOf(1));
       expect(Meta.I.isUnlocked(CharId.commoner), isTrue);
       expect(Meta.I.equipped, CharId.commoner);
     });

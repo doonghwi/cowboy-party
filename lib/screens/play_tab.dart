@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 
 import '../meta/meta_service.dart';
+import '../meta/retention.dart';
 import '../widgets/top_toast.dart';
 import '../online/online_service.dart';
 import '../theme.dart';
@@ -39,7 +40,16 @@ class _PlayTabState extends State<PlayTab> {
 
   /// 첫 실행 사용자에게만 환영 팝업을 띄워 게임 방법으로 안내한다.
   /// 띄우기 전에 '봤음'으로 표시해 닫더라도 다시 뜨지 않는다.
+  /// B4: 7일+ 만에 돌아온 유저에게 웰컴백 패키지 안내(보상은 이미 지급됨).
+  void _maybeShowWelcomeBack() {
+    if (!mounted || !Meta.I.welcomeBackPending) return;
+    Meta.I.markWelcomeBackSeen();
+    TopToast.show(context,
+        message: '🤠 돌아온 걸 환영해요! 웰컴백 +$kWelcomeBackGold골드를 드렸어요');
+  }
+
   Future<void> _maybeShowFirstRunTutorial() async {
+    _maybeShowWelcomeBack();
     if (!mounted || !Meta.I.ready || Meta.I.tutorialSeen) return;
     await Meta.I.markTutorialSeen();
     if (!mounted) return;

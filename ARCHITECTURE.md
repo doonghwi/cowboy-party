@@ -179,6 +179,12 @@ dailyapp_stats/cowboy_party: 사용량(중앙 대시보드)
 - [x] **Stage 5**: ??? 해금 게이트(canBuyMystery, 전 캐릭터 보유 시) + 선물코드 + 에뮬 검증 + 배포.
 
 ## 최근 변경 (2026-07)
+### 리텐션 B1·B4·B5(1차) + SFX 확정 + 방장 버그 (2026-07-12 심야3, v18)
+- **B1 시즌 패스**: retention.dart에 4주 시즌(passIdFor/passLastWeek/passTierForXp/passGoldOf) + Meta(_passXp 등, `_gainPassXp` 자동 티어 지급, 미션→패스XP 연결). 보상 탭 패스 카드. 신규 계정 코인 = 시작골드+1티어(테스트 갱신).
+- **B4 웰컴백**: 7일+ 미접속 감지(init, last_open_day) → 800G 즉시 지급+1회 토스트(play_tab). **B5 1차**: 상점 도감 수집률 헤더.
+- **SFX 확정 반영(사용자 1차 결정)**: hit/shield/coin/click/confirm/lose 교체(Kenney, loudnorm), 버튼 탭음 추가, 승리=배경음 정지+Cowboy Sting만(win.wav 제거), 불가행동=잔떨림+라이트 햅틱(action_bar _DeniedShake). 장전·쇼다운예열·입장은 2차 후보 보드 대기.
+- **방장 뺏김 버그 수정(제보)**: 좌석 클레임에 `at`(입장 시각) 기록, 방장 승계/폴백을 at 오름차순(없으면 좌석 순)으로 — RoomView.hostSeat 노출, 대기실 UI가 이를 사용. 회귀 테스트 3종. 봇러너에 규약 변경 인계(_shared/notes/botrunner.md).
+
 ### 타격감 2단계 1차 + 준비 카운트 (2026-07-12 심야, v17)
 - **음악 3상태(사용자 선정)**: menu=Cattails(교체)·showdown=Smoking Gun(결투 중 전환, online_showdown/offline _beginShowdown)·승리 스팅=Cowboy Sting 페이드인(`Bgm.sting()` 원샷). 설정 화면에 CC-BY 표기, CREDITS 갱신.
 - **결투 의식**: reaction_panel 예열(어두운 배경+펄스)→DRAW! 슬램(easeOutBack+백열 플래시+헤비 햅틱). **승리 셀레브레이션**: `widgets/celebration.dart`(금색 콘페티 44개 낙하, Canvas 1장) — 양 화면 over 오버레이. 햅틱 계층화(피격 medium/사망·승리 heavy).

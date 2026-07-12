@@ -104,9 +104,14 @@ class Meta extends ChangeNotifier {
   int _lifeGames = 0; // A5 통산 판수(도입 시점부터 집계)
   int _lifeWins = 0;
   Set<String> _trophyClaimed = {};
+  String _passId = ''; // B1 시즌 패스(4주) id
+  int _passXp = 0;
+  Set<String> _passClaimed = {}; // 수령한 티어(문자열 티어 번호)
   int _brokenStreak = 0; // A1 딱 하루 놓쳐 끊긴 직전 스트릭(복구 후보)
   String _brokenDay = ''; // 끊김을 감지한 날 — 그날만 복구 제안
   String _reviveWeek = ''; // 주 1회 무료 복구를 사용한 주
+  String _lastOpenDay = ''; // B4 마지막 접속일(웰컴백 판정)
+  bool _welcomeBackPending = false; // 이번 세션에 웰컴백 안내를 보여줄지
 
   int get coins => _coins;
   String get nickname => _nickname;
@@ -139,6 +144,15 @@ class Meta extends ChangeNotifier {
         WeeklyKind.wins => _wWins,
         WeeklyKind.chars => _wChars.length,
       };
+  /// B4: 이번 실행에서 웰컴백 패키지를 받았는가(안내 1회용 — 보상은 이미 지급됨).
+  bool get welcomeBackPending => _welcomeBackPending;
+  void markWelcomeBackSeen() {
+    _welcomeBackPending = false;
+  }
+
+  int get passXp => _passXp;
+  int get passTier => passTierForXp(_passXp);
+  bool passTierClaimed(int tier) => _passClaimed.contains('$tier');
   int get lifeGames => _lifeGames;
   int get lifeWins => _lifeWins;
   bool trophyClaimed(TrophyMilestone t) => _trophyClaimed.contains(t.key);
@@ -211,10 +225,30 @@ class Meta extends ChangeNotifier {
     _lifeGames = sp.getInt('life_games') ?? 0;
     _lifeWins = sp.getInt('life_wins') ?? 0;
     _trophyClaimed = (sp.getStringList('trophy_claimed') ?? []).toSet();
+    _passId = sp.getString('pass_id') ?? '';
+    _passXp = sp.getInt('pass_xp') ?? 0;
+    _passClaimed = (sp.getStringList('pass_claimed') ?? []).toSet();
     _brokenStreak = sp.getInt('broken_streak') ?? 0;
     _brokenDay = sp.getString('broken_day') ?? '';
     _reviveWeek = sp.getString('revive_week') ?? '';
+    _lastOpenDay = sp.getString('last_open_day') ?? '';
     _rollWeekly(); // 주 바뀌었으면 주간 미션 리셋
+    _rollPass(); // 4주 시즌이 바뀌었으면 패스 리셋(+1티어 즉시 지급)
+    // B4 복귀 보상: 7일+ 만에 돌아왔으면 웰컴백 골드(접속 즉시 지급, 안내는 1회).
+    final today = _today();
+    if (_lastOpenDay.isNotEmpty && _lastOpenDay != today) {
+      final last = DateTime.tryParse(_lastOpenDay);
+      if (last != null &&
+          DateTime.now().difference(last).inDays >= kWelcomeBackDays) {
+        _coins += kWelcomeBackGold;
+        _welcomeBackPending = true;
+        Ana.log('welcome_back', {
+          'days': DateTime.now().difference(last).inDays,
+          'gold': kWelcomeBackGold,
+        });
+      }
+    }
+    _lastOpenDay = today;
     _rollDailyMissions(); // 날짜 바뀌었으면 리셋
     if (brandNew) _save();
     notifyListeners();
@@ -240,6 +274,41 @@ class Meta extends ChangeNotifier {
       _wChars = {};
       _wClaimed = {};
     }
+  }
+
+  /// 4주 시즌이 바뀌면 패스를 리셋한다. 1티어는 즉시 지급(부여된 진행).
+  void _rollPass() {
+    final id = passIdFor(DateTime.now());
+    if (_passId != id) {
+      _passId = id;
+      _passXp = 0;
+      _passClaimed = {};
+    }
+    // 1티어(0 XP에서 열림) 자동 지급 — 신규 시즌·신규 유저 공통.
+    if (!_passClaimed.contains('1')) {
+      _passClaimed.add('1');
+      _coins += passGoldOf(1);
+      Ana.log('pass_tier', {'tier': 1, 'gold': passGoldOf(1)});
+    }
+  }
+
+  /// 패스 XP 적립 + 새로 열린 티어 자동 지급. 반환: (지급 골드, 토스트 줄들).
+  (int, List<String>) _gainPassXp(int base) {
+    if (base <= 0) return (0, const []);
+    final mult = passLastWeek(DateTime.now()) ? 2 : 1; // 마지막 주 2배
+    _passXp += base * mult;
+    var gained = 0;
+    final lines = <String>[];
+    for (var tier = 2; tier <= passTier; tier++) {
+      if (_passClaimed.contains('$tier')) continue;
+      _passClaimed.add('$tier');
+      final g = passGoldOf(tier);
+      _coins += g;
+      gained += g;
+      lines.add('패스 티어 $tier 달성! (+$g골드)');
+      Ana.log('pass_tier', {'tier': tier, 'gold': g});
+    }
+    return (gained, lines);
   }
 
   /// 날짜가 바뀌면 데일리 미션 진행을 리셋한다.
@@ -282,9 +351,13 @@ class Meta extends ChangeNotifier {
     await sp.setInt('life_games', _lifeGames);
     await sp.setInt('life_wins', _lifeWins);
     await sp.setStringList('trophy_claimed', _trophyClaimed.toList());
+    await sp.setString('pass_id', _passId);
+    await sp.setInt('pass_xp', _passXp);
+    await sp.setStringList('pass_claimed', _passClaimed.toList());
     await sp.setInt('broken_streak', _brokenStreak);
     await sp.setString('broken_day', _brokenDay);
     await sp.setString('revive_week', _reviveWeek);
+    await sp.setString('last_open_day', _lastOpenDay);
     _mirrorToCloud();
   }
 
@@ -299,8 +372,10 @@ class Meta extends ChangeNotifier {
   GameEndRewards noteGamePlayed({required bool won}) {
     _rollDailyMissions();
     _rollWeekly();
+    _rollPass();
     final lines = <String>[];
     var gained = 0;
+    var passBase = won ? kXpWin : kXpLose; // 패스 XP(미션 보너스가 아래서 추가)
     // 데일리 미션(#9)
     _dGames += 1;
     if (won) _dWins += 1;
@@ -310,6 +385,7 @@ class Meta extends ChangeNotifier {
         _dClaimed.add(m.key);
         _coins += m.gold;
         gained += m.gold;
+        passBase += kPassXpDaily; // 미션 → 패스 XP 연결
         lines.add('데일리 · ${m.label}');
         Ana.log('mission_done', {'mission': m.key, 'gold': m.gold});
       }
@@ -324,6 +400,7 @@ class Meta extends ChangeNotifier {
         _wClaimed.add(m.key);
         _coins += m.gold;
         gained += m.gold;
+        passBase += kPassXpWeekly; // 주간 미션 → 패스 XP 연결
         lines.add('주간 · ${m.label}');
         Ana.log('mission_done', {'mission': m.key, 'gold': m.gold});
       }
@@ -341,6 +418,10 @@ class Meta extends ChangeNotifier {
         Ana.log('trophy_done', {'trophy': t.key, 'gold': t.gold});
       }
     }
+    // B1 시즌 패스 XP + 티어 자동 지급
+    final (passGold, passLines) = _gainPassXp(passBase);
+    gained += passGold;
+    lines.addAll(passLines);
     // A2 계정 레벨 XP(패배도 성장)
     final before = level;
     _xp = (_xp + (won ? kXpWin : kXpLose)).clamp(0, kMaxTotalXp);

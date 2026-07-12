@@ -140,8 +140,50 @@ class _CharactersTabState extends State<CharactersTab> {
 
   @override
   Widget build(BuildContext context) {
+    // B5 도감(1차): 수집률 — 몇 명 모았는지 한눈에(완성 드라이브).
+    final ownedCount =
+        kCharacters.where((c) => Meta.I.isUnlocked(c.id)).length;
+    final totalCount = kCharacters.length;
     return CustomScrollView(
       slivers: [
+        SliverToBoxAdapter(
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(16, 8, 16, 2),
+            child: Container(
+              padding:
+                  const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+              decoration: BoxDecoration(
+                color: CD.parchment.withValues(alpha: 0.92),
+                borderRadius: BorderRadius.circular(14),
+              ),
+              child: Row(
+                children: [
+                  const Text('📖', style: TextStyle(fontSize: 20)),
+                  const SizedBox(width: 8),
+                  Text('도감  $ownedCount / $totalCount',
+                      style: posterTitle(16)),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: ClipRRect(
+                      borderRadius: BorderRadius.circular(5),
+                      child: LinearProgressIndicator(
+                        value: totalCount == 0 ? 0 : ownedCount / totalCount,
+                        minHeight: 8,
+                        backgroundColor: CD.sand,
+                        color: CD.gold,
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  Text(
+                      '${(ownedCount * 100 / (totalCount == 0 ? 1 : totalCount)).round()}%',
+                      style: const TextStyle(
+                          fontWeight: FontWeight.w900, color: CD.leather)),
+                ],
+              ),
+            ),
+          ),
+        ),
         const SliverToBoxAdapter(
           child: Padding(
             padding: EdgeInsets.fromLTRB(16, 8, 16, 4),
