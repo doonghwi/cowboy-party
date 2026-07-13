@@ -1,0 +1,147 @@
+{
+  "updated": "2026-07-13",
+  "note": "bintage 대시보드 cowboy '자료실' 탭이 읽는다. 사용자가 컴퓨터에서 파일을 찾지 않도록 보고서·시안·프롬프트를 여기로 노출(사용자 지시 2026-07-13).",
+  "sections": [
+    {
+      "title": "📢 상의 필요 — 돌아오시면 결정해주세요",
+      "desc": "① UI 개편 컨셉: 아래 목업 프롬프트 3개를 이미지 스크립트에 넣어 시안을 뽑아보고 마음에 드는 방향을 알려주세요(그 후 화면별로 선택지→구현 순서로 진행).\n② 사운드 2차: 아래 사운드 보드 링크에서 장전/쇼다운예열/입장음만 고르면 SFX 완성.",
+      "items": [
+        {
+          "kind": "prompt",
+          "title": "UI 목업 프롬프트 — P2 게임 테이블",
+          "text": "Mobile game UI mockup, 9:19.5 portrait. Top-down circular saloon poker table (green felt with wooden rim and brass studs) in a desert dusk. 4 character seat-cards around the table: each card shows a big cartoon cowboy portrait, bullet icons for ammo, small status badges. Center: round banner plaque. Bottom: three big action buttons (reload/defend/shoot) styled as carved wooden signs with icons. Warm sunset palette, playful western style. Placeholder text."
+        },
+        {
+          "kind": "prompt",
+          "title": "UI 목업 프롬프트 — P3 홈",
+          "text": "Mobile game UI mockup, 9:19.5 portrait. Home screen of a western party game: hero \"Quick Start\" button styled as a wanted poster, below it two smaller mode buttons, top bar with gold coins and level badge, bottom tab bar with 4 western icons (play/shop/ranking/rewards). Desert dusk background with cacti. Playful cartoon western, high polish. Placeholder text."
+        },
+        {
+          "kind": "prompt",
+          "title": "UI 목업 프롬프트 — P4 상점/도감",
+          "text": "Mobile game UI mockup, 9:19.5 portrait. Character collection shop for a western party game: album-like grid of cowboy character cards (some locked as silhouettes), collection progress bar on top styled as a sheriff badge meter, warm parchment & leather palette with gold accents. Playful cartoon western, high polish. Placeholder text."
+        },
+        {
+          "kind": "md",
+          "title": "UI 개편 계획 전문",
+          "path": "growth/UI_REDESIGN_PLAN.md"
+        },
+        {
+          "kind": "link",
+          "title": "🔊 사운드 보드 열기(2차 3개만 남음)",
+          "path": "/Users/doonghwi/Downloads/cowboy_sound_board",
+          "copy": true,
+          "href": ""
+        }
+      ]
+    },
+    {
+      "title": "📋 변경 보고서 — v14→v20 + 웹 (2026-07-12~13)",
+      "desc": "타격감 1~3단계 / 리텐션 A·B1·B4·B5 / 사운드 교체(승인분) / 대기방(방장·준비·독촉) / 버그 4건 수정 / 보상 탭 재설계.\n아래에서 바뀐 모습(사진·움짤)과 바뀐 소리(음원)를 직접 확인하세요. 폰 QA는 v20 하나로 충분합니다.",
+      "items": [
+        {
+          "kind": "img",
+          "title": "보상 탭 — 개편 전",
+          "path": "growth/reports/before_rewards_tab.png"
+        },
+        {
+          "kind": "img",
+          "title": "보상 탭 — 개편 후(브롤패스식 가로 트랙)",
+          "path": "growth/reports/after_rewards_tab.png"
+        },
+        {
+          "kind": "img",
+          "title": "명중 리빌(타격감)",
+          "path": "store/screenshots/renewal/07_hit_reveal.png"
+        },
+        {
+          "kind": "img",
+          "title": "DRAW! 슬램(움짤)",
+          "path": "growth/promo_clips/draw_slam.gif"
+        },
+        {
+          "kind": "img",
+          "title": "승리 콘페티(움짤)",
+          "path": "growth/promo_clips/victory_confetti.gif"
+        },
+        {
+          "kind": "img",
+          "title": "명중 연출 3단계(움짤)",
+          "path": "growth/promo_clips/hit_burst.gif"
+        },
+        {
+          "kind": "audio",
+          "title": "채택된 총성(크랙+펀치, 3변형 중 1)",
+          "path": "assets/sounds/gunshot_a.wav"
+        },
+        {
+          "kind": "audio",
+          "title": "명중음(펀치B)",
+          "path": "assets/sounds/hit.wav"
+        },
+        {
+          "kind": "audio",
+          "title": "새 로비 음악(Cattails)",
+          "path": "assets/music/menu.mp3"
+        },
+        {
+          "kind": "audio",
+          "title": "쇼다운 긴장곡(Smoking Gun, 62초 컷)",
+          "path": "assets/music/showdown.mp3"
+        },
+        {
+          "kind": "audio",
+          "title": "승리 팡파레(Cowboy Sting, 페이드인)",
+          "path": "assets/music/sting.mp3"
+        }
+      ]
+    },
+    {
+      "title": "🖼️ 이미지 생성 프롬프트 (사용자 스크립트용)",
+      "desc": "생성한 이미지를 store/graphics/ 또는 스킨 보드에 주시면 제가 규격화·합성·반영합니다.",
+      "items": [
+        {
+          "kind": "md",
+          "title": "스토어 그래픽 프롬프트(아이콘 A/B·피처그래픽 등)",
+          "path": "growth/STORE_GRAPHICS_PROMPTS.md"
+        },
+        {
+          "kind": "md",
+          "title": "스킨 활용안 + 스킨 생성 프롬프트",
+          "path": "growth/SKIN_PLAN.md"
+        }
+      ]
+    },
+    {
+      "title": "📣 홍보 준비물 (게시만 하면 됨)",
+      "desc": "디시 글에는 선물코드 5개 생성·치환 필요(요청 시 제가 생성).",
+      "items": [
+        {
+          "kind": "md",
+          "title": "홍보 카피 4종(디시·트윗·섭외메일·보도자료)",
+          "path": "growth/PROMO_COPY.md"
+        },
+        {
+          "kind": "img",
+          "title": "스토어 스크린샷 01 플레이",
+          "path": "store/screenshots/renewal/01_play_tab.png"
+        },
+        {
+          "kind": "img",
+          "title": "02 보상(신규)",
+          "path": "store/screenshots/renewal/02_rewards_top.png"
+        },
+        {
+          "kind": "img",
+          "title": "04 도감",
+          "path": "store/screenshots/renewal/04_shop_collection.png"
+        },
+        {
+          "kind": "img",
+          "title": "06 대기실",
+          "path": "store/screenshots/renewal/06_waiting_room.png"
+        }
+      ]
+    }
+  ]
+}
