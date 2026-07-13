@@ -138,16 +138,36 @@ class SeatCard extends StatelessWidget {
                           ),
                         ),
               if (isHost)
+                // "방장" 텍스트 칩 — 이모지(👑)는 웹에서 이모지 폰트 로드에
+                // 의존해 안 보일 수 있다(2026-07-13 제보). 텍스트+아이콘이 확실.
                 Positioned(
-                  left: -6,
-                  top: -6,
+                  left: -8,
+                  top: -8,
                   child: Container(
-                    padding: const EdgeInsets.all(2.5),
-                    decoration: const BoxDecoration(
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 5, vertical: 2),
+                    decoration: BoxDecoration(
                       color: CD.gold,
-                      shape: BoxShape.circle,
+                      borderRadius: BorderRadius.circular(8),
+                      border: Border.all(color: Colors.white, width: 1),
+                      boxShadow: [
+                        BoxShadow(
+                            color: Colors.black.withValues(alpha: 0.25),
+                            blurRadius: 3),
+                      ],
                     ),
-                    child: const Text('👑', style: TextStyle(fontSize: 11)),
+                    child: const Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(Icons.star, size: 9, color: Colors.white),
+                        SizedBox(width: 2),
+                        Text('방장',
+                            style: TextStyle(
+                                fontSize: 9,
+                                fontWeight: FontWeight.w900,
+                                color: Colors.white)),
+                      ],
+                    ),
                   ),
                 ),
               if (submitted && alive)
