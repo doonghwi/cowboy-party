@@ -157,7 +157,7 @@ class SocialSim {
             _log('$code ▶ 판 #$gameNo 참전 (봇 ${members.length}${humanIsBoss ? ", 방장=사람" : ""})');
             await Future.wait([
               for (final e in members.entries)
-                e.value.playSeatedGame(code, e.key),
+                e.value.playSeatedGame(code, e.key, botUids: botUids),
               if (!humanIsBoss) host.hostRefereeGame(code),
             ]);
             _log('$code ■ 라운드 종료');
@@ -457,7 +457,12 @@ class SocialSim {
       if (id == null || botUids.contains(id)) continue; // 봇·유령은 준비 간주
       final seen = _asInt(pv['seen']) ?? 0;
       if (nowMs - seen >= Config.humanFreshMs) continue; // 끊긴 사람은 무시
-      if (ready['p$s'] != true) return false; // 준비 안 한 사람 있음
+      // 준비 값 규약(앱 v19, 2026-07-12 변경): 구버전은 true, 신버전은 **그 좌석
+      // 주인의 uid**를 저장(좌석 재사용 오염 방지). 앱 computeView와 동일하게
+      // 둘 다 인정 — true만 보면 v19+ 사람의 준비를 영영 못 알아본다(실제 사고:
+      // 봇 방이 전혀 시작 안 됨).
+      final rv = ready['p$s'];
+      if (!(rv == true || rv == id)) return false; // 준비 안 한 사람 있음
     }
     return true;
   }

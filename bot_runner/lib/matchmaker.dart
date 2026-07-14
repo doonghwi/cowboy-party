@@ -105,7 +105,8 @@ class Matchmaker {
         final bot = crew[i];
         final seat = freeSeats[i];
         bot
-            .playRoom(code, seat, joinDelayMs: i * Config.joinStaggerMs)
+            .playRoom(code, seat,
+                joinDelayMs: i * Config.joinStaggerMs, botUids: botUids)
             .whenComplete(() => _pool.release(bot));
       }
     }

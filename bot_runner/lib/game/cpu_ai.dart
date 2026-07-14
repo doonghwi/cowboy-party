@@ -25,8 +25,36 @@ class CpuAi {
 
   final Map<int, _BotProfile> _profiles = {};
 
+  // 상대 행동 이력 — 좌석별 **연속 방어 횟수**(거북이 감지용). lastMoves가 새 턴
+  // 내용으로 바뀔 때 한 번만 갱신한다(오프라인은 같은 턴에 봇 좌석 수만큼
+  // chooseMove가 불리므로 시그니처 비교로 중복 집계를 막는다).
+  final Map<int, int> _defendStreak = {};
+  List<int?>? _lastMovesSig;
+
   /// 새 게임 시작 시 호출 — 봇별 성격/실력을 새로 뽑는다.
-  void beginGame() => _profiles.clear();
+  void beginGame() {
+    _profiles.clear();
+    _defendStreak.clear();
+    _lastMovesSig = null;
+  }
+
+  void _updateHistory(List<Move?>? lastMoves) {
+    if (lastMoves == null) return;
+    final sig = [for (final m in lastMoves) m?.encode()];
+    if (_lastMovesSig != null &&
+        _lastMovesSig!.length == sig.length &&
+        List.generate(sig.length, (i) => _lastMovesSig![i] == sig[i])
+            .every((e) => e)) {
+      return; // 같은 턴 재호출 — 집계 안 함
+    }
+    _lastMovesSig = sig;
+    for (var s = 0; s < lastMoves.length; s++) {
+      final m = lastMoves[s];
+      if (m == null) continue;
+      _defendStreak[s] =
+          m.kind == ActKind.defend ? (_defendStreak[s] ?? 0) + 1 : 0;
+    }
+  }
 
   /// 특정 좌석의 성격을 강제 지정(온라인 봇 러너의 '공격/수비' 같은 성향 봇용).
   /// 지정 안 한 항목은 기존(랜덤) 값을 유지. beginGame 뒤에 호출한다.
@@ -78,8 +106,17 @@ class CpuAi {
     ];
     if (rivals.isEmpty) return const Move.reload();
 
+    _updateHistory(lastMoves);
+
     // 나를 이번 턴 쏠 수 있는(무장한) 라이벌.
     final threats = [for (final r in rivals) if (ammo[r] > 0) r];
+
+    // 거북이(2턴+ 연속 방어) — 일반탄은 낭비, 슈퍼(관통)로만 뚫린다.
+    final turtles = [
+      for (final r in rivals)
+        if ((_defendStreak[r] ?? 0) >= 2) r
+    ];
+    final allTurtles = turtles.length == rivals.length;
 
     int pick(List<int> pool) => _pickTarget(seat, pool, ammo, p, lastMoves);
 
@@ -155,10 +192,20 @@ class CpuAi {
       }
     }
 
-    // 풀 탄창 → 슈퍼빵야(방어 관통). 공격적일수록 자주 쓴다.
+    // 풀 탄창 → 슈퍼빵야(방어 관통). 거북이가 있으면 거의 확정으로, 그리고
+    // 거북이를 최우선 표적으로(무한 방어의 유일한 해법).
     if (myAmmo >= kMaxAmmo &&
-        _r.nextDouble() < 0.55 + p.aggression * 0.35) {
-      return smoke(Move.superShoot(pick(_spreadPool(threats, rivals))));
+        _r.nextDouble() <
+            (turtles.isNotEmpty ? 0.92 : 0.70 + p.aggression * 0.25)) {
+      final pool = turtles.isNotEmpty ? turtles : _spreadPool(threats, rivals);
+      return smoke(Move.superShoot(pick(pool)));
+    }
+
+    // 거북이 카운터: 살아있는 상대가 죄다 방어만 하면 일반탄을 아끼고 슈퍼를
+    // 향해 장전한다(실력 높을수록 착실히). — "무한 방어로 이길 수 있다" 봉쇄.
+    if (allTurtles && myAmmo < kMaxAmmo &&
+        _r.nextDouble() < 0.55 + p.skill * 0.4) {
+      return smoke(const Move.reload());
     }
 
     // 빈 총 → 못 쏜다. 대개 장전, 위협 크면 방어(신중할수록 자주).
@@ -176,6 +223,14 @@ class CpuAi {
     if (threats.isNotEmpty) {
       final guard = (threats.length >= 2 ? 0.15 : 0.08) + p.caution * 0.35;
       if (_r.nextDouble() < guard) return smoke(const Move.defend());
+    }
+
+    // 완급 조절: 실력 있는 봇은 가끔 쏘지 않고 탄을 모아 슈퍼 각을 본다
+    // (매 턴 1발씩 쏘기만 하면 영영 6발을 못 채운다 — 슈퍼 안 나오던 원인).
+    if (myAmmo >= 2 &&
+        myAmmo < kMaxAmmo &&
+        _r.nextDouble() < 0.08 + p.skill * 0.17) {
+      return smoke(const Move.reload());
     }
 
     // 저실력 봇의 실수 또는 소극적 성향 → 최선 대신 장전으로 넘긴다(사람처럼).
@@ -206,11 +261,30 @@ class CpuAi {
       ];
       if (attackers.isNotEmpty) return attackers[_r.nextInt(attackers.length)];
     }
-    // focus 높으면 최다 무장 상대, 낮으면 무작위로 분산.
-    if (_r.nextDouble() < p.focus) {
+    // 실력 높을수록 점수 기반으로 고른다: 무장 위협(+focus 가중) + 직전 장전
+    // (커지는 위협) 가산, 연속 방어(거북이 = 일반탄 낭비 각) 감점, 노이즈로
+    // 사람 냄새. 나머지는 무작위 분산(한 명 몰빵 방지, 기존 유지).
+    if (_r.nextDouble() < 0.35 + p.skill * 0.45) {
+      double score(int t) {
+        var v = ammo[t] * (0.5 + p.focus);
+        if (lastMoves != null && t < lastMoves.length) {
+          final k = lastMoves[t]?.kind;
+          if (k == ActKind.reload) v += 1.2;
+          if (k == ActKind.defend) v -= 0.8;
+        }
+        v -= (_defendStreak[t] ?? 0) * 1.0;
+        v += _r.nextDouble() * 1.5;
+        return v;
+      }
+
       var best = pool.first;
-      for (final t in pool) {
-        if (ammo[t] > ammo[best]) best = t;
+      var bs = score(best);
+      for (final t in pool.skip(1)) {
+        final s2 = score(t);
+        if (s2 > bs) {
+          best = t;
+          bs = s2;
+        }
       }
       return best;
     }

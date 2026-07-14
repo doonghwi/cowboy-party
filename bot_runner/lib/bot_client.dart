@@ -24,6 +24,8 @@ class BotClient {
   final _rng = Random();
 
   int _tappedRound = -1;
+  // 이 게임에서 "봇 uid 집합"(호출자 풀에서 주입) — 사람 관전 감지용.
+  Set<String> _botUids = const {};
 
   String get name => _cred.name;
   String get uid => _cred.uid;
@@ -33,8 +35,10 @@ class BotClient {
   /// 희망 좌석 [hintSeat] 근처로 방 [code]에 들어가 게임이 끝날 때까지 플레이한다.
   /// [joinDelayMs]만큼 늦게 입장해 여러 봇이 **순차적으로** 들어오게 한다
   /// (사람 화면에서 '1명→2명→3명'으로 자연스럽게 늘어나도록).
-  Future<void> playRoom(String code, int hintSeat, {int joinDelayMs = 0}) async {
+  Future<void> playRoom(String code, int hintSeat,
+      {int joinDelayMs = 0, Set<String> botUids = const {}}) async {
     _tappedRound = -1;
+    _botUids = botUids;
     var claimed = false;
     try {
       if (joinDelayMs > 0) {
@@ -197,7 +201,7 @@ class BotClient {
         lastProgressAt = DateTime.now(); // 결투 진행 중은 스톨로 보지 않음
       } else if (r.awaits(seat) && r.currentTurn > lastSubmitted) {
         lastProgressAt = DateTime.now();
-        await _thinkDelay();
+        await _thinkDelay(slow: _humansWatchingBotsOnly(data, r));
         final fresh = _asMap(await _rtdb.get('rooms/$code'));
         if (fresh == null || fresh['started'] != true) continue;
         final r2 = replay(fresh, code);
@@ -274,10 +278,32 @@ class BotClient {
         auth: tok);
   }
 
-  Future<void> _thinkDelay() async {
-    final ms = Config.thinkMinMs +
-        _rng.nextInt(Config.thinkMaxMs - Config.thinkMinMs);
+  Future<void> _thinkDelay({bool slow = false}) async {
+    // slow = 사람이 방에 있는데(사망·관전) 생존자가 전부 봇 — 순식간에 끝내면
+    // 사람이 결말을 못 따라가니 사람 속도(3.2~6.5초)로 둔다(사용자 제보).
+    final ms = slow
+        ? 3200 + _rng.nextInt(3300)
+        : Config.thinkMinMs +
+            _rng.nextInt(Config.thinkMaxMs - Config.thinkMinMs);
     await Future<void>.delayed(Duration(milliseconds: ms));
+  }
+
+  /// 방에 사람이 앉아 있는데(사망/다음판 관전 포함) **살아있는 좌석은 전부
+  /// 봇**인가. 봇 uid 집합이 주입 안 됐으면(자체전 등) false.
+  bool _humansWatchingBotsOnly(Map data, ReplayResult r) {
+    if (_botUids.isEmpty) return false;
+    final players = _asMap(data['players']) ?? const {};
+    var humanInRoom = false;
+    var humanAlive = false;
+    players.forEach((k, v) {
+      final pv = _asMap(v);
+      final id = pv?['id'];
+      if (id is! String || _botUids.contains(id)) return;
+      humanInRoom = true;
+      final s = int.tryParse('$k'.substring(1));
+      if (s != null && s < r.n && r.alive[s]) humanAlive = true;
+    });
+    return humanInRoom && !humanAlive;
   }
 
   /// 반응속도 결투 처리(참가자로서 탭). 반환 true = 승부 확정(종료).
@@ -478,13 +504,15 @@ class BotClient {
 
   /// 준비 토글 — 쓰기 직전에 **내 uid가 실제 앉은 좌석**을 다시 찾아 그 좌석에만
   /// 쓴다(지연 실행되는 사이 좌석 압축/이탈이 있었으면 조용히 무시 — 유령 ready 방지).
+  /// 값은 앱 v19 규약대로 **내 uid**(좌석 재사용으로 남의 준비를 물려받는 오염
+  /// 방지 — 앱은 true(구버전)/좌석 주인 uid 둘 다 인정).
   Future<void> setReady(String code, bool ready) async {
     try {
       final data = _asMap(await _rtdb.get('rooms/$code'));
       if (data == null || data['started'] == true) return;
       final s = _seatOfUid(data);
       if (s < 0) return;
-      await _rtdb.put('rooms/$code/ready/p$s', ready ? true : null,
+      await _rtdb.put('rooms/$code/ready/p$s', ready ? _cred.uid : null,
           auth: await _tok);
     } catch (_) {}
   }
@@ -603,7 +631,9 @@ class BotClient {
 
   /// 이미 좌석에 앉아 게임이 시작된 뒤 그 라운드를 플레이(사회성용). 무승부면
   /// 결투에 참가해 탭한다(승자 확정은 봇 호스트의 hostRefereeGame). 이기면 랭킹 기록.
-  Future<void> playSeatedGame(String code, int seat) async {
+  Future<void> playSeatedGame(String code, int seat,
+      {Set<String> botUids = const {}}) async {
+    _botUids = botUids;
     _cpu.beginGame();
     _applyPersonality(seat);
     try {
