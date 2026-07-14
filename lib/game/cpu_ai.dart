@@ -266,14 +266,16 @@ class CpuAi {
     // 사람 냄새. 나머지는 무작위 분산(한 명 몰빵 방지, 기존 유지).
     if (_r.nextDouble() < 0.35 + p.skill * 0.45) {
       double score(int t) {
-        var v = ammo[t] * (0.5 + p.focus);
+        // 무장은 **참고만**(3발에서 포화, 낮은 가중) — 사람은 총알 많다고 항상
+        // 그를 노리진 않는다(심리전). 노이즈를 키워 예측 불가성 유지.
+        var v = min(ammo[t], 3) * (0.25 + p.focus * 0.5);
         if (lastMoves != null && t < lastMoves.length) {
           final k = lastMoves[t]?.kind;
-          if (k == ActKind.reload) v += 1.2;
+          if (k == ActKind.reload) v += 0.9;
           if (k == ActKind.defend) v -= 0.8;
         }
         v -= (_defendStreak[t] ?? 0) * 1.0;
-        v += _r.nextDouble() * 1.5;
+        v += _r.nextDouble() * 2.4;
         return v;
       }
 
