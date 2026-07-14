@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_database/firebase_database.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 import '../meta/auth_service.dart';
 import '../meta/meta_service.dart';
@@ -197,6 +198,37 @@ class FriendService {
       }
       return out;
     });
+  }
+
+  // ── 최근 함께 플레이(로컬) — 친구 탭 추천용(#1, 2026-07-15) ──────────────
+  static const _kRecentKey = 'recent_players_v1';
+  static const int kRecentMax = 12;
+
+  /// 온라인 게임이 끝날 때 같이 친 닉네임들을 기록(최신순, 중복 제거).
+  Future<void> noteRecentPlayers(List<String> names) async {
+    try {
+      final sp = await SharedPreferences.getInstance();
+      final cur = sp.getStringList(_kRecentKey) ?? const [];
+      final mine = _myName;
+      final merged = <String>[
+        for (final n in names)
+          if (n.trim().isNotEmpty && n.trim() != mine && n != '빈자리')
+            n.trim(),
+        ...cur,
+      ];
+      final seen = <String>{};
+      final out = [for (final n in merged) if (seen.add(n)) n];
+      await sp.setStringList(_kRecentKey, out.take(kRecentMax).toList());
+    } catch (_) {}
+  }
+
+  Future<List<String>> recentPlayers() async {
+    try {
+      final sp = await SharedPreferences.getInstance();
+      return sp.getStringList(_kRecentKey) ?? const [];
+    } catch (_) {
+      return const [];
+    }
   }
 
   // ── 방 초대(인앱) ───────────────────────────────────────────────────────

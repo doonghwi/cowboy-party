@@ -122,23 +122,6 @@ class ActionBar extends StatelessWidget {
     }
   }
 
-  String get _turnSlotSub {
-    switch (_turnSlotKind) {
-      case ActKind.trap:
-        return trapAvailable ? '일반탄 반사' : '사용함';
-      case ActKind.reset:
-        return resetAvailable ? '모두 무효화' : '사용함';
-      case ActKind.voodoo:
-        return '$kCurseFuse턴 뒤';
-      case ActKind.roulette:
-        return '50:50';
-      case ActKind.dualShoot:
-        return _turnSlotEnabled ? '2발·두명' : '2발 필요';
-      default:
-        return '';
-    }
-  }
-
   bool get _ready {
     final s = selected;
     if (s == null) return false;
@@ -228,23 +211,20 @@ class ActionBar extends StatelessWidget {
           const SizedBox(height: 8),
         ],
         // ── 기본 3칸(+ turnSlot 4번째) ──
+        // 서브 설명 줄은 제거(#11, 2026-07-15) — 상세는 아래 힌트 한 줄이 담당.
         Row(
           children: [
             if (_canSuper)
-              _opt(ActKind.superShoot, '슈퍼빵야', '5발·확정', true)
+              _opt(ActKind.superShoot, '슈퍼빵야', true)
             else
-              _opt(ActKind.reload, '장전',
-                  myChar == CharId.speedloader ? '+1~2 총알' : '+1 총알', true),
+              _opt(ActKind.reload, '장전', true),
             const SizedBox(width: 10),
-            _opt(ActKind.defend, '방어', '다 막음', true),
+            _opt(ActKind.defend, '방어', true),
             const SizedBox(width: 10),
-            _opt(ActKind.shoot, '빵야',
-                _pacifist ? '사용 불가' : (_canShoot ? '한 명 저격' : '총알 필요'),
-                _canShoot),
+            _opt(ActKind.shoot, '빵야', _canShoot),
             if (_turnSlotKind != null) ...[
               const SizedBox(width: 10),
-              _opt(_turnSlotKind!, _turnSlotLabel, _turnSlotSub,
-                  _turnSlotEnabled),
+              _opt(_turnSlotKind!, _turnSlotLabel, _turnSlotEnabled),
             ],
           ],
         ),
@@ -279,7 +259,7 @@ class ActionBar extends StatelessWidget {
     );
   }
 
-  Widget _opt(ActKind kind, String label, String sub, bool enabled) {
+  Widget _opt(ActKind kind, String label, bool enabled) {
     final c = CD.actionColor(kind);
     final isSel = selected == kind;
     return Expanded(
@@ -312,14 +292,6 @@ class ActionBar extends StatelessWidget {
                         fontWeight: FontWeight.w900,
                         fontSize: 15,
                         color: isSel ? Colors.white : CD.leather)),
-                Text(sub,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: TextStyle(
-                        fontSize: 10.5,
-                        color: isSel
-                            ? Colors.white.withValues(alpha: 0.9)
-                            : CD.muted)),
               ],
             ),
           ),

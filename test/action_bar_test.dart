@@ -62,8 +62,10 @@ void main() {
     expect(find.text('빵야'), findsOneWidget);
   });
 
-  testWidgets('평화주의자: 빵야 비활성(사용 불가 표기)', (t) async {
+  testWidgets('평화주의자: 빵야 비활성(힌트로 안내)', (t) async {
     await t.pumpWidget(_bar(CharId.pacifist));
-    expect(find.text('사용 불가'), findsOneWidget);
+    // 서브 설명 줄은 제거됨(#11, 2026-07-15) — 힌트 문구로 안내를 확인한다.
+    expect(find.textContaining('평화주의자'), findsOneWidget);
+    expect(find.text('빵야'), findsOneWidget);
   });
 }

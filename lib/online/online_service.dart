@@ -245,7 +245,15 @@ class RoomView {
   bool get iWon => status == GameStatus.won && winnerSeat == mySeat;
 }
 
-enum JoinResult { joined, notFound, full, alreadyStarted, wrongPassword, kicked }
+/// 게임 로직 버전(#5, 2026-07-15): 이 게임은 모든 클라이언트가 턴 기록을
+/// 독립적으로 리플레이해 상태를 계산한다 — 로직이 다른 두 빌드(예: 웹 v20 vs
+/// 앱 v21)가 한 방에 섞이면 **서로 다른 결과(누가 죽었는지!)** 를 본다.
+/// 방 생성 시 이 값을 기록하고, 다르면 입장을 막는다.
+/// **규칙·능력·리플레이에 영향 주는 수정 시 반드시 +1 할 것.**
+/// 버전 표기 없는 방(구버전·봇 러너)은 과도기 동안 통과시킨다.
+const int kLogicVersion = 1;
+
+enum JoinResult { joined, notFound, full, alreadyStarted, wrongPassword, kicked, versionMismatch }
 
 class OnlineService {
   /// 좌석에 실어 보내는 내 프로필(대기방 레벨 표시·지난 시즌 휘장) —
@@ -406,6 +414,7 @@ class OnlineService {
       'title': title.trim().isEmpty ? '$name의 결투장' : title.trim(),
       'hostName': name,
       'game': 0,
+      'logicV': kLogicVersion, // #5 버전 게이트
       'players': {
         'p0': {'id': clientId, 'name': name, 'seen': _now, 'at': _now, 'char': charIndex, 'lv': profileLevel, if (profileRank > 0) 'rank': profileRank},
       },
@@ -511,6 +520,7 @@ class OnlineService {
         'title': '매칭 방',
         'hostName': name,
         'game': 0,
+        'logicV': kLogicVersion, // #5 버전 게이트
         'players': {
           'p0': {'id': clientId, 'name': name, 'seen': _now, 'at': _now, 'char': charIndex, 'lv': profileLevel, if (profileRank > 0) 'rank': profileRank},
         },
@@ -586,6 +596,13 @@ class OnlineService {
     if (!snap.exists) return JoinResult.notFound;
     final data = _asMap(snap.value) ?? const {};
     final players = _asMap(data['players']) ?? const {};
+
+    // #5 버전 게이트: 로직 버전이 다른 방엔 못 들어간다(재입장 포함 —
+    // 섞여서 결과가 갈리는 것보다 막는 게 낫다).
+    final roomLogicV = data['logicV'];
+    if (roomLogicV is num && roomLogicV.toInt() != kLogicVersion) {
+      return JoinResult.versionMismatch;
+    }
 
     // F3: 비공개 방 비밀번호 확인 (이미 좌석을 가진 재입장은 통과).
     final isPublic = data['public'] == true;

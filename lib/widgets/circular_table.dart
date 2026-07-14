@@ -488,7 +488,7 @@ class CircularTable extends StatelessWidget {
     if (s.resetFx) return '무효!';
     if (s.reflectedFx) return '덫 반사!';
     if (s.piercedFx) return '관통!';
-    if (s.healedFx) return '자힐!';
+    if (s.healedFx) return '치료!';
     if (s.evadedFx) return '회피!';
     if (s.doubleLoadFx) return '+2 장전!';
     return null;

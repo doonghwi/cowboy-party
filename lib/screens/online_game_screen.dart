@@ -18,6 +18,7 @@ import '../online/friend_service.dart';
 import 'friends_sheet.dart';
 import '../online/online_service.dart';
 import '../theme.dart';
+import '../widgets/char_pager_sheet.dart';
 import '../widgets/action_bar.dart';
 import '../widgets/celebration.dart';
 import '../widgets/circular_table.dart';
@@ -385,7 +386,7 @@ class _OnlineGameScreenState extends State<OnlineGameScreen> {
                 _maybePeekUnblock(view);
                 if (view.iShouldClaimHost) widget.service.ensureHost(widget.code);
                 if (view.iWasKicked) {
-                  return _info('방장이 당신을 내보냈어요.', back: true);
+                  return _info('방장이 방에서 내보냈어요.', back: true);
                 }
                 if (view.phase == OnlinePhase.waiting) {
                   if (view.mySeat < 0) {
@@ -394,7 +395,7 @@ class _OnlineGameScreenState extends State<OnlineGameScreen> {
                   return _waiting(view, data);
                 }
                 if (view.iAmOut) {
-                  return _info('연결이 끊겨 방에서 나가졌어요.\n초대 링크로 다시 들어올 수 있어요.',
+                  return _info('연결이 끊겨서 방에서 나오게 됐어요.\n초대 링크로 다시 들어올 수 있어요.',
                       back: true);
                 }
                 if (view.status == GameStatus.draw && view.drawTurn >= 0) {
@@ -453,61 +454,18 @@ class _OnlineGameScreenState extends State<OnlineGameScreen> {
   }
 
   // F1: 대기실에서 내 캐릭터 변경(보유한 캐릭터 중에서). 시작 전만.
+  // #8(2026-07-15): 아이콘 그리드 → 일러스트 페이저(능력 설명 포함).
   void _changeCharInRoom(int mySeat) {
     final owned = [for (final d in kCharacters) if (Meta.I.isUnlocked(d.id)) d];
-    showModalBottomSheet(
-      context: context,
-      backgroundColor: CD.parchment,
-      shape: const RoundedRectangleBorder(
-          borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
-      builder: (ctx) => SafeArea(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Padding(
-              padding: const EdgeInsets.all(14),
-              child: Text('캐릭터 변경', style: posterTitle(20)),
-            ),
-            Flexible(
-              child: GridView.count(
-                shrinkWrap: true,
-                crossAxisCount: 4,
-                padding: const EdgeInsets.fromLTRB(12, 0, 12, 16),
-                mainAxisSpacing: 10,
-                crossAxisSpacing: 10,
-                children: [
-                  for (final d in owned)
-                    GestureDetector(
-                      onTap: () {
-                        Sfx.confirm();
-                        Meta.I.equip(d.id);
-                        widget.service
-                            .setRoomChar(widget.code, mySeat, d.id.index);
-                        Navigator.pop(ctx);
-                      },
-                      child: Column(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          CircleAvatar(
-                            radius: 22,
-                            backgroundColor: d.color,
-                            child: Icon(d.icon, color: Colors.white, size: 22),
-                          ),
-                          const SizedBox(height: 4),
-                          Text(d.name,
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
-                              style: const TextStyle(
-                                  fontSize: 11, fontWeight: FontWeight.w700)),
-                        ],
-                      ),
-                    ),
-                ],
-              ),
-            ),
-          ],
-        ),
-      ),
+    showCharPagerSheet(
+      context,
+      chars: owned,
+      current: Meta.I.equipped,
+      onPick: (d) {
+        Sfx.confirm();
+        Meta.I.equip(d.id);
+        widget.service.setRoomChar(widget.code, mySeat, d.id.index);
+      },
     );
   }
 
@@ -522,7 +480,7 @@ class _OnlineGameScreenState extends State<OnlineGameScreen> {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-          content: Text('초대 링크 복사됨 — 카톡 등에 붙여넣어 초대하세요'),
+          content: Text('초대 링크를 복사했어요 — 카톡 등에 붙여넣어 초대해 보세요'),
           behavior: SnackBarBehavior.floating,
         ),
       );
@@ -566,6 +524,11 @@ class _OnlineGameScreenState extends State<OnlineGameScreen> {
     if (view.mySeat >= 0 && view.mySeat < view.seats.length) {
       CharStats.I.record(view.seats[view.mySeat].char, won: iWon);
     }
+    // #1 친구 탭 추천용: 같이 플레이한 닉네임 기록(로컬, 베스트에포트).
+    FriendService.I.noteRecentPlayers([
+      for (final s in view.seats)
+        if (s.seat != view.mySeat && s.name.isNotEmpty) s.name,
+    ]);
     // #9 데일리 미션 진행 + 달성 보상.
     final rew = Meta.I.noteGamePlayed(won: iWon);
     WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -619,47 +582,44 @@ class _OnlineGameScreenState extends State<OnlineGameScreen> {
     return Column(
       children: [
         const SizedBox(height: 12),
-        Text('친구 초대', style: posterTitle(18)),
+        Text('대기실', style: posterTitle(18)),
         const SizedBox(height: 4),
-        const Text('아래 버튼으로 초대 링크를 공유하세요',
+        const Text('친구를 초대하고, 모두 준비되면 시작할 수 있어요',
             style: TextStyle(color: CD.muted)),
         const SizedBox(height: 8),
+        // 대기실 버튼은 준비 버튼과 같은 채운 배경+둥근 직사각형(#7).
+        // 초대 링크 공유 버튼은 제거 — 우상단 공유 아이콘이 같은 역할.
         Wrap(
           alignment: WrapAlignment.center,
           spacing: 8,
           runSpacing: 6,
           children: [
-            OutlinedButton.icon(
+            FilledButton.icon(
               onPressed: () => showFriendsSheet(context,
                   onInvite: (uid) =>
                       FriendService.I.invite(uid, widget.code)),
-              style: OutlinedButton.styleFrom(
-                foregroundColor: CD.gold,
-                side: const BorderSide(color: CD.gold, width: 1.5),
+              style: FilledButton.styleFrom(
+                backgroundColor: CD.gold,
+                padding: const EdgeInsets.symmetric(
+                    horizontal: 16, vertical: 10),
+                shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(14)),
               ),
               icon: const Icon(Icons.group_add, size: 18),
               label: const Text('친구 초대',
                   style: TextStyle(fontWeight: FontWeight.w800)),
             ),
-            OutlinedButton.icon(
-              onPressed: _shareInvite,
-              style: OutlinedButton.styleFrom(
-                foregroundColor: CD.rust,
-                side: const BorderSide(color: CD.rust, width: 1.5),
-              ),
-              icon: const Icon(Icons.share, size: 18),
-              label: const Text('초대 링크 공유',
-                  style: TextStyle(fontWeight: FontWeight.w800)),
-            ),
-            const SizedBox(width: 8),
             // F1: 시작 전 대기실에서 캐릭터 변경.
-            OutlinedButton.icon(
+            FilledButton.icon(
               onPressed: view.mySeat < 0
                   ? null
                   : () => _changeCharInRoom(view.mySeat),
-              style: OutlinedButton.styleFrom(
-                foregroundColor: CD.sage,
-                side: const BorderSide(color: CD.sage, width: 1.5),
+              style: FilledButton.styleFrom(
+                backgroundColor: CD.sage,
+                padding: const EdgeInsets.symmetric(
+                    horizontal: 16, vertical: 10),
+                shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(14)),
               ),
               icon: const Icon(Icons.face_retouching_natural, size: 18),
               label: const Text('캐릭터 변경',
@@ -670,7 +630,7 @@ class _OnlineGameScreenState extends State<OnlineGameScreen> {
         if (view.isHost)
           const Padding(
             padding: EdgeInsets.only(top: 6),
-            child: Text('방장: 빈 자리를 탭해 닫기/열기, 들어온 사람을 탭해 내보내기',
+            child: Text('방장은 빈 자리를 탭해 닫거나 열고, 들어온 사람을 탭해 내보낼 수 있어요',
                 textAlign: TextAlign.center,
                 style: TextStyle(color: CD.muted, fontSize: 11.5)),
           ),
@@ -698,7 +658,9 @@ class _OnlineGameScreenState extends State<OnlineGameScreen> {
                 child: Column(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    Text('${view.joinedCount} / ${view.capacity}',
+                    // 방장이 닫은 자리는 정원에서 뺀다(#2).
+                    Text(
+                        '${view.joinedCount} / ${view.capacity - view.seats.where((s) => s.blocked).length}',
                         style: posterTitle(22, color: Colors.white)),
                     if (needReady && nonHost.isNotEmpty)
                       Text('준비 ${readyCount + 1}/${present.length}',
@@ -743,7 +705,7 @@ class _OnlineGameScreenState extends State<OnlineGameScreen> {
               : !needReady
                   ? const Padding(
                       padding: EdgeInsets.symmetric(vertical: 10),
-                      child: Text('호스트가 시작하기를 기다리는 중...',
+                      child: Text('방장이 시작하기를 기다리는 중...',
                           style: TextStyle(
                               color: CD.leather, fontWeight: FontWeight.w700)),
                     )
@@ -1284,23 +1246,6 @@ class _OnlineGameScreenState extends State<OnlineGameScreen> {
     );
   }
 
-  // #5 결과 공유(성장): 우승을 밖으로 — 링크로 바로 한 판 가능.
-  Future<void> _shareWin(RoomView view) async {
-    Ana.log('share_result', {'mode': 'online', 'won': 1});
-    const link = 'https://doonghwi.github.io/cowboy-party/';
-    final text =
-        '🤠 카우보이 ${view.seatCount}인 온라인 대결에서 우승했다!\n너도 한 판? $link';
-    try {
-      await Share.share(text, subject: '카우보이');
-    } catch (_) {
-      Clipboard.setData(ClipboardData(text: text));
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-        content: Text('내용이 복사됐어요 — 카톡 등에 붙여넣어 자랑하세요'),
-        behavior: SnackBarBehavior.floating,
-      ));
-    }
-  }
 
   Widget _result(RoomView view) {
     final iWon = view.iWon;
@@ -1319,23 +1264,6 @@ class _OnlineGameScreenState extends State<OnlineGameScreen> {
               textAlign: TextAlign.center,
               style: posterTitle(26, color: iWon ? CD.rust : CD.danger)),
           const SizedBox(height: 12),
-          if (iWon) ...[
-            SizedBox(
-              width: double.infinity,
-              child: OutlinedButton.icon(
-                onPressed: () => _shareWin(view),
-                style: OutlinedButton.styleFrom(
-                  foregroundColor: CD.rust,
-                  side: const BorderSide(color: CD.rust, width: 1.5),
-                  padding: const EdgeInsets.symmetric(vertical: 12),
-                ),
-                icon: const Icon(Icons.share, size: 18),
-                label: const Text('우승 자랑하기',
-                    style: TextStyle(fontWeight: FontWeight.w800)),
-              ),
-            ),
-            const SizedBox(height: 10),
-          ],
           // 매칭 방(#2)은 다시하기 없이 나가기만.
           if (widget.matchMode)
             SizedBox(
@@ -1350,9 +1278,11 @@ class _OnlineGameScreenState extends State<OnlineGameScreen> {
               ),
             )
           else ...[
-            // #1 게임 끝나면 대기실로 — 거기서 초대·캐릭터 변경 후 다시 시작.
-            const Text('대기실로 돌아가면 캐릭터를 바꾸거나 다시 시작할 수 있어요',
+            // 결과 카드 안내는 1줄(#6). 게임 끝나면 대기실로.
+            const Text('대기실에서 캐릭터를 바꾸고 다시 시작할 수 있어요',
                 textAlign: TextAlign.center,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
                 style: TextStyle(color: CD.muted, fontSize: 12)),
             const SizedBox(height: 10),
             Row(

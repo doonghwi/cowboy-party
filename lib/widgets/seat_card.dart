@@ -48,7 +48,7 @@ class SeatCard extends StatelessWidget {
   final CharId char;
   final bool late;
 
-  /// 리빌 중 능력 발동 라벨 ('자힐!' 등). null이면 표시 안 함.
+  /// 리빌 중 능력 발동 라벨 ('치료!' 등). null이면 표시 안 함.
   final String? abilityFx;
 
   /// 부두 저주(C2): 남은 턴(0=없음)을 좌석에 상시 표시 — 모두에게 보임.

@@ -130,8 +130,8 @@ class _OnlineLobbyScreenState extends State<OnlineLobbyScreen> {
                                 fontWeight: FontWeight.w800, fontSize: 14)),
                         subtitle: Text(
                           _public
-                              ? '방 목록에 노출 — 누구나 들어올 수 있어요'
-                              : '목록에 안 보임 — 비밀번호를 아는 사람만 입장',
+                              ? '방 목록에 공개돼요 — 누구나 들어올 수 있어요'
+                              : '목록에 보이지 않아요 — 비밀번호를 아는 사람만 들어올 수 있어요',
                           style:
                               const TextStyle(fontSize: 11.5, color: CD.muted),
                         ),

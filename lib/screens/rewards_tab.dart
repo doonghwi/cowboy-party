@@ -302,7 +302,7 @@ class _StreakReviveBanner extends StatelessWidget {
               if (n > 0) {
                 HapticFeedback.mediumImpact();
                 TopToast.show(outerCtx,
-                    message: '스트릭 복구! 연속 $n일로 이어집니다');
+                    message: '연속 출석 복구! 연속 $n일로 이어져요');
               }
             },
             style: FilledButton.styleFrom(
@@ -1157,7 +1157,7 @@ class _GiftCodeTile extends StatelessWidget {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  const Text('받은 코드를 입력하면 골드를 드려요. (코드당 계정 1회)',
+                  const Text('받은 코드를 입력하면 코인을 드려요. (코드당 계정 1회)',
                       style: TextStyle(color: CD.muted, fontSize: 12)),
                   const SizedBox(height: 10),
                   Row(

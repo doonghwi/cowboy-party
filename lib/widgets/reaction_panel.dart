@@ -152,7 +152,7 @@ class _ReactionPanelState extends State<ReactionPanel>
                               fontSize: 13)),
                     ],
                     const Spacer(),
-                    Text('마지막 동시 탈락 — 반응속도로 최후의 1인을 가린다',
+                    Text('마지막 동시 탈락 — 반응속도로 최후의 1인을 가려요',
                         textAlign: TextAlign.center,
                         style: TextStyle(
                             color: Colors.white.withValues(alpha: 0.7),

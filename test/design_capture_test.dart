@@ -139,7 +139,6 @@ Widget _opt(String label, String caption, Widget child) => Column(
 class _SeatMock extends StatelessWidget {
   final String name;
   final CharDef def;
-  final int level;
   final String host; // none | strip | star | goldcard
   final String emblem; // none | inline | border | ring
   final RankTier? tier;
@@ -147,7 +146,6 @@ class _SeatMock extends StatelessWidget {
   const _SeatMock({
     required this.name,
     required this.def,
-    this.level = 12,
     this.host = 'none',
     this.emblem = 'none',
     this.tier,
@@ -299,7 +297,7 @@ class _SeatMock extends StatelessWidget {
                   color: CD.rust.withValues(alpha: 0.14),
                   borderRadius: BorderRadius.circular(7),
                 ),
-                child: Text('Lv.$level',
+                child: const Text('Lv.12',
                     style: const TextStyle(
                         color: CD.rust,
                         fontWeight: FontWeight.w900,

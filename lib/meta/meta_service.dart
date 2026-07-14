@@ -305,7 +305,7 @@ class Meta extends ChangeNotifier {
       final g = passGoldOf(tier);
       _coins += g;
       gained += g;
-      lines.add('패스 티어 $tier 달성! (+$g골드)');
+      lines.add('패스 티어 $tier 달성! (+$g코인)');
       Ana.log('pass_tier', {'tier': tier, 'gold': g});
     }
     return (gained, lines);
@@ -429,7 +429,7 @@ class Meta extends ChangeNotifier {
       final g = levelUpGold(l);
       _coins += g;
       gained += g;
-      lines.add(g > 0 ? '레벨 $l 달성! (+$g골드)' : '레벨 $l 달성!');
+      lines.add(g > 0 ? '레벨 $l 달성! (+$g코인)' : '레벨 $l 달성!');
       Ana.log('level_up', {'level': l, 'gold': g});
     }
     _save();
@@ -474,7 +474,7 @@ class Meta extends ChangeNotifier {
       case NicknameChangeGate.empty:
         return (ok: false, message: '닉네임을 입력해 주세요');
       case NicknameChangeGate.unchanged:
-        return (ok: false, message: '같은 닉네임이에요');
+        return (ok: false, message: '지금 쓰는 닉네임과 같아요');
       case NicknameChangeGate.needTicket:
         return (ok: false, message: '닉네임 변경권이 필요해요 (상점에서 구매)');
       case NicknameChangeGate.proceed:
@@ -549,7 +549,7 @@ class Meta extends ChangeNotifier {
     }
     _redeemed.add(code);
     addCoins(def.gold); // _save 포함
-    return (ok: true, message: '+${def.gold} 골드 획득!', gold: def.gold);
+    return (ok: true, message: '+${def.gold} 코인 획득!', gold: def.gold);
   }
 
   DatabaseReference? _giftRef(String code) {

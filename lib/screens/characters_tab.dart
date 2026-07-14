@@ -457,7 +457,7 @@ class _CharCard extends StatelessWidget {
       onPressed: () => _tryUnlock(context),
       icon: Icon(lockedMystery ? Icons.lock : Icons.monetization_on,
           color: CD.gold, size: 18),
-      label: Text(lockedMystery ? '전 캐릭터 필요' : '${def.cost}',
+      label: Text(lockedMystery ? '모든 캐릭터 필요' : '${def.cost}',
           style: const TextStyle(fontWeight: FontWeight.w900)),
     );
   }
@@ -603,7 +603,7 @@ class _CharCard extends StatelessWidget {
                               size: 16),
                           label: Text(
                               (def.id == CharId.mystery && !Meta.I.canBuyMystery)
-                                  ? '전 캐릭터 필요'
+                                  ? '모든 캐릭터 필요'
                                   : '${def.cost}',
                               style: const TextStyle(
                                   fontWeight: FontWeight.w900)),

@@ -13,6 +13,7 @@ import '../online/online_service.dart';
 import '../theme.dart';
 import '../widgets/desert_background.dart';
 import 'characters_tab.dart';
+import 'friends_tab.dart';
 import 'online_game_screen.dart';
 import 'how_to_play_screen.dart';
 import 'play_tab.dart';
@@ -27,9 +28,10 @@ const bool kShowAdPlaceholder = true;
 
 /// 앱 빌드 번호(versionCode와 일치시켜 손으로 올린다). 설정에 표시해서
 /// 폰에 어떤 버전이 깔렸는지 눈으로 확인할 수 있게 한다.
-const int kBuildNo = 21;
+const int kBuildNo = 22;
 
-/// 하단 4탭 셸: [플레이] [상점] [랭킹] [보상] + 코인칩 + 설정.
+/// 하단 5탭 셸(#1, 2026-07-15): [상점] [보상] [플레이] [친구] [랭킹] —
+/// 플레이가 가운데. + 코인칩 + 설정.
 class ShellScreen extends StatefulWidget {
   const ShellScreen({super.key});
 
@@ -38,9 +40,9 @@ class ShellScreen extends StatefulWidget {
 }
 
 class _ShellScreenState extends State<ShellScreen> {
-  int _tab = 0;
+  int _tab = 2; // 시작 탭 = 가운데(플레이)
 
-  static const _titles = ['카우보이', '상점', '랭킹', '보상'];
+  static const _titles = ['상점', '보상', '카우보이', '친구', '랭킹'];
 
   StreamSubscription<RoomInvite?>? _inviteSub;
   int _seenInviteAt = 0;
@@ -209,6 +211,11 @@ class _ShellScreenState extends State<ShellScreen> {
     } else if (res == JoinResult.wrongPassword) {
       // 비공개 방(초대 링크) → 비밀번호 입력 후 재시도.
       _promptRoomPassword(code);
+    } else if (res == JoinResult.versionMismatch) {
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+        content: Text('버전이 달라 입장할 수 없어요 — 앱을 최신 버전으로 업데이트해 주세요'),
+        behavior: SnackBarBehavior.floating,
+      ));
     } else {
       ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
         content: Text('초대받은 방에 들어갈 수 없어요 (사라졌거나 가득 참)'),
@@ -286,10 +293,11 @@ class _ShellScreenState extends State<ShellScreen> {
                     ),
                   ),
                   child: switch (_tab) {
-                    0 => const PlayTab(key: ValueKey('play')),
-                    1 => const CharactersTab(key: ValueKey('chars')),
-                    2 => const RankingTab(key: ValueKey('rank')),
-                    _ => const RewardsTab(key: ValueKey('rewards')),
+                    0 => const CharactersTab(key: ValueKey('chars')),
+                    1 => const RewardsTab(key: ValueKey('rewards')),
+                    2 => const PlayTab(key: ValueKey('play')),
+                    3 => const FriendsTab(key: ValueKey('friends')),
+                    _ => const RankingTab(key: ValueKey('rank')),
                   },
                 ),
               ),
@@ -326,12 +334,13 @@ class _ShellScreenState extends State<ShellScreen> {
             setState(() => _tab = i);
           },
           destinations: const [
-            NavigationDestination(
-                icon: Icon(Icons.sports_esports), label: '플레이'),
             NavigationDestination(icon: Icon(Icons.storefront), label: '상점'),
-            NavigationDestination(icon: Icon(Icons.emoji_events), label: '랭킹'),
             NavigationDestination(
                 icon: Icon(Icons.card_giftcard), label: '보상'),
+            NavigationDestination(
+                icon: Icon(Icons.sports_esports), label: '플레이'),
+            NavigationDestination(icon: Icon(Icons.group), label: '친구'),
+            NavigationDestination(icon: Icon(Icons.emoji_events), label: '랭킹'),
           ],
         ),
       ),

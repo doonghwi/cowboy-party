@@ -3,7 +3,6 @@ import 'dart:math';
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:share_plus/share_plus.dart';
 
 import '../audio/juice_sfx.dart';
 import '../audio/sfx.dart';
@@ -518,7 +517,7 @@ class _OfflineGameScreenState extends State<OfflineGameScreen> {
         if (out.hit[s]) _names[s]
     ];
     if (healed.isNotEmpty && downed.isEmpty) {
-      return '${healed.join(", ")}, 의사의 자힐로 버텼다!';
+      return '${healed.join(", ")}, 의사의 치료로 버텼다!';
     }
     if (out.rouletteFired.any((x) => x) && downed.isNotEmpty) {
       return '운명의 방아쇠! ${downed.join(", ")} 쓰러졌다!';
@@ -1054,22 +1053,6 @@ class _OfflineGameScreenState extends State<OfflineGameScreen> {
     }
   }
 
-  // #5 결과 공유(성장): 승리를 밖으로 — 링크로 바로 한 판 가능.
-  Future<void> _shareResult() async {
-    Ana.log('share_result', {'mode': 'cpu', 'won': 1});
-    const link = 'https://doonghwi.github.io/cowboy-party/';
-    final text = '🤠 카우보이 $_n인 대결에서 최후의 1인으로 살아남았다!\n너도 한 판? $link';
-    try {
-      await Share.share(text, subject: '카우보이');
-    } catch (_) {
-      Clipboard.setData(ClipboardData(text: text));
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-        content: Text('내용이 복사됐어요 — 카톡 등에 붙여넣어 자랑하세요'),
-        behavior: SnackBarBehavior.floating,
-      ));
-    }
-  }
 
   Widget _resultCard({bool showdown = false}) {
     final iWon = _status == GameStatus.won && _winner == 0;
@@ -1104,23 +1087,6 @@ class _OfflineGameScreenState extends State<OfflineGameScreen> {
               textAlign: TextAlign.center,
               style: posterTitle(26, color: iWon ? CD.rust : CD.danger)),
           const SizedBox(height: 14),
-          if (iWon) ...[
-            SizedBox(
-              width: double.infinity,
-              child: OutlinedButton.icon(
-                onPressed: _shareResult,
-                style: OutlinedButton.styleFrom(
-                  foregroundColor: CD.rust,
-                  side: const BorderSide(color: CD.rust, width: 1.5),
-                  padding: const EdgeInsets.symmetric(vertical: 12),
-                ),
-                icon: const Icon(Icons.share, size: 18),
-                label: const Text('승리 자랑하기',
-                    style: TextStyle(fontWeight: FontWeight.w800)),
-              ),
-            ),
-            const SizedBox(height: 10),
-          ],
           Row(
             children: [
               Expanded(

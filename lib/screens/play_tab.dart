@@ -8,7 +8,6 @@ import '../widgets/top_toast.dart';
 import '../online/online_service.dart';
 import '../theme.dart';
 import '../widgets/emo.dart';
-import 'friends_sheet.dart';
 import 'how_to_play_screen.dart';
 import 'matchmaking_screen.dart';
 import 'offline_game_screen.dart';
@@ -46,7 +45,7 @@ class _PlayTabState extends State<PlayTab> {
     if (!mounted || !Meta.I.welcomeBackPending) return;
     Meta.I.markWelcomeBackSeen();
     TopToast.show(context,
-        message: '🤠 돌아온 걸 환영해요! 웰컴백 +$kWelcomeBackGold골드를 드렸어요');
+        message: '🤠 돌아온 걸 환영해요! 웰컴백 선물 +$kWelcomeBackGold코인을 드렸어요');
   }
 
   Future<void> _maybeShowFirstRunTutorial() async {
@@ -139,9 +138,13 @@ class _PlayTabState extends State<PlayTab> {
         // 공개 방 목록에선 비밀번호가 없지만, 만약을 위해 안내.
         messenger.showSnackBar(
             const SnackBar(content: Text('비공개 방이에요 — 초대 링크로 입장해 주세요')));
+      case JoinResult.versionMismatch:
+        messenger.showSnackBar(const SnackBar(
+            content: Text('버전이 다른 방이에요 — 앱을 최신 버전으로 업데이트해 주세요')));
+        _refresh();
       case JoinResult.kicked:
         messenger.showSnackBar(SnackBar(
-          content: const Text('이 방에서 내보내진 적이 있어요'),
+          content: const Text('이 방에서 내보내져서 다시 들어갈 수 없어요'),
           duration: const Duration(seconds: 6),
           action: SnackBarAction(
             label: '확인',
@@ -176,7 +179,7 @@ class _PlayTabState extends State<PlayTab> {
                 final n = meta.reviveStreak();
                 if (n > 0) {
                   TopToast.show(context,
-                      message: '🔥 스트릭 복구! 연속 $n일로 이어집니다 (주 1회 무료)');
+                      message: '🔥 연속 출석 복구! 연속 $n일로 이어져요 (주 1회 무료)');
                 }
               },
               style: FilledButton.styleFrom(
@@ -230,25 +233,7 @@ class _PlayTabState extends State<PlayTab> {
         physics: const AlwaysScrollableScrollPhysics(),
         padding: const EdgeInsets.fromLTRB(16, 4, 16, 16),
         children: [
-          // 친구(MVP): 요청 수락·온라인 확인 — 초대는 대기실에서.
-          Align(
-            alignment: Alignment.centerRight,
-            child: Padding(
-              padding: const EdgeInsets.only(bottom: 6),
-              child: OutlinedButton.icon(
-                onPressed: () => showFriendsSheet(context),
-                style: OutlinedButton.styleFrom(
-                  foregroundColor: CD.sage,
-                  side: const BorderSide(color: CD.sage, width: 1.4),
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                ),
-                icon: const Icon(Icons.group, size: 17),
-                label: const Text('친구',
-                    style: TextStyle(fontWeight: FontWeight.w900)),
-              ),
-            ),
-          ),
+          // 친구 기능은 전용 하단 탭으로 이동(#1, 2026-07-15) — 버튼 제거.
           // A1 스트릭 대문 노출 — 불꽃 배지 + 오늘 미출석 경고 + 주1회 무료 복구.
           ListenableBuilder(
               listenable: Meta.I, builder: (context, _) => _streakBanner(context)),
