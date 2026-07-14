@@ -63,3 +63,4 @@ dist/
 
 # Play 게시 서비스 계정 키 — 출시 권한 그 자체. 절대 커밋 금지 (growth/PLAY_UPLOAD_SETUP.md)
 **/play-service-account.json
+android/.kotlin/
