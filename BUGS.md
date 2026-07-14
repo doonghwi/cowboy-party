@@ -45,3 +45,10 @@
 
 ### 2026-07-12 타격감 1단계 세션에서 발견 (미수정, 기존 코드)
 - [ ] (P3) 첫 실행 시 Unhandled Exception: `dependOnInheritedWidgetOfExactType<_ModalScopeStatus>() ... before _PlayTabState.initState() completed` — 재현: 앱 데이터 삭제 후 첫 실행(환영 팝업 뜨는 시점, logcat에서 확인) / 추정: play_tab.dart의 첫 실행 환영 팝업/ModalRoute.of 접근이 initState 완료 전 발생(2026-06-17 배치의 환영 팝업 코드, 커밋 37a93ce 이전부터) / 영향: 기능은 동작(팝업 정상 표시)하나 크래시 로그 오염 / 화면: play_tab.dart
+
+### 2026-07-13 사용자 QA 2차 (5건) — qa-round3 세션 처리
+- [x] (P1) 쇼다운 둘 다 부정출발 시 무한대기 + DRAW 신호 미표시 — 근본원인: falseStart/tap 기록이 단발 쓰기(유실 시 심판이 그 좌석 응답을 영구 대기) + 심판 로직이 RTDB 스냅샷 수신 시에만 실행(시간 경과 탈출구 없음) + 신호 전환이 로컬 타이머 1회에 의존. / 수정: 기록 3회 재시도 + 위젯 600ms 워치독(신호 강제·기록 재전송·심판 재실행) + 신호 후 8초 무응답자 이탈 간주(재라운드/시상). 화면: online_showdown.dart, online_service.dart
+- [x] (P2) 방장 표시가 캐릭터 배지에 가려짐 — 카드 위 중앙 "★방장" 배너로 이동. 화면: seat_card.dart
+- [x] (P2) 대기방 좌석 "총알 0" → Lv.N 표시(좌석 claim에 lv/rank 탑재). 화면: seat_card.dart, online_service.dart
+- [x] (기능) 지난 시즌 1~10등 LoL식 티어 휘장(챌린저/마스터/다이아) — rank_emblem.dart, 테두리 발광+하단 크레스트
+- [x] (기능) 친구 MVP — 닉네임 요청·수락, presence 온라인 표시, 대기실→친구 인앱 초대(RTDB 규칙 4노드 추가 배포)

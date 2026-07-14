@@ -2,16 +2,23 @@
   "rules": {
     ".read": false,
     ".write": false,
-
     "rooms": {
       ".read": true,
       ".indexOn": "createdAt",
       "$code": {
         ".write": "auth != null",
-        "title": { ".validate": "newData.isString() && newData.val().length <= 24" },
-        "hostName": { ".validate": "newData.isString() && newData.val().length <= 16" },
-        "capacity": { ".validate": "newData.isNumber() && newData.val() >= 2 && newData.val() <= 6" },
-        "createdAt": { ".validate": "newData.isNumber() && (!data.exists() || data.val() == newData.val())" },
+        "title": {
+          ".validate": "newData.isString() && newData.val().length <= 24"
+        },
+        "hostName": {
+          ".validate": "newData.isString() && newData.val().length <= 16"
+        },
+        "capacity": {
+          ".validate": "newData.isNumber() && newData.val() >= 2 && newData.val() <= 6"
+        },
+        "createdAt": {
+          ".validate": "newData.isNumber() && (!data.exists() || data.val() == newData.val())"
+        },
         "score": {
           "$slot": {
             ".validate": "newData.isNumber() && newData.val() >= 0 && (!data.exists() || newData.val() >= data.val())"
@@ -19,36 +26,49 @@
         },
         "players": {
           "$slot": {
-            "name": { ".validate": "newData.isString() && newData.val().length <= 16" }
+            "name": {
+              ".validate": "newData.isString() && newData.val().length <= 16"
+            }
           }
         }
       }
     },
-
     "users": {
       "$uid": {
         ".read": "auth != null && auth.uid == $uid",
         ".write": "auth != null && auth.uid == $uid",
-        "name": { ".validate": "newData.isString() && newData.val().length <= 24" },
-        "coins": { ".validate": "newData.isNumber() && newData.val() >= 0" },
-        "equipped": { ".validate": "newData.isNumber()" },
-        "dailyStreak": { ".validate": "newData.isNumber()" }
+        "name": {
+          ".validate": "newData.isString() && newData.val().length <= 24"
+        },
+        "coins": {
+          ".validate": "newData.isNumber() && newData.val() >= 0"
+        },
+        "equipped": {
+          ".validate": "newData.isNumber()"
+        },
+        "dailyStreak": {
+          ".validate": "newData.isNumber()"
+        }
       }
     },
-
     "seasons": {
       ".read": true,
       "$sid": {
         ".indexOn": "pts",
         "$uid": {
           ".write": "newData.exists() && auth != null && auth.uid == $uid",
-          "name": { ".validate": "newData.isString() && newData.val().length <= 24" },
-          "pts": { ".validate": "newData.isNumber() && newData.val() >= 0 && (!data.exists() ? newData.val() <= 60 : (newData.val() >= data.val() && newData.val() <= data.val() + 60))" },
-          "$other": { ".validate": false }
+          "name": {
+            ".validate": "newData.isString() && newData.val().length <= 24"
+          },
+          "pts": {
+            ".validate": "newData.isNumber() && newData.val() >= 0 && (!data.exists() ? newData.val() <= 60 : (newData.val() >= data.val() && newData.val() <= data.val() + 60))"
+          },
+          "$other": {
+            ".validate": false
+          }
         }
       }
     },
-
     "giftcodes": {
       ".read": true,
       "$code": {
@@ -58,7 +78,6 @@
         }
       }
     },
-
     "nicknames": {
       ".read": true,
       "$name": {
@@ -66,16 +85,94 @@
         ".validate": "!newData.exists() || newData.val() == auth.uid"
       }
     },
-
-    "build": { ".read": true, ".write": false },
-    "stats": { ".read": true, ".write": false },
+    "build": {
+      ".read": true,
+      ".write": false
+    },
+    "stats": {
+      ".read": true,
+      ".write": false
+    },
     "charstats": {
       ".read": true,
       ".write": "auth != null",
       "$idx": {
-        "games": { ".validate": "newData.isNumber() && newData.val() >= 0 && (!data.exists() || newData.val() >= data.val())" },
-        "wins": { ".validate": "newData.isNumber() && newData.val() >= 0 && (!data.exists() || newData.val() >= data.val())" },
-        "$other": { ".validate": false }
+        "games": {
+          ".validate": "newData.isNumber() && newData.val() >= 0 && (!data.exists() || newData.val() >= data.val())"
+        },
+        "wins": {
+          ".validate": "newData.isNumber() && newData.val() >= 0 && (!data.exists() || newData.val() >= data.val())"
+        },
+        "$other": {
+          ".validate": false
+        }
+      }
+    },
+    "presence": {
+      ".read": true,
+      "$uid": {
+        ".write": "auth != null && auth.uid == $uid",
+        "at": {
+          ".validate": "newData.isNumber()"
+        },
+        "name": {
+          ".validate": "newData.isString() && newData.val().length <= 24"
+        },
+        "$other": {
+          ".validate": false
+        }
+      }
+    },
+    "friendReqs": {
+      "$uid": {
+        ".read": "auth != null && auth.uid == $uid",
+        "$from": {
+          ".write": "auth != null && (auth.uid == $from || auth.uid == $uid)",
+          "name": {
+            ".validate": "newData.isString() && newData.val().length <= 24"
+          },
+          "at": {
+            ".validate": "newData.isNumber()"
+          },
+          "$other": {
+            ".validate": false
+          }
+        }
+      }
+    },
+    "friends": {
+      "$uid": {
+        ".read": "auth != null && auth.uid == $uid",
+        "$fuid": {
+          ".write": "auth != null && (auth.uid == $uid || auth.uid == $fuid)",
+          "name": {
+            ".validate": "newData.isString() && newData.val().length <= 24"
+          },
+          "since": {
+            ".validate": "newData.isNumber()"
+          },
+          "$other": {
+            ".validate": false
+          }
+        }
+      }
+    },
+    "invites": {
+      "$uid": {
+        ".read": "auth != null && auth.uid == $uid",
+        ".write": "auth != null",
+        "code": {
+          ".validate": "newData.isString() && newData.val().length <= 8"
+        },
+        "from": {
+          ".validate": "newData.isString() && newData.val().length <= 24"
+        },
+        "at": {
+          ".validate": "newData.isNumber()"
+        },
+        "$other": {
+          ".validate": false
+        }
       }
     }
   }

@@ -14,6 +14,8 @@ import '../meta/analytics.dart';
 import '../meta/meta_service.dart';
 import '../meta/char_stats.dart';
 import '../meta/season_service.dart';
+import '../online/friend_service.dart';
+import 'friends_sheet.dart';
 import '../online/online_service.dart';
 import '../theme.dart';
 import '../widgets/action_bar.dart';
@@ -622,9 +624,23 @@ class _OnlineGameScreenState extends State<OnlineGameScreen> {
         const Text('아래 버튼으로 초대 링크를 공유하세요',
             style: TextStyle(color: CD.muted)),
         const SizedBox(height: 8),
-        Row(
-          mainAxisAlignment: MainAxisAlignment.center,
+        Wrap(
+          alignment: WrapAlignment.center,
+          spacing: 8,
+          runSpacing: 6,
           children: [
+            OutlinedButton.icon(
+              onPressed: () => showFriendsSheet(context,
+                  onInvite: (uid) =>
+                      FriendService.I.invite(uid, widget.code)),
+              style: OutlinedButton.styleFrom(
+                foregroundColor: CD.gold,
+                side: const BorderSide(color: CD.gold, width: 1.5),
+              ),
+              icon: const Icon(Icons.group_add, size: 18),
+              label: const Text('친구 초대',
+                  style: TextStyle(fontWeight: FontWeight.w800)),
+            ),
             OutlinedButton.icon(
               onPressed: _shareInvite,
               style: OutlinedButton.styleFrom(
@@ -792,6 +808,9 @@ class _OnlineGameScreenState extends State<OnlineGameScreen> {
         for (final sv in view.seats)
           TableSeat(
             isHostSeat: sv.seat == hostSeat,
+            // 대기방(readyOf != null)에서만 레벨 노출, 휘장은 게임 중에도.
+            level: readyOf != null && sv.joined ? sv.level : -1,
+            rank: sv.rank,
             name: view.started && !sv.joined ? '나감' : sv.name,
             ammo: sv.ammo,
             alive: sv.alive,

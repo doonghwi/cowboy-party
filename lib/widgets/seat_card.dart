@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../game/characters.dart';
 import '../game/party_logic.dart';
 import '../theme.dart';
+import 'rank_emblem.dart';
 import 'character_portrait.dart';
 import 'emo.dart';
 
@@ -21,6 +22,12 @@ class SeatCard extends StatelessWidget {
 
   /// 방장 좌석 — 대기실에서 왕관 배지(누가 시작 권한자인지).
   final bool isHost;
+
+  /// 대기방 계정 레벨(-1이면 숨김=게임 중엔 총알 표시).
+  final int level;
+
+  /// 지난 시즌 휘장 티어(null=없음) — LoL식 엠블럼+테두리 발광.
+  final RankTier? rankTier;
   final Move? lastMove;
 
   /// 그림자: 탄약 수를 '?'로 가린다.
@@ -63,6 +70,8 @@ class SeatCard extends StatelessWidget {
     this.submitted = false,
     this.hit = false,
     this.isHost = false,
+    this.level = -1,
+    this.rankTier,
     this.lastMove,
     this.hideAmmo = false,
     this.fired = false,
@@ -109,7 +118,15 @@ class SeatCard extends StatelessWidget {
         ),
         boxShadow: targetable && !targeted
             ? [BoxShadow(color: CD.danger.withValues(alpha: 0.35), blurRadius: 7)]
-            : null,
+            // 지난 시즌 휘장: 티어색을 두른 발광(LoL식 — 등수 숫자 없음).
+            : rankTier != null
+                ? [
+                    BoxShadow(
+                        color: tierColor(rankTier!).withValues(alpha: 0.55),
+                        blurRadius: 9,
+                        spreadRadius: 1),
+                  ]
+                : null,
       ),
       child: Column(
         mainAxisSize: MainAxisSize.min,
@@ -138,35 +155,39 @@ class SeatCard extends StatelessWidget {
                           ),
                         ),
               if (isHost)
-                // "방장" 텍스트 칩 — 이모지(👑)는 웹에서 이모지 폰트 로드에
-                // 의존해 안 보일 수 있다(2026-07-13 제보). 텍스트+아이콘이 확실.
+                // "방장" 배너 — 카드 위 중앙에 매단다. 좌상단은 캐릭터 배지가
+                // 차지해 가려졌던 제보(2026-07-13) 수정. 이모지 대신 텍스트
+                // (웹 이모지 폰트 비의존).
                 Positioned(
-                  left: -8,
-                  top: -8,
-                  child: Container(
-                    padding: const EdgeInsets.symmetric(
-                        horizontal: 5, vertical: 2),
-                    decoration: BoxDecoration(
-                      color: CD.gold,
-                      borderRadius: BorderRadius.circular(8),
-                      border: Border.all(color: Colors.white, width: 1),
-                      boxShadow: [
-                        BoxShadow(
-                            color: Colors.black.withValues(alpha: 0.25),
-                            blurRadius: 3),
-                      ],
-                    ),
-                    child: const Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Icon(Icons.star, size: 9, color: Colors.white),
-                        SizedBox(width: 2),
-                        Text('방장',
-                            style: TextStyle(
-                                fontSize: 9,
-                                fontWeight: FontWeight.w900,
-                                color: Colors.white)),
-                      ],
+                  top: -13,
+                  left: 0,
+                  right: 0,
+                  child: Center(
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 7, vertical: 2),
+                      decoration: BoxDecoration(
+                        color: CD.gold,
+                        borderRadius: BorderRadius.circular(9),
+                        border: Border.all(color: Colors.white, width: 1.2),
+                        boxShadow: [
+                          BoxShadow(
+                              color: Colors.black.withValues(alpha: 0.3),
+                              blurRadius: 4),
+                        ],
+                      ),
+                      child: const Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(Icons.star, size: 10, color: Colors.white),
+                          SizedBox(width: 3),
+                          Text('방장',
+                              style: TextStyle(
+                                  fontSize: 10,
+                                  fontWeight: FontWeight.w900,
+                                  color: Colors.white)),
+                        ],
+                      ),
                     ),
                   ),
                 ),
@@ -326,9 +347,25 @@ class SeatCard extends StatelessWidget {
       ),
     );
 
-    final wrapped = onTap == null
+    // 지난 시즌 휘장 크레스트 — 카드(박스) 하단 중앙에 걸친다(LoL식).
+    final decorated = rankTier == null
         ? card
-        : GestureDetector(onTap: alive ? onTap : null, child: card);
+        : Stack(
+            clipBehavior: Clip.none,
+            children: [
+              card,
+              Positioned(
+                bottom: -11,
+                left: 0,
+                right: 0,
+                child: Center(child: RankEmblem(tier: rankTier!, size: 22)),
+              ),
+            ],
+          );
+
+    final wrapped = onTap == null
+        ? decorated
+        : GestureDetector(onTap: alive ? onTap : null, child: decorated);
 
     if (!hit) return wrapped;
     // Quick shake + flash on a fresh hit.
@@ -345,6 +382,21 @@ class SeatCard extends StatelessWidget {
   }
 
   Widget _ammoRow(bool mini) {
+    // 대기방: 총알 대신 계정 레벨(2026-07-13 사용자 결정 — 프로필처럼).
+    if (level >= 0) {
+      return Container(
+        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1),
+        decoration: BoxDecoration(
+          color: CD.rust.withValues(alpha: 0.14),
+          borderRadius: BorderRadius.circular(7),
+        ),
+        child: Text('Lv.${level > 0 ? level : '?'}',
+            style: TextStyle(
+                color: CD.rust,
+                fontWeight: FontWeight.w900,
+                fontSize: mini ? 10 : 11.5)),
+      );
+    }
     if (hideAmmo) {
       // 그림자 — 탄약 숨김.
       return Row(

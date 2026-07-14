@@ -10,6 +10,7 @@ import 'firebase_options.dart';
 import 'meta/analytics.dart';
 import 'meta/auth_service.dart';
 import 'meta/meta_service.dart';
+import 'meta/season_service.dart';
 import 'meta/profanity.dart';
 import 'online/online_service.dart';
 import 'screens/shell.dart';
@@ -55,6 +56,10 @@ Future<void> main() async {
   Profanity.I.init();
   // 저지연 SFX 엔진(soloud) — 비차단, 실패 시 audioplayers 폴백이라 무해.
   JuiceSfx.init();
+  // 좌석에 실을 내 프로필(대기방 레벨·지난 시즌 휘장) — 비차단 베스트에포트.
+  OnlineService.profileLevel = Meta.I.level;
+  Meta.I.addListener(() => OnlineService.profileLevel = Meta.I.level);
+  SeasonService.I.loadMyPrevRank();
   // 익명 로그인이 콘솔에서 켜져 있으면 게스트도 랭킹에 오를 수 있다(베스트에포트).
   AuthService.I.tryAnonymous();
   runApp(const CowboyPartyApp());

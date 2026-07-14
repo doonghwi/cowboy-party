@@ -50,6 +50,10 @@ class SeatView {
   final bool late; // 게임 중 난입 — 다음 판부터 참여(관전)
 
   // 그림자(shadow): 상대가 볼 때 가려짐.
+  /// 계정 레벨(대기방 표시용, 0=미상) · 지난 시즌 순위(1~10, 0=휘장 없음).
+  final int level;
+  final int rank;
+
   final bool hideAmmo; // 탄약 수 숨김
   final bool hideAction; // 이번 턴 행동 숨김(장전/방어/가만히)
 
@@ -57,6 +61,8 @@ class SeatView {
   final bool blocked;
 
   const SeatView({
+    this.level = 0,
+    this.rank = 0,
     required this.seat,
     required this.joined,
     required this.name,
@@ -242,6 +248,11 @@ class RoomView {
 enum JoinResult { joined, notFound, full, alreadyStarted, wrongPassword, kicked }
 
 class OnlineService {
+  /// 좌석에 실어 보내는 내 프로필(대기방 레벨 표시·지난 시즌 휘장) —
+  /// 앱 시작/레벨업 시 main·shell이 갱신한다. 서비스는 값만 실어 나른다.
+  static int profileLevel = 0;
+  static int profileRank = 0; // 지난 시즌 1~10, 0=휘장 없음
+
   OnlineService() : clientId = _genClientId() {
     // Track clock skew so heartbeats/staleness use server time.
     serverOffsetRef().onValue.listen((e) {
@@ -396,7 +407,7 @@ class OnlineService {
       'hostName': name,
       'game': 0,
       'players': {
-        'p0': {'id': clientId, 'name': name, 'seen': _now, 'at': _now, 'char': charIndex},
+        'p0': {'id': clientId, 'name': name, 'seen': _now, 'at': _now, 'char': charIndex, 'lv': profileLevel, if (profileRank > 0) 'rank': profileRank},
       },
       'turns': null,
       'rematch': null,
@@ -501,7 +512,7 @@ class OnlineService {
         'hostName': name,
         'game': 0,
         'players': {
-          'p0': {'id': clientId, 'name': name, 'seen': _now, 'at': _now, 'char': charIndex},
+          'p0': {'id': clientId, 'name': name, 'seen': _now, 'at': _now, 'char': charIndex, 'lv': profileLevel, if (profileRank > 0) 'rank': profileRank},
         },
         'createdAt': ServerValue.timestamp,
       });
@@ -623,6 +634,8 @@ class OnlineService {
         'seen': _now,
         'at': _now, // 입장 시각 — 방장 승계는 "가장 오래 있던 사람" 순
         'char': charIndex,
+        'lv': profileLevel, // 대기방 레벨 표시
+        if (profileRank > 0) 'rank': profileRank, // 지난 시즌 휘장
         if (started) 'late': true,
       };
       final res =
@@ -773,6 +786,9 @@ class OnlineService {
         // 입장 시각 보존 — 방장 승계(오래된 순) 기준이 판을 넘어도 유지되게.
         'at': _asInt(entries[i].value['at']) ?? _now,
         'char': charIdx,
+        'lv': _asInt(entries[i].value['lv']) ?? 0,
+        if (_asInt(entries[i].value['rank']) != null)
+          'rank': _asInt(entries[i].value['rank']),
       };
       chars[slotKey(i)] = charIdx;
     }
@@ -950,14 +966,37 @@ class OnlineService {
     });
   }
 
-  Future<void> recordFalseStart(String code, int seat) {
-    return room(code).child('showdown/falseStart/${slotKey(seat)}').set(true);
+  /// 부정출발 기록 — 쓰기 유실이면 심판이 이 좌석의 응답을 영원히 기다려
+  /// 쇼다운이 멈춘다(2026-07-13 제보) → 재시도 3회.
+  Future<void> recordFalseStart(String code, int seat) async {
+    for (var i = 0; i < 3; i++) {
+      try {
+        await room(code)
+            .child('showdown/falseStart/${slotKey(seat)}')
+            .set(true)
+            .timeout(const Duration(seconds: 3));
+        return;
+      } catch (_) {
+        await Future<void>.delayed(Duration(milliseconds: 300 * (i + 1)));
+      }
+    }
   }
 
   /// Record my reaction tap time (server clock). The host then awards the win
   /// to the *earliest* valid tap — fair by reaction speed, not network luck.
-  Future<void> recordTap(String code, int seat, int tapMs) {
-    return room(code).child('showdown/taps/${slotKey(seat)}').set(tapMs);
+  /// 유실 시 심판 영구대기 → 재시도 3회.
+  Future<void> recordTap(String code, int seat, int tapMs) async {
+    for (var i = 0; i < 3; i++) {
+      try {
+        await room(code)
+            .child('showdown/taps/${slotKey(seat)}')
+            .set(tapMs)
+            .timeout(const Duration(seconds: 3));
+        return;
+      } catch (_) {
+        await Future<void>.delayed(Duration(milliseconds: 300 * (i + 1)));
+      }
+    }
   }
 
   /// Host commits the showdown winner (once).
@@ -1017,6 +1056,8 @@ class OnlineService {
     final seatCharIdx = <int, int>{};
     final seatId = <int, String>{};
     final seatAt = <int, int?>{}; // 입장 시각(방장 승계 순서)
+    final seatLv = <int, int>{}; // 계정 레벨(대기방 표시)
+    final seatRank = <int, int>{}; // 지난 시즌 순위(휘장)
     for (final e in players.entries) {
       final v = _asMap(e.value);
       if (v == null) continue;
@@ -1029,6 +1070,8 @@ class OnlineService {
       seatCharIdx[s] = _asInt(v['char']) ?? 0;
       seatId[s] = (v['id'] as String?) ?? '';
       seatAt[s] = _asInt(v['at']);
+      seatLv[s] = _asInt(v['lv']) ?? 0;
+      seatRank[s] = _asInt(v['rank']) ?? 0;
       if (v['id'] == myClientId) mySeat = s;
     }
     // The room-level snapshot (written at start) wins over live player nodes —
@@ -1115,6 +1158,8 @@ class OnlineService {
             name: present(s)
                 ? (names[s] ?? '카우보이')
                 : (seatBlocked(s) ? '닫힘' : '빈자리'),
+            level: present(s) ? (seatLv[s] ?? 0) : 0,
+            rank: present(s) ? (seatRank[s] ?? 0) : 0,
             ammo: 0,
             alive: true,
             isMe: s == mySeat,
@@ -1285,6 +1330,8 @@ class OnlineService {
                     : '상대가 모두 나갔어요')
                 : '모두 떠났어요';
             return _buildView(
+              seatLv: seatLv,
+              seatRank: seatRank,
               phase: OnlinePhase.over,
               capacity: capacity,
               seatCount: n,
@@ -1366,6 +1413,8 @@ class OnlineService {
             nowServerMs > 0 &&
             nowServerMs - pkAt > 12000;
         return _buildView(
+          seatLv: seatLv,
+          seatRank: seatRank,
           phase: iSubmitted && iAmAlive
               ? OnlinePhase.submitted
               : OnlinePhase.choosing,
@@ -1546,6 +1595,8 @@ class OnlineService {
           revealed[winner] = true;
         }
         return _buildView(
+          seatLv: seatLv,
+          seatRank: seatRank,
           phase: OnlinePhase.over,
           capacity: capacity,
           seatCount: n,
@@ -1620,6 +1671,8 @@ class OnlineService {
     required int capacity,
     required int seatCount,
     required bool isHost,
+    Map<int, int> seatLv = const {},
+    Map<int, int> seatRank = const {},
     bool iShouldClaimHost = false,
     required int turn,
     required int mySeat,
@@ -1702,6 +1755,8 @@ class OnlineService {
           seat: s,
           joined: presentFn(s),
           name: names[s] ?? '카우보이',
+          level: seatLv[s] ?? 0,
+          rank: seatRank[s] ?? 0,
           ammo: ammo[s],
           alive: alive[s],
           isMe: s == mySeat,

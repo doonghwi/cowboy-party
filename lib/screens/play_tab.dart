@@ -8,6 +8,7 @@ import '../widgets/top_toast.dart';
 import '../online/online_service.dart';
 import '../theme.dart';
 import '../widgets/emo.dart';
+import 'friends_sheet.dart';
 import 'how_to_play_screen.dart';
 import 'matchmaking_screen.dart';
 import 'offline_game_screen.dart';
@@ -229,6 +230,25 @@ class _PlayTabState extends State<PlayTab> {
         physics: const AlwaysScrollableScrollPhysics(),
         padding: const EdgeInsets.fromLTRB(16, 4, 16, 16),
         children: [
+          // 친구(MVP): 요청 수락·온라인 확인 — 초대는 대기실에서.
+          Align(
+            alignment: Alignment.centerRight,
+            child: Padding(
+              padding: const EdgeInsets.only(bottom: 6),
+              child: OutlinedButton.icon(
+                onPressed: () => showFriendsSheet(context),
+                style: OutlinedButton.styleFrom(
+                  foregroundColor: CD.sage,
+                  side: const BorderSide(color: CD.sage, width: 1.4),
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                ),
+                icon: const Icon(Icons.group, size: 17),
+                label: const Text('친구',
+                    style: TextStyle(fontWeight: FontWeight.w900)),
+              ),
+            ),
+          ),
           // A1 스트릭 대문 노출 — 불꽃 배지 + 오늘 미출석 경고 + 주1회 무료 복구.
           ListenableBuilder(
               listenable: Meta.I, builder: (context, _) => _streakBanner(context)),

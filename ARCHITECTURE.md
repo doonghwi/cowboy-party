@@ -179,6 +179,13 @@ dailyapp_stats/cowboy_party: 사용량(중앙 대시보드)
 - [x] **Stage 5**: ??? 해금 게이트(canBuyMystery, 전 캐릭터 보유 시) + 선물코드 + 에뮬 검증 + 배포.
 
 ## 최근 변경 (2026-07)
+### 친구 MVP + 랭커 휘장 + 쇼다운 안정화 (2026-07-13, v21 — QA 5건)
+- **쇼다운 멈춤 수정(제보)**: 부정출발/탭 기록이 재시도 없는 단발 쓰기 + 심판이 스냅샷 이벤트에서만 동작 → ① recordFalseStart/Tap 3회 재시도 ② 600ms 워치독 틱(신호 강제 전환·내 기록 재기록·시간 기반 심판) ③ 신호 후 8초 무응답자는 이탈 간주(있는 탭으로 시상 or 재라운드). "빨간 DRAW 안 뜸"도 신호 워치독으로 방어.
+- **방장 표시(제보)**: 좌상단(캐릭터 배지에 가려짐) → 카드 위 중앙 "★방장" 골드 배너.
+- **랭커 휘장(LoL 티어식, 사용자 결정)**: `widgets/rank_emblem.dart` — 1등 챌린저(금+청 날개)/2~3등 마스터(보라 뿔)/4~10등 다이아(청 보석), 등수 숫자 없음. 좌석 카드 테두리 티어색 발광 + 하단 중앙 크레스트. 좌석 claim에 `rank`/`lv` 탑재(OnlineService.profileRank/Level ← main에서 Meta·SeasonService.loadMyPrevRank 주입), startGame 압축 보존, SeatView.rank/level 파생.
+- **대기방 카드**: 총알 대신 `Lv.N`(사용자 결정 — readyOf 모드에서만).
+- **친구 MVP(사용자 결정: 닉네임 추가·수락제·인앱 초대)**: `online/friend_service.dart`(presence 하트비트 40s·요청/수락/삭제·초대) + `screens/friends_sheet.dart`(플레이 탭 버튼·대기실 "친구 초대") + shell 초대 수신 다이얼로그(3분 내 신규만). RTDB 규칙에 presence/friendReqs/friends/invites 추가 배포(기존 노드 불변).
+
 ### 대기실·턴 진행 안정화 (2026-07-13, v19 — 사용자 제보 4건)
 - **준비 풀림/오염 수정**: ready 값 = 좌석 주인의 clientId(구버전 true 호환). computeView가 `readySeats`(좌석+주인 id 매칭)·`iAmReady`(id 기준 — 하트비트 순단에도 유지)를 파생, UI는 이것만 사용. 회귀 테스트 3종.
 - **방장 왕관 배지**: RoomView.hostSeat → TableSeat.isHostSeat → SeatCard 👑(대기실).

@@ -49,9 +49,17 @@ class _OnlineShowdownState extends State<OnlineShowdown> {
   bool _signal = false;
   bool _false = false;
   bool _tapped = false;
+  int _myTapMs = 0; // 워치독 재기록용
   bool _creating = false;
   Timer? _flip;
   Timer? _arb;
+  // 시간 기반 자가치유 틱 — 스냅샷이 안 와도(쓰기 유실·정적 상태) 진행되게.
+  // "둘 다 부정출발이면 안 넘어간다" 제보(2026-07-13)의 핵심 수정.
+  Timer? _tick;
+
+  /// 신호 후 이 시간까지 응답(탭/부정출발) 없는 참가자는 이탈로 간주하고
+  /// 라운드를 진행한다 — 한 명의 기록 유실/이탈로 전원이 멈추지 않게.
+  static const int kNoShowMs = 8000;
 
   bool get _amIn =>
       widget.mySeat >= 0 && widget.participants.contains(widget.mySeat);
@@ -67,6 +75,9 @@ class _OnlineShowdownState extends State<OnlineShowdown> {
     // 2단계: 쇼다운 전용 트랙(Smoking Gun).
     Bgm.play('showdown', volume: 0.26);
     _sync();
+    _tick = Timer.periodic(const Duration(milliseconds: 600), (_) {
+      if (mounted) _watchdog();
+    });
   }
 
   @override
@@ -80,7 +91,34 @@ class _OnlineShowdownState extends State<OnlineShowdown> {
     Bgm.play('battle', volume: 0.22); // 쇼다운 트랙 종료
     _flip?.cancel();
     _arb?.cancel();
+    _tick?.cancel();
     super.dispose();
+  }
+
+  /// 매 틱: ① 신호 시간이 지났는데 로컬이 prep이면 강제 전환(타이머 누락/오프셋
+  /// 흔들림 방어 — "빨간 DRAW가 안 뜨더라" 제보) ② 내 기록이 서버에 안 보이면
+  /// 재기록 ③ 방장이면 시간 기반 심판 재실행(무응답 타임아웃 포함).
+  void _watchdog() {
+    final sd = widget.sdRaw;
+    if (sd == null || _i(sd['turn']) != widget.drawTurn) return;
+    final goAt = _i(sd['goAt']) ?? 0;
+    if (!_signal && !_false && goAt > 0 && _serverNow >= goAt) {
+      setState(() => _signal = true);
+    }
+    // 내 상태 재기록(쓰기 유실 자가치유).
+    final fs = sd['falseStart'];
+    if (_false && !(fs is Map && fs['p${widget.mySeat}'] == true)) {
+      widget.service.recordFalseStart(widget.code, widget.mySeat);
+    }
+    final taps = sd['taps'];
+    if (_tapped &&
+        _myTapMs > 0 &&
+        !(taps is Map && taps['p${widget.mySeat}'] != null)) {
+      widget.service.recordTap(widget.code, widget.mySeat, _myTapMs);
+    }
+    if (widget.isHost && sd['winner'] == null) {
+      _hostArbitrate(sd, _i(sd['goAt']) ?? _serverNow, _i(sd['round']) ?? 0);
+    }
   }
 
   int? _i(Object? v) => v is num ? v.toInt() : null;
@@ -135,7 +173,8 @@ class _OnlineShowdownState extends State<OnlineShowdown> {
 
   /// Host decides the round: the earliest valid tap wins. If everyone jumped
   /// the gun, re-run. A short settle timer covers the case where one player
-  /// tapped and another simply hasn't yet.
+  /// tapped and another simply hasn't yet. 신호 후 [kNoShowMs]가 지나면
+  /// 무응답 참가자는 이탈로 간주하고 진행한다(전원 멈춤 방지).
   void _hostArbitrate(Map sd, int goAt, int round) {
     final fsMap = sd['falseStart'];
     final tapsMap = sd['taps'];
@@ -169,7 +208,12 @@ class _OnlineShowdownState extends State<OnlineShowdown> {
       award();
       return;
     }
+    final timedOut = _serverNow > goAt + kNoShowMs;
     if (valid.isNotEmpty) {
+      if (timedOut) {
+        award(); // 무응답자는 그만 기다린다
+        return;
+      }
       // Someone reacted; give stragglers a brief window then award.
       _arb ??= Timer(const Duration(milliseconds: 700), () {
         _arb = null;
@@ -177,10 +221,11 @@ class _OnlineShowdownState extends State<OnlineShowdown> {
       });
       return;
     }
-    // Nobody valid yet. If everyone already false-started, re-run.
+    // Nobody valid yet. 전원 부정출발이면 즉시, 아니면 타임아웃 후 재라운드
+    // (응답 없는 좌석의 기록 유실/이탈로 전원이 멈추던 버그의 탈출구).
     final allFalse = widget.participants.isNotEmpty &&
         widget.participants.every(isFalse);
-    if (allFalse && !_creating) {
+    if ((allFalse || timedOut) && !_creating) {
       _creating = true;
       widget.service
           .newShowdownRound(widget.code, round + 1, _newGoAt())
@@ -195,7 +240,8 @@ class _OnlineShowdownState extends State<OnlineShowdown> {
       widget.service.recordFalseStart(widget.code, widget.mySeat);
     } else if (!_tapped) {
       _tapped = true;
-      widget.service.recordTap(widget.code, widget.mySeat, _serverNow);
+      _myTapMs = _serverNow;
+      widget.service.recordTap(widget.code, widget.mySeat, _myTapMs);
     }
   }
 

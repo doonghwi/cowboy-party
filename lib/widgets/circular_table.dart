@@ -8,6 +8,7 @@ import 'effects.dart';
 import 'emo.dart';
 import 'hit_burst.dart';
 import 'juice3.dart';
+import 'rank_emblem.dart';
 import 'seat_card.dart';
 import 'seat_motion.dart';
 
@@ -58,6 +59,10 @@ class TableSeat {
   /// 이 좌석이 방장인가(대기실 왕관 배지 — 누가 시작을 쥐고 있는지 표시).
   final bool isHostSeat;
 
+  /// 대기방 레벨 표시(-1이면 숨김=게임 중) · 지난 시즌 순위(1~10, 0=휘장 없음).
+  final int level;
+  final int rank;
+
   /// 유한 능력 사용량 '사용/총'(#11) — null이면 표시 안 함. 모두에게 보임.
   final String? abilityUses;
 
@@ -90,6 +95,8 @@ class TableSeat {
     this.hideAction = false,
     this.blocked = false,
     this.isHostSeat = false,
+    this.level = -1,
+    this.rank = 0,
     this.abilityUses,
   });
 }
@@ -219,6 +226,8 @@ class CircularTable extends StatelessWidget {
                   late: seats[s].late,
                   blocked: seats[s].blocked,
                   isHost: seats[s].isHostSeat,
+                  level: seats[s].level,
+                  rankTier: tierForRank(seats[s].rank),
                   abilityUses: seats[s].abilityUses,
                   curseTurnsLeft: seats[s].curseTurnsLeft,
                   abilityFx: reveal ? _fxLabel(seats[s]) : null,

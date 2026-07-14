@@ -96,6 +96,18 @@ class SeasonService {
   Future<List<RankEntry>> fetchPrevTop({int limit = 3}) =>
       _fetchTopFrom(_refFor(prevSeasonId), limit);
 
+  /// 내 지난 시즌 순위(1~10, 없으면 0) — 좌석 휘장용 캐시(앱 시작 시 1회 로드).
+  static int myPrevRank = 0;
+
+  Future<void> loadMyPrevRank() async {
+    final uid = AuthService.I.cloudUid;
+    if (uid == null) return;
+    final top = await fetchPrevTop(limit: 10);
+    final i = top.indexWhere((e) => e.uid == uid);
+    myPrevRank = i >= 0 ? i + 1 : 0;
+    OnlineService.profileRank = myPrevRank;
+  }
+
   Future<List<RankEntry>> _fetchTopFrom(
       DatabaseReference? ref, int limit) async {
     if (ref == null) return const [];

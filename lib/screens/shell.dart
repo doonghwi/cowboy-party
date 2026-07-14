@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:url_launcher/url_launcher.dart';
 
@@ -6,6 +8,7 @@ import '../meta/announcements.dart';
 import '../meta/auth_service.dart';
 import '../meta/feedback_service.dart';
 import '../meta/meta_service.dart';
+import '../online/friend_service.dart';
 import '../online/online_service.dart';
 import '../theme.dart';
 import '../widgets/desert_background.dart';
@@ -39,11 +42,17 @@ class _ShellScreenState extends State<ShellScreen> {
 
   static const _titles = ['카우보이', '상점', '랭킹', '보상'];
 
+  StreamSubscription<RoomInvite?>? _inviteSub;
+  int _seenInviteAt = 0;
+
   @override
   void initState() {
     super.initState();
     Meta.I.addListener(_onMeta);
     AuthService.I.addListener(_onMeta);
+    // 친구 MVP: 온라인 표시용 presence + 방 초대 수신(앱 켜져 있을 때만).
+    FriendService.I.startPresence();
+    _inviteSub = FriendService.I.watchInvites()?.listen(_onInvite);
     // 메뉴 배경음 — 게임 화면에서 돌아오면 게임 화면 dispose가 다시 'menu'로 전환.
     Bgm.play('menu', volume: 0.18); // 효과음 대비 3배 상향(사용자 요청)
     // F4: 초대 링크(?room=CODE)로 들어오면 그 방으로 바로 입장.
@@ -54,6 +63,50 @@ class _ShellScreenState extends State<ShellScreen> {
       // G4: 기록 없는 첫 진입 → 게스트/구글 선택 + 닉네임 안내.
       WidgetsBinding.instance.addPostFrameCallback((_) => _showOnboarding());
     }
+  }
+
+  /// 친구의 방 초대 — 3분 내의 새 초대만 다이얼로그로.
+  void _onInvite(RoomInvite? inv) {
+    if (inv == null || !mounted) return;
+    if (inv.at <= _seenInviteAt) return;
+    _seenInviteAt = inv.at;
+    final age = DateTime.now().millisecondsSinceEpoch - inv.at;
+    if (age > 3 * 60 * 1000) {
+      FriendService.I.clearInvite(); // 켜기 전에 온 낡은 초대는 정리만
+      return;
+    }
+    Sfx.confirm();
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: CD.sand,
+        title: Text('🤠 ${inv.fromName}님의 초대!',
+            style: const TextStyle(
+                color: CD.ink, fontWeight: FontWeight.w900, fontSize: 17)),
+        content: const Text('방으로 초대했어요. 지금 들어갈까요?',
+            style: TextStyle(color: CD.ink, fontSize: 14)),
+        actions: [
+          TextButton(
+            onPressed: () {
+              FriendService.I.clearInvite();
+              Navigator.pop(ctx);
+            },
+            child: const Text('나중에',
+                style: TextStyle(color: CD.leather, fontWeight: FontWeight.w700)),
+          ),
+          FilledButton(
+            onPressed: () {
+              FriendService.I.clearInvite();
+              Navigator.pop(ctx);
+              _enterRoom(inv.code);
+            },
+            style: FilledButton.styleFrom(backgroundColor: CD.rust),
+            child: const Text('입장하기',
+                style: TextStyle(fontWeight: FontWeight.w800)),
+          ),
+        ],
+      ),
+    );
   }
 
   void _showOnboarding() {
@@ -196,6 +249,7 @@ class _ShellScreenState extends State<ShellScreen> {
 
   @override
   void dispose() {
+    _inviteSub?.cancel();
     Meta.I.removeListener(_onMeta);
     AuthService.I.removeListener(_onMeta);
     super.dispose();
