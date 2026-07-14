@@ -3,23 +3,13 @@
   "note": "bintage 대시보드 cowboy '자료실' 탭이 읽는다. 사용자가 컴퓨터에서 파일을 찾지 않도록 보고서·시안·프롬프트를 여기로 노출(사용자 지시 2026-07-13).",
   "sections": [
     {
-      "title": "📢 상의 필요 — 돌아오시면 결정해주세요",
-      "desc": "① UI 개편 컨셉: 아래 목업 프롬프트 3개를 이미지 스크립트에 넣어 시안을 뽑아보고 마음에 드는 방향을 알려주세요(그 후 화면별로 선택지→구현 순서로 진행).\n② 사운드 2차: 아래 사운드 보드 링크에서 장전/쇼다운예열/입장음만 고르면 SFX 완성.",
+      "title": "📢 상의 필요 — 디자인 선택은 '🗳️ 선택' 탭에서",
+      "desc": "디자인 라운드1(방장·휘장·스킬표시·상점·문구·튜토리얼 6문항)은 새로 생긴 '🗳️ 선택' 탭에서 시안 이미지를 보고 바로 고를 수 있습니다(사용자 지시 2026-07-15: 선택지는 자료실이 아닌 전용 탭).\n사운드 2차: 아래 사운드 보드 링크에서 장전/쇼다운예열/입장음만 고르면 SFX 완성.",
       "items": [
         {
-          "kind": "prompt",
-          "title": "UI 목업 프롬프트 — P2 게임 테이블",
-          "text": "Mobile game UI mockup, 9:19.5 portrait. Top-down circular saloon poker table (green felt with wooden rim and brass studs) in a desert dusk. 4 character seat-cards around the table: each card shows a big cartoon cowboy portrait, bullet icons for ammo, small status badges. Center: round banner plaque. Bottom: three big action buttons (reload/defend/shoot) styled as carved wooden signs with icons. Warm sunset palette, playful western style. Placeholder text."
-        },
-        {
-          "kind": "prompt",
-          "title": "UI 목업 프롬프트 — P3 홈",
-          "text": "Mobile game UI mockup, 9:19.5 portrait. Home screen of a western party game: hero \"Quick Start\" button styled as a wanted poster, below it two smaller mode buttons, top bar with gold coins and level badge, bottom tab bar with 4 western icons (play/shop/ranking/rewards). Desert dusk background with cacti. Playful cartoon western, high polish. Placeholder text."
-        },
-        {
-          "kind": "prompt",
-          "title": "UI 목업 프롬프트 — P4 상점/도감",
-          "text": "Mobile game UI mockup, 9:19.5 portrait. Character collection shop for a western party game: album-like grid of cowboy character cards (some locked as silhouettes), collection progress bar on top styled as a sheriff badge meter, warm parchment & leather palette with gold accents. Playful cartoon western, high polish. Placeholder text."
+          "kind": "md",
+          "title": "튜토리얼 제작 계획(선택 탭 6번 문항의 상세)",
+          "path": "growth/TUTORIAL_PLAN.md"
         },
         {
           "kind": "md",
