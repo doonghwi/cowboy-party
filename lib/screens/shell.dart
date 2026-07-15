@@ -15,6 +15,7 @@ import '../widgets/desert_background.dart';
 import 'characters_tab.dart';
 import 'friends_tab.dart';
 import 'online_game_screen.dart';
+import 'offline_game_screen.dart';
 import 'how_to_play_screen.dart';
 import 'play_tab.dart';
 import 'ranking_tab.dart';
@@ -28,7 +29,7 @@ const bool kShowAdPlaceholder = true;
 
 /// 앱 빌드 번호(versionCode와 일치시켜 손으로 올린다). 설정에 표시해서
 /// 폰에 어떤 버전이 깔렸는지 눈으로 확인할 수 있게 한다.
-const int kBuildNo = 22;
+const int kBuildNo = 23;
 
 /// 하단 5탭 셸(#1, 2026-07-15): [상점] [보상] [플레이] [친구] [랭킹] —
 /// 플레이가 가운데. + 코인칩 + 설정.
@@ -508,6 +509,23 @@ class _ShellScreenState extends State<ShellScreen> {
                       context,
                       MaterialPageRoute(
                           builder: (_) => const HowToPlayScreen()));
+                },
+              ),
+              ListTile(
+                dense: true,
+                contentPadding: EdgeInsets.zero,
+                leading: const Icon(Icons.school, color: CD.sage),
+                title: const Text('보안관의 특훈 (튜토리얼)',
+                    style: TextStyle(fontWeight: FontWeight.w800)),
+                subtitle: const Text('3턴 가이드 결투로 기본기 익히기',
+                    style: TextStyle(fontSize: 12)),
+                onTap: () {
+                  Navigator.pop(ctx);
+                  Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                          builder: (_) =>
+                              const OfflineGameScreen(tutorial: true)));
                 },
               ),
               ListTile(

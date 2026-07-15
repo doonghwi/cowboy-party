@@ -34,20 +34,31 @@ class OfflineGameScreen extends StatefulWidget {
 
   /// 체험 모드: 셋업 화면을 건너뛰고 이 봇 수로 바로 시작(예: 5 → 6명전). null = 셋업.
   final int? forcedBots;
-  const OfflineGameScreen({super.key, this.forcedChar, this.forcedBots});
+
+  /// 가이드 결투(튜토리얼 A안, 2026-07-15): 보안관 코치가 3턴을 지시하는
+  /// 1:1 시나리오 봇전 — 장전→방어→빵야를 몸으로 익힌다. 게임 로직 0줄,
+  /// 봇 행동·버튼 잠금·코치 말풍선만 이 화면 레이어에서 얹는다.
+  final bool tutorial;
+  const OfflineGameScreen(
+      {super.key, this.forcedChar, this.forcedBots, this.tutorial = false});
 
   @override
   State<OfflineGameScreen> createState() => _OfflineGameScreenState();
 }
 
 class _OfflineGameScreenState extends State<OfflineGameScreen> {
-  CharId get _myChar => widget.forcedChar ?? Meta.I.equipped;
+  CharId get _myChar => widget.tutorial
+      ? CharId.commoner // 특훈은 기본기부터 — 능력 변수 없이.
+      : (widget.forcedChar ?? Meta.I.equipped);
 
   @override
   void initState() {
     super.initState();
     Bgm.play('battle', volume: 0.22); // 전투 배경음(07-12 3배 상향)
-    if (widget.forcedBots != null) {
+    if (widget.tutorial) {
+      _botCount = 1;
+      WidgetsBinding.instance.addPostFrameCallback((_) => _start());
+    } else if (widget.forcedBots != null) {
       _botCount = widget.forcedBots!.clamp(1, 5);
       WidgetsBinding.instance.addPostFrameCallback((_) => _start());
     }
@@ -160,6 +171,7 @@ class _OfflineGameScreenState extends State<OfflineGameScreen> {
   /// 내 차례(choosing·생존) 동안 20초 카운트다운. 만료 시 가만히로 자동 진행.
   void _startTurnTimer() {
     _turnTicker?.cancel();
+    if (widget.tutorial) return; // 특훈은 제한시간 없음 — 코치가 기다려준다
     if (!_alive[0]) return; // 관전 중엔 타이머 없음
     _secondsLeft = kTurnSeconds;
     _turnTicker = Timer.periodic(const Duration(seconds: 1), (_) {
@@ -207,7 +219,10 @@ class _OfflineGameScreenState extends State<OfflineGameScreen> {
       final raw = <CharId>[
         _myChar,
         for (var i = 1; i < _n; i++)
-          kMysteryPool[_rand.nextInt(kMysteryPool.length)],
+          // 특훈 상대는 일반인 고정 — 시나리오(장전→빵야→장전)가 어긋나지 않게.
+          widget.tutorial
+              ? CharId.commoner
+              : kMysteryPool[_rand.nextInt(kMysteryPool.length)],
       ];
       _chars = [
         for (var s = 0; s < _n; s++) effectiveChar(raw[s], seed, s)
@@ -226,9 +241,11 @@ class _OfflineGameScreenState extends State<OfflineGameScreen> {
       _hit = List<bool>.filled(_n, false);
       _turn = 0;
       _phase = _Phase.choosing;
-      _banner = _chars[0] == CharId.prepper
-          ? '준비자 — 총알 1발 장전된 채 시작!'
-          : '첫 턴! 아직 총알이 없어요 — 장전부터.';
+      _banner = widget.tutorial
+          ? '보안관의 특훈 — 시키는 대로 3턴이면 충분해!'
+          : _chars[0] == CharId.prepper
+              ? '준비자 — 총알 1발 장전된 채 시작!'
+              : '첫 턴! 아직 총알이 없어요 — 장전부터.';
       _status = GameStatus.ongoing;
       _winner = null;
       _offlineRewarded = false;
@@ -270,6 +287,72 @@ class _OfflineGameScreenState extends State<OfflineGameScreen> {
       _banner = '📸 ${_names[target]}의 행동: ${frozen[target].kind.ko}';
     });
     _startTurnTimer(); // 10초가 아니라 동일 20초 적용(오프라인)
+  }
+
+  // ── 가이드 결투(튜토리얼) 시나리오 — 표시/입력 레이어 전용 ──────────────
+  // 턴0: 나 장전 / 봇 장전 → 턴1: 봇이 쏨, 나는 방어 → 턴2: 봇 재장전, 나는 빵야로 마무리.
+  bool _tutorialCleared = false; // 완료 다이얼로그 1회 가드
+
+  Move _tutorialBotMove() => switch (_turn) {
+        0 => const Move.reload(),
+        1 => const Move.shoot(0),
+        _ => const Move.reload(),
+      };
+
+  /// 이번 턴에 허용되는 내 행동(튜토리얼 밖에선 null=제한 없음).
+  Set<ActKind>? get _tutorialAllowed {
+    if (!widget.tutorial) return null;
+    return switch (_turn) {
+      0 => {ActKind.reload},
+      1 => {ActKind.defend},
+      2 => {ActKind.shoot},
+      _ => null,
+    };
+  }
+
+  /// 보안관 코치 말풍선 — 행동 선택 중에만.
+  String? get _coachText {
+    if (!widget.tutorial || _phase != _Phase.choosing) return null;
+    return switch (_turn) {
+      0 => '어서 와, 신참! 먼저 "장전"을 눌러 총알을 채워봐. 총알이 있어야 빵야를 쏠 수 있지.',
+      1 => '저 녀석, 방아쇠에 손가락이 갔군. "방어"를 누르면 이번 턴 모든 공격을 막아낸다!',
+      2 => '빈틈이다! 총을 쏜 녀석은 총알이 없어. 지금 "빵야"로 갚아줘!',
+      _ => '기본기는 끝났다 — 이제 네 마음대로 해봐!',
+    };
+  }
+
+  /// 특훈 완주 — 1회 보상 지급 + 축하 다이얼로그.
+  Future<void> _showTutorialClear() async {
+    if (!mounted) return;
+    final granted = await Meta.I.grantGuidedTutorialReward();
+    if (!mounted) return;
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: CD.parchment,
+        title: Text('🎉 특훈 완료!', style: posterTitle(22)),
+        content: Text(
+          granted
+              ? '장전·방어·빵야 — 기본기를 완벽히 익혔어.\n'
+                  '첫 완주 보상으로 ${kGuidedTutorialGold}코인을 줄게.\n'
+                  '이제 진짜 결투에서 만나자, 카우보이!'
+              : '기본기는 여전하군. 이제 진짜 결투로!',
+          style: const TextStyle(height: 1.5),
+        ),
+        actions: [
+          FilledButton(
+            style: FilledButton.styleFrom(backgroundColor: CD.rust),
+            onPressed: () {
+              Navigator.pop(ctx); // 다이얼로그
+              Navigator.pop(context); // 특훈 화면 → 홈
+            },
+            child: const Text('결투하러 가기',
+                style: TextStyle(fontWeight: FontWeight.w900)),
+          ),
+        ],
+      ),
+    );
   }
 
   static bool _isTargetAction(ActKind? k) =>
@@ -331,15 +414,17 @@ class _OfflineGameScreenState extends State<OfflineGameScreen> {
       _alive[0] ? mine : Move.empty,
       for (var s = 1; s < _n; s++)
         _alive[s]
-            ? (frozenBots != null
-                ? frozenBots[s]
-                : _cpu.chooseMove(
-                    seat: s,
-                    ammo: _ammo,
-                    alive: _alive,
-                    chars: _chars,
-                    state: _pstate,
-                    lastMoves: _last))
+            ? (widget.tutorial
+                ? _tutorialBotMove()
+                : frozenBots != null
+                    ? frozenBots[s]
+                    : _cpu.chooseMove(
+                        seat: s,
+                        ammo: _ammo,
+                        alive: _alive,
+                        chars: _chars,
+                        state: _pstate,
+                        lastMoves: _last))
             : Move.empty,
     ];
     final aliveBefore = List<bool>.from(_alive);
@@ -389,6 +474,12 @@ class _OfflineGameScreenState extends State<OfflineGameScreen> {
             Bgm.sting('sting');
           } else {
             Sfx.lose();
+          }
+          // 특훈 완주 → 보상 + 축하(1회).
+          if (widget.tutorial && _winner == 0 && !_tutorialCleared) {
+            _tutorialCleared = true;
+            WidgetsBinding.instance
+                .addPostFrameCallback((_) => _showTutorialClear());
           }
         }
       }
@@ -629,7 +720,9 @@ class _OfflineGameScreenState extends State<OfflineGameScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: Text('컴퓨터와 대결', style: posterTitle(20))),
+      appBar: AppBar(
+          title: Text(widget.tutorial ? '보안관의 특훈' : '컴퓨터와 대결',
+              style: posterTitle(20))),
       body: DesertBackground(
         child: SafeArea(
           child: switch (_phase) {
@@ -942,7 +1035,36 @@ class _OfflineGameScreenState extends State<OfflineGameScreen> {
         return Padding(
           padding: const EdgeInsets.symmetric(horizontal: 16),
           child: Column(mainAxisSize: MainAxisSize.min, children: [
-            _turnCountdown(),
+            // 보안관 코치 말풍선(특훈 전용) — 배경 채운 카드.
+            if (_coachText != null) ...[
+              Container(
+                width: double.infinity,
+                margin: const EdgeInsets.only(bottom: 8),
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 12, vertical: 9),
+                decoration: BoxDecoration(
+                  color: CD.leather.withValues(alpha: 0.94),
+                  borderRadius: BorderRadius.circular(14),
+                  border: Border.all(color: CD.gold, width: 1.5),
+                ),
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text('🤠', style: TextStyle(fontSize: 20)),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: Text(_coachText!,
+                          style: const TextStyle(
+                              color: Colors.white,
+                              fontSize: 12.5,
+                              fontWeight: FontWeight.w800,
+                              height: 1.4)),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+            if (!widget.tutorial) _turnCountdown(),
             ActionBar(
             myAmmo: _ammo[0],
             selected: _selKind,
@@ -951,6 +1073,7 @@ class _OfflineGameScreenState extends State<OfflineGameScreen> {
             selectedTarget2: _selTarget2,
             targetName2: _selTarget2 >= 0 ? _names[_selTarget2] : null,
             myChar: _chars[0],
+            allowedKinds: _tutorialAllowed,
             trapAvailable: _chars[0] == CharId.hunter && !_pstate.trapUsed[0],
             resetAvailable:
                 _chars[0] == CharId.resetter && !_pstate.resetterUsed[0],

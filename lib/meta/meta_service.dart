@@ -44,6 +44,9 @@ const List<DailyMission> kDailyMissions = [
 /// 닉네임 변경권 가격(G2). 첫 닉네임 설정은 무료, 이후 변경은 변경권 소모.
 const int kNicknameTicketCost = 10000;
 
+/// 가이드 결투(튜토리얼) 첫 완주 보상 코인.
+const int kGuidedTutorialGold = 300;
+
 /// 닉네임 변경 사전 판정 결과.
 enum NicknameChangeGate { empty, unchanged, needTicket, proceed }
 
@@ -94,6 +97,7 @@ class Meta extends ChangeNotifier {
   Set<String> _dClaimed = {};
   bool _nicknameSet = false; // 첫 닉네임 설정 여부(첫 설정은 무료)
   bool _tutorialSeen = false; // 첫 실행 게임방법 팝업을 봤는지(#6)
+  bool _guidedTutorialDone = false; // 가이드 결투 완주(1회 보상 가드)
   // ── 리텐션 A(retention.dart) ──
   int _xp = 0; // A2 누적 XP(만렙 캡)
   String _wWeek = ''; // A4 주간 미션이 속한 주(월요일 리셋)
@@ -125,6 +129,20 @@ class Meta extends ChangeNotifier {
     if (_tutorialSeen) return;
     _tutorialSeen = true;
     await _sp?.setBool('tutorial_seen', true);
+  }
+
+  /// 가이드 결투(튜토리얼 A안, 2026-07-15) 완료 여부 + 1회 보상.
+  bool get guidedTutorialDone => _guidedTutorialDone;
+
+  /// 완료 보상 지급 — 처음이면 +[kGuidedTutorialGold]코인 주고 true.
+  Future<bool> grantGuidedTutorialReward() async {
+    if (_guidedTutorialDone) return false;
+    _guidedTutorialDone = true;
+    _coins += kGuidedTutorialGold;
+    await _sp?.setBool('guided_tutorial_done', true);
+    await _save();
+    notifyListeners();
+    return true;
   }
   int get dailyStreak => _dailyStreak;
   int get seasonPtsLocal => _seasonPtsLocal;
@@ -212,6 +230,7 @@ class Meta extends ChangeNotifier {
     _nicknameTickets = sp.getInt('nick_tickets') ?? 0;
     _nicknameSet = sp.getBool('nick_set') ?? _nickname.isNotEmpty;
     _tutorialSeen = sp.getBool('tutorial_seen') ?? false;
+    _guidedTutorialDone = sp.getBool('guided_tutorial_done') ?? false;
     _dDay = sp.getString('d_day') ?? '';
     _dGames = sp.getInt('d_games') ?? 0;
     _dWins = sp.getInt('d_wins') ?? 0;

@@ -1,3 +1,5 @@
+import 'dart:math' as math;
+
 import 'package:flutter/material.dart';
 
 import '../game/characters.dart';
@@ -6,11 +8,18 @@ import '../theme.dart';
 import 'rank_emblem.dart';
 import 'character_portrait.dart';
 import 'emo.dart';
+import 'tier_frame.dart';
 
 /// A single cowboy at the table: avatar, name, ammo and their last revealed
 /// action. Shakes briefly when [hit] flips true. Three sizes via [scale] so the
 /// same card works in a 6-seat circle (mini), the opponent ring (compact) and
 /// as the spotlighted "me" card (full).
+///
+/// 2026-07-15 사용자 선택 반영:
+/// - 방장 = 카드 전체 금색 톤 + '방장' 칩(C안) — 상단 배너 제거(겹침 원천 차단).
+/// - 스킬 카운트 = 초상화 둘레 링 게이지(B안) — 발동 시 금색 플래시+아이콘 팝.
+///   텍스트 라벨('치료!' 등)과 좌하단 횟수 배지는 제거.
+/// - 휘장 = TierFramed(카드 틀을 벗어나는 화려한 티어 프레임, LoL 시즌 테두리풍).
 class SeatCard extends StatelessWidget {
   final String name;
   final int ammo;
@@ -20,13 +29,13 @@ class SeatCard extends StatelessWidget {
   final bool submitted;
   final bool hit;
 
-  /// 방장 좌석 — 대기실에서 왕관 배지(누가 시작 권한자인지).
+  /// 방장 좌석 — 금색 카드 + '방장' 칩(누가 시작 권한자인지).
   final bool isHost;
 
   /// 대기방 계정 레벨(-1이면 숨김=게임 중엔 총알 표시).
   final int level;
 
-  /// 지난 시즌 휘장 티어(null=없음) — LoL식 엠블럼+테두리 발광.
+  /// 지난 시즌 휘장 티어(null=없음) — 카드 밖으로 뻗는 티어 프레임.
   final RankTier? rankTier;
   final Move? lastMove;
 
@@ -48,7 +57,7 @@ class SeatCard extends StatelessWidget {
   final CharId char;
   final bool late;
 
-  /// 리빌 중 능력 발동 라벨 ('치료!' 등). null이면 표시 안 함.
+  /// 리빌 중 능력 발동 신호 — 링이 금색으로 번쩍이고 아이콘이 팝(텍스트 미표시).
   final String? abilityFx;
 
   /// 부두 저주(C2): 남은 턴(0=없음)을 좌석에 상시 표시 — 모두에게 보임.
@@ -57,7 +66,7 @@ class SeatCard extends StatelessWidget {
   /// 방장이 닫은 자리(F2) — 자물쇠 아바타.
   final bool blocked;
 
-  /// 유한 능력 사용량 '사용/총'(#11) — null이면 표시 안 함. 모두에게 보임.
+  /// 유한 능력 **남은 횟수**(abilityUsesLabel) — null이면 링 게이지 숨김.
   final String? abilityUses;
 
   const SeatCard({
@@ -87,6 +96,9 @@ class SeatCard extends StatelessWidget {
     this.abilityUses,
   });
 
+  /// 캐릭터별 유한 능력 총 횟수 — 링 게이지 분모(표시 전용).
+  static int _abilityTotal(CharId c) => c == CharId.smoker ? 2 : 1;
+
   @override
   Widget build(BuildContext context) {
     final mini = scale == 0;
@@ -94,11 +106,77 @@ class SeatCard extends StatelessWidget {
     final avatar = mini ? 34.0 : (compact ? 40.0 : 54.0);
     final width = mini ? 92.0 : (compact ? 120.0 : 150.0);
 
+    // 방장 = 금색 카드(C안). 조준 중엔 조준색이 우선.
+    final hostGold = isHost && alive && !targeted;
     final borderColor = targeted
         ? CD.danger
         : !alive
             ? CD.muted.withValues(alpha: 0.5)
-            : (isMe ? CD.rust : CD.leather.withValues(alpha: 0.3));
+            : hostGold
+                ? CD.gold
+                : (isMe ? CD.rust : CD.leather.withValues(alpha: 0.3));
+
+    // 초상화(+ 스킬 링 게이지).
+    Widget portrait = blocked
+        ? Icon(Icons.lock,
+            size: avatar, color: CD.muted.withValues(alpha: 0.6))
+        : (joined && alive && char != CharId.none)
+            // 살아있는 참가자는 자기 캐릭터 일러스트로 표시(없으면 아이콘 폴백).
+            ? CharacterPortrait(
+                id: char.name,
+                icon: charDef(char).icon,
+                color: charDef(char).color,
+                size: avatar,
+                showRing: false,
+              )
+            // 빈자리는 사람, 탈락은 해골 — 생존 상태 가독성 유지.
+            : Opacity(
+                opacity: alive ? 1 : 0.55,
+                child: Emo(
+                  !joined ? 'person' : (alive ? 'cowboy' : 'skull'),
+                  size: avatar,
+                ),
+              );
+    final showRing = alive &&
+        joined &&
+        !blocked &&
+        char != CharId.none &&
+        (abilityUses != null || abilityFx != null);
+    if (showRing) {
+      final remaining = int.tryParse(abilityUses ?? '') ?? 1;
+      final total = math.max(_abilityTotal(char), remaining);
+      portrait = _AbilityRing(
+        key: ValueKey('ring-$name-$abilityFx-$abilityUses'),
+        color: charDef(char).color,
+        icon: charDef(char).icon,
+        frac: total == 0 ? 0 : remaining / total,
+        size: avatar,
+        flash: abilityFx != null,
+      );
+      // 링 안에 초상화를 넣는다.
+      portrait = Stack(
+        alignment: Alignment.center,
+        clipBehavior: Clip.none,
+        children: [
+          blocked
+              ? const SizedBox.shrink()
+              : CharacterPortrait(
+                  id: char.name,
+                  icon: charDef(char).icon,
+                  color: charDef(char).color,
+                  size: avatar,
+                  showRing: false,
+                ),
+          Positioned(
+            left: -3,
+            top: -3,
+            right: -3,
+            bottom: -3,
+            child: portrait,
+          ),
+        ],
+      );
+    }
 
     final card = AnimatedContainer(
       duration: const Duration(milliseconds: 150),
@@ -108,25 +186,20 @@ class SeatCard extends StatelessWidget {
       decoration: BoxDecoration(
         color: targeted
             ? CD.danger.withValues(alpha: 0.18)
-            : isMe
-                ? CD.gold.withValues(alpha: 0.22)
-                : CD.parchment.withValues(alpha: 0.9),
+            : hostGold
+                ? const Color(0xFFF1DCA4)
+                : isMe
+                    ? CD.gold.withValues(alpha: 0.22)
+                    : CD.parchment.withValues(alpha: 0.9),
         borderRadius: BorderRadius.circular(CD.rCard),
         border: Border.all(
           color: borderColor,
-          width: (isMe || targeted) ? 2.5 : 1.5,
+          width: (isMe || targeted || hostGold) ? 2.5 : 1.5,
         ),
+        // 휘장 발광은 TierFramed 프레임이 담당.
         boxShadow: targetable && !targeted
             ? [BoxShadow(color: CD.danger.withValues(alpha: 0.35), blurRadius: 7)]
-            // 지난 시즌 휘장: 티어색을 두른 발광(LoL식 — 등수 숫자 없음).
-            : rankTier != null
-                ? [
-                    BoxShadow(
-                        color: tierColor(rankTier!).withValues(alpha: 0.55),
-                        blurRadius: 9,
-                        spreadRadius: 1),
-                  ]
-                : null,
+            : null,
       ),
       child: Column(
         mainAxisSize: MainAxisSize.min,
@@ -134,63 +207,7 @@ class SeatCard extends StatelessWidget {
           Stack(
             clipBehavior: Clip.none,
             children: [
-              blocked
-                  ? Icon(Icons.lock,
-                      size: avatar, color: CD.muted.withValues(alpha: 0.6))
-                  : (joined && alive && char != CharId.none)
-                      // 살아있는 참가자는 자기 캐릭터 일러스트로 표시(없으면 아이콘 폴백).
-                      ? CharacterPortrait(
-                          id: char.name,
-                          icon: charDef(char).icon,
-                          color: charDef(char).color,
-                          size: avatar,
-                          showRing: false,
-                        )
-                      // 빈자리는 사람, 탈락은 해골 — 생존 상태 가독성 유지.
-                      : Opacity(
-                          opacity: alive ? 1 : 0.55,
-                          child: Emo(
-                            !joined ? 'person' : (alive ? 'cowboy' : 'skull'),
-                            size: avatar,
-                          ),
-                        ),
-              if (isHost)
-                // "방장" 배너 — 카드 위 중앙에 매단다. 좌상단은 캐릭터 배지가
-                // 차지해 가려졌던 제보(2026-07-13) 수정. 이모지 대신 텍스트
-                // (웹 이모지 폰트 비의존).
-                Positioned(
-                  top: -13,
-                  left: 0,
-                  right: 0,
-                  child: Center(
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(
-                          horizontal: 7, vertical: 2),
-                      decoration: BoxDecoration(
-                        color: CD.gold,
-                        borderRadius: BorderRadius.circular(9),
-                        border: Border.all(color: Colors.white, width: 1.2),
-                        boxShadow: [
-                          BoxShadow(
-                              color: Colors.black.withValues(alpha: 0.3),
-                              blurRadius: 4),
-                        ],
-                      ),
-                      child: const Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          Icon(Icons.star, size: 10, color: Colors.white),
-                          SizedBox(width: 3),
-                          Text('방장',
-                              style: TextStyle(
-                                  fontSize: 10,
-                                  fontWeight: FontWeight.w900,
-                                  color: Colors.white)),
-                        ],
-                      ),
-                    ),
-                  ),
-                ),
+              portrait,
               if (submitted && alive)
                 Positioned(
                   right: -6,
@@ -233,38 +250,10 @@ class SeatCard extends StatelessWidget {
                         size: 11, color: Colors.white),
                   ),
                 ),
-              // #11: 유한 능력 사용량 '사용/총' — 모든 플레이어에게 보임.
-              if (abilityUses != null && alive && joined)
-                Positioned(
-                  left: -10,
-                  bottom: -6,
-                  child: Container(
-                    padding: const EdgeInsets.symmetric(
-                        horizontal: 5, vertical: 2),
-                    decoration: BoxDecoration(
-                      color: charDef(char).color,
-                      borderRadius: BorderRadius.circular(CD.rChip),
-                      border: Border.all(color: Colors.white, width: 1.2),
-                    ),
-                    child: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Icon(charDef(char).icon, size: 9, color: Colors.white),
-                        const SizedBox(width: 2),
-                        Text(abilityUses!,
-                            style: const TextStyle(
-                                color: Colors.white,
-                                fontSize: 10,
-                                fontWeight: FontWeight.w900)),
-                      ],
-                    ),
-                  ),
-                ),
             ],
           ),
-          // C2: 저주 남은 턴 — 코너 배지(캐릭터·제출·조준마커·능력횟수)와 절대
-          // 겹치지 않도록 아바타 아래 **전용 줄**에 둔다. 덫 사용횟수(좌하단)와
-          // 동시에 떠도 둘 다 또렷이 보인다.
+          // C2: 저주 남은 턴 — 코너 배지와 절대 겹치지 않도록 아바타 아래
+          // **전용 줄**에 둔다.
           if (curseTurnsLeft > 0 && alive) ...[
             SizedBox(height: mini ? 3 : 4),
             Container(
@@ -300,31 +289,12 @@ class SeatCard extends StatelessWidget {
               color: alive ? CD.leather : CD.muted,
             ),
           ),
-          SizedBox(height: mini ? 2 : 4),
-          if (abilityFx != null) ...[
-            const SizedBox(height: 2),
-            TweenAnimationBuilder<double>(
-              key: ValueKey('fx-$name-$abilityFx'),
-              tween: Tween(begin: 0.6, end: 1.0),
-              duration: const Duration(milliseconds: 320),
-              curve: Curves.easeOutBack,
-              builder: (context, v, child) =>
-                  Transform.scale(scale: v, child: child),
-              child: Container(
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
-                decoration: BoxDecoration(
-                  color: charDef(char).color,
-                  borderRadius: BorderRadius.circular(CD.rChip),
-                ),
-                child: Text(abilityFx!,
-                    style: const TextStyle(
-                        color: Colors.white,
-                        fontSize: 10,
-                        fontWeight: FontWeight.w900)),
-              ),
-            ),
+          // 레벨 줄이 없을 때(게임 중)도 '방장' 칩은 보여야 한다.
+          if (isHost && level < 0) ...[
+            SizedBox(height: mini ? 2 : 3),
+            _hostChip(mini),
           ],
+          SizedBox(height: mini ? 2 : 4),
           if (late && !alive)
             const Text('다음 판 참여',
                 style: TextStyle(
@@ -347,21 +317,9 @@ class SeatCard extends StatelessWidget {
       ),
     );
 
-    // 지난 시즌 휘장 크레스트 — 카드(박스) 하단 중앙에 걸친다(LoL식).
-    final decorated = rankTier == null
-        ? card
-        : Stack(
-            clipBehavior: Clip.none,
-            children: [
-              card,
-              Positioned(
-                bottom: -11,
-                left: 0,
-                right: 0,
-                child: Center(child: RankEmblem(tier: rankTier!, size: 22)),
-              ),
-            ],
-          );
+    // 지난 시즌 휘장 — 카드 틀을 벗어나는 화려한 티어 프레임.
+    final decorated =
+        rankTier == null ? card : TierFramed(tier: rankTier!, child: card);
 
     final wrapped = onTap == null
         ? decorated
@@ -381,10 +339,23 @@ class SeatCard extends StatelessWidget {
     );
   }
 
+  Widget _hostChip(bool mini) => Container(
+        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1),
+        decoration: BoxDecoration(
+          color: CD.gold,
+          borderRadius: BorderRadius.circular(7),
+        ),
+        child: Text('방장',
+            style: TextStyle(
+                color: Colors.white,
+                fontWeight: FontWeight.w900,
+                fontSize: mini ? 9.5 : 11)),
+      );
+
   Widget _ammoRow(bool mini) {
     // 대기방: 총알 대신 계정 레벨(2026-07-13 사용자 결정 — 프로필처럼).
     if (level >= 0) {
-      return Container(
+      final lvChip = Container(
         padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1),
         decoration: BoxDecoration(
           color: CD.rust.withValues(alpha: 0.14),
@@ -395,6 +366,11 @@ class SeatCard extends StatelessWidget {
                 color: CD.rust,
                 fontWeight: FontWeight.w900,
                 fontSize: mini ? 10 : 11.5)),
+      );
+      if (!isHost) return lvChip;
+      return Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [lvChip, const SizedBox(width: 4), _hostChip(mini)],
       );
     }
     if (hideAmmo) {
@@ -482,4 +458,126 @@ class SeatCard extends StatelessWidget {
       ],
     );
   }
+}
+
+/// 스킬 링 게이지(B안) — 초상화 둘레에 남은 횟수를 원호로, 우상단에 능력
+/// 아이콘 배지. [flash]가 켜지면(능력 발동 순간) 링이 금색으로 번쩍이고
+/// 아이콘이 팝된다. 표시 전용.
+class _AbilityRing extends StatelessWidget {
+  const _AbilityRing({
+    super.key,
+    required this.color,
+    required this.icon,
+    required this.frac,
+    required this.size,
+    required this.flash,
+  });
+
+  final Color color;
+  final IconData icon;
+  final double frac; // 남은 비율 0~1
+  final double size;
+  final bool flash;
+
+  @override
+  Widget build(BuildContext context) {
+    final badge = size * 0.36;
+    return TweenAnimationBuilder<double>(
+      tween: Tween(begin: flash ? 0.0 : 1.0, end: 1.0),
+      duration: const Duration(milliseconds: 650),
+      curve: Curves.easeOutCubic,
+      builder: (context, t, _) {
+        // t<1 동안 금색 → 캐릭터색으로 되돌아온다.
+        final ringColor = flash
+            ? Color.lerp(CD.nova, color, t)!
+            : color;
+        final pop = flash ? 1.0 + 0.45 * (1 - t) : 1.0;
+        return Stack(
+          clipBehavior: Clip.none,
+          children: [
+            Positioned.fill(
+              child: CustomPaint(
+                painter: _RingPainter(
+                  ringColor,
+                  frac.clamp(0.0, 1.0),
+                  glow: flash ? (1 - t) : 0,
+                ),
+              ),
+            ),
+            Positioned(
+              top: -badge * 0.25,
+              right: -badge * 0.25,
+              child: Transform.scale(
+                scale: pop,
+                child: Container(
+                  width: badge,
+                  height: badge,
+                  decoration: BoxDecoration(
+                    color: ringColor,
+                    shape: BoxShape.circle,
+                    border: Border.all(color: Colors.white, width: 1.1),
+                    boxShadow: flash
+                        ? [
+                            BoxShadow(
+                                color: CD.nova.withValues(alpha: 0.8 * (1 - t)),
+                                blurRadius: 10),
+                          ]
+                        : null,
+                  ),
+                  child: Icon(icon, size: badge * 0.62, color: Colors.white),
+                ),
+              ),
+            ),
+          ],
+        );
+      },
+    );
+  }
+}
+
+class _RingPainter extends CustomPainter {
+  _RingPainter(this.color, this.frac, {this.glow = 0});
+  final Color color;
+  final double frac;
+  final double glow; // 발동 플래시 강도 0~1
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final c = Offset(size.width / 2, size.height / 2);
+    final r = size.width / 2 - 1.2;
+    if (glow > 0) {
+      canvas.drawCircle(
+          c,
+          r,
+          Paint()
+            ..style = PaintingStyle.stroke
+            ..strokeWidth = 5
+            ..color = color.withValues(alpha: 0.55 * glow)
+            ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 5));
+    }
+    // 트랙(연한 전체 원) + 남은 비율 원호.
+    canvas.drawCircle(
+        c,
+        r,
+        Paint()
+          ..style = PaintingStyle.stroke
+          ..strokeWidth = 2.6
+          ..color = color.withValues(alpha: 0.22));
+    if (frac > 0) {
+      canvas.drawArc(
+          Rect.fromCircle(center: c, radius: r),
+          -math.pi / 2,
+          2 * math.pi * frac,
+          false,
+          Paint()
+            ..style = PaintingStyle.stroke
+            ..strokeWidth = 2.6
+            ..strokeCap = StrokeCap.round
+            ..color = color);
+    }
+  }
+
+  @override
+  bool shouldRepaint(covariant _RingPainter old) =>
+      old.color != color || old.frac != frac || old.glow != glow;
 }

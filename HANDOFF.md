@@ -3,6 +3,12 @@
 > 새 세션에서 이 파일을 먼저 읽고 이어서 진행. 모든 작업물은 디스크에 있고 main에 커밋됨.
 > ⚠️ 아래 좌표 일부는 구 Windows 경로(C:\dev\…) — 현재는 Mac `/Users/doonghwi/Documents/dailyapp/`.
 
+## 2026-07-15(2차) 디자인 라운드1 전면 반영 — v23
+- **선택 탭 답변 반영 완료**(cowboy_picks.json → 구현): 방장=금색 카드+칩(seat_card) / 휘장=**TierFramed**(widgets/tier_frame.dart — 카드 틀 밖 모서리 장식·상단 크레스트·숨쉬는 발광, LoL 시즌 테두리풍) / 스킬=초상화 링 게이지(_AbilityRing, abilityUses=남은횟수 문자열 파싱, 발동 시 금빛 플래시 — '치료!' 텍스트·좌하단 배지 제거) / 상점=캐러셀(characters_tab 재작성) / 문구=CharDef에 **quote 필드 신설**(15명 대사) + 대사 칸/능력 칸 분리(상점·페이저) / 튜토리얼=**보안관의 특훈**(OfflineGameScreen(tutorial:true) — 3턴 시나리오 봇, ActionBar allowedKinds 잠금, 코치 말풍선, 완주 시 Meta.grantGuidedTutorialReward 300G, 진입=첫실행 팝업·설정).
+- decisions.json 전 문항 status:decided+answer 아카이브. 스킨 업데이트 초안 growth/SKIN_UPDATE_DRAFT.md(사용자 검토 대기).
+- 테스트 246(특훈 플로우 자동검증 tutorial_flow_test 포함). 캡처 도구: test/round1_report_capture_test.dart(ROUND1_CAPTURE_DIR).
+- ⚠️ 워크트리 릴리스 함정: android/key.properties **없이도 빌드는 성공**(디버그 서명 폴백) — 업로드 전 keytool로 서명 확인할 것. google-services.json·play-service-account.json도 메인에서 복사 필요.
+
 ## 2026-07-15 피드백 13건 라운드 — 🗳️ 선택 탭 + v22 직접수정 7건
 - **대시보드 🗳️ 선택 탭 신설**(사용자 지시: 자료실 말고 전용 탭): `growth/decisions.json`(6문항)을 `super_dashboard.py tab_cowboy_pick`이 렌더, 클릭 시 `serve.py /api/cowboy_pick`(GET/POST)이 `~/bintage/data/0_monitor/cowboy_picks.json`에 저장. **다음 세션은 이 파일을 읽고 방장표시/휘장/스킬표시/상점/문구스타일/튜토리얼 방식을 구현할 것.** 결정 끝난 문항은 decisions.json에서 status:decided로 아카이브.
 - **선택지 시안 4장**: `growth/reports/design_round1/`(host/emblem/seat_skill/shop_options.png). 렌더 도구=`test/design_capture_test.dart`(DESIGN_CAPTURE_DIR). ⚠️ 테스트 캡처 노하우: Pretendard **OTF는 FontLoader에 안 올라감** → GothicA1 TTF를 'Pretendard' 이름으로 로드 / **Material 조상 필수**(없으면 테마 폰트 미적용=두부) / MaterialIcons는 `$FLUTTER_ROOT/bin/cache/artifacts/material_fonts/MaterialIcons-Regular.otf` FontLoader 로드 / 바텀시트 캡처는 RepaintBoundary를 MaterialApp **바깥**에.

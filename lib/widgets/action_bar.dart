@@ -33,6 +33,9 @@ class ActionBar extends StatelessWidget {
   final int selectedTarget2;
   final String? targetName2;
 
+  /// 튜토리얼(가이드 결투): 이 집합의 행동만 활성화. null = 제한 없음.
+  final Set<ActKind>? allowedKinds;
+
   /// 파파라치 엿보기.
   final bool showPeek; // 파파라치 + 미사용
   final bool peekEnabled; // 오프라인 true (온라인은 준비 중)
@@ -54,6 +57,7 @@ class ActionBar extends StatelessWidget {
     this.onSmokeToggle,
     this.selectedTarget2 = -1,
     this.targetName2,
+    this.allowedKinds,
     this.showPeek = false,
     this.peekEnabled = false,
     this.onPeek,
@@ -260,6 +264,8 @@ class ActionBar extends StatelessWidget {
   }
 
   Widget _opt(ActKind kind, String label, bool enabled) {
+    // 튜토리얼 잠금: 허용 목록 밖 행동은 비활성(잔떨림 피드백은 그대로).
+    enabled = enabled && (allowedKinds?.contains(kind) ?? true);
     final c = CD.actionColor(kind);
     final isSel = selected == kind;
     return Expanded(

@@ -8,7 +8,9 @@ import '../theme.dart';
 import '../widgets/character_portrait.dart';
 import 'offline_game_screen.dart';
 
-/// 상점 탭: 캐릭터 구매·장착 + 튜토리얼 진입(E1/E3). 설명은 잘리지 않게 스크롤(E2).
+/// 상점 탭(2026-07-15 사용자 선택 A안): 캐릭터를 **캐러셀**로 한 명씩 —
+/// 큰 일러스트가 주인공, 좌우 스와이프로 탐색. 문구는 C안(대사 칸 위 +
+/// 능력 칸 아래, 두 칸 분리). 구매·장착·체험 로직은 기존 그대로.
 class CharactersTab extends StatefulWidget {
   const CharactersTab({super.key});
 
@@ -17,15 +19,24 @@ class CharactersTab extends StatefulWidget {
 }
 
 class _CharactersTabState extends State<CharactersTab> {
+  late final PageController _page;
+  int _cur = 0;
+
   @override
   void initState() {
     super.initState();
+    // 장착 중인 캐릭터에서 시작.
+    _cur = kCharacters
+        .indexWhere((c) => c.id == Meta.I.equipped)
+        .clamp(0, kCharacters.length - 1);
+    _page = PageController(initialPage: _cur, viewportFraction: 0.86);
     Meta.I.addListener(_onMeta);
   }
 
   @override
   void dispose() {
     Meta.I.removeListener(_onMeta);
+    _page.dispose();
     super.dispose();
   }
 
@@ -138,82 +149,146 @@ class _CharactersTabState extends State<CharactersTab> {
     );
   }
 
+  void _tryUnlock(BuildContext context, CharDef def) {
+    final meta = Meta.I;
+    // ???는 다른 캐릭터를 모두 보유해야 구매 가능.
+    if (def.id == CharId.mystery && !meta.canBuyMystery) {
+      HapticFeedback.heavyImpact();
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+        content: Text('다른 캐릭터를 모두 모은 뒤에 구매할 수 있어요'),
+        behavior: SnackBarBehavior.floating,
+      ));
+      return;
+    }
+    if (meta.coins < def.cost) {
+      HapticFeedback.heavyImpact();
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+        content: Text(
+            '코인이 ${def.cost - meta.coins}개 부족해요 — 승리·출석으로 모아보세요!'),
+        behavior: SnackBarBehavior.floating,
+      ));
+      return;
+    }
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: CD.parchment,
+        title: Text('${def.name} 해금', style: posterTitle(20)),
+        content: Text('${def.ability}\n\n${def.cost}코인으로 해금할까요?',
+            style: const TextStyle(height: 1.5)),
+        actions: [
+          TextButton(
+              onPressed: () => Navigator.pop(ctx), child: const Text('취소')),
+          FilledButton(
+            style: FilledButton.styleFrom(backgroundColor: CD.rust),
+            onPressed: () {
+              Navigator.pop(ctx);
+              if (Meta.I.unlock(def.id)) {
+                HapticFeedback.mediumImpact();
+                Sfx.coin();
+                Meta.I.equip(def.id);
+                ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+                  content: Text('${def.name} 해금 + 장착 완료!'),
+                  behavior: SnackBarBehavior.floating,
+                ));
+              }
+            },
+            child: const Text('해금!',
+                style: TextStyle(fontWeight: FontWeight.w900)),
+          ),
+        ],
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     // B5 도감(1차): 수집률 — 몇 명 모았는지 한눈에(완성 드라이브).
     final ownedCount =
         kCharacters.where((c) => Meta.I.isUnlocked(c.id)).length;
     final totalCount = kCharacters.length;
-    return CustomScrollView(
-      slivers: [
-        SliverToBoxAdapter(
-          child: Padding(
-            padding: const EdgeInsets.fromLTRB(16, 8, 16, 2),
-            child: Container(
-              padding:
-                  const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-              decoration: BoxDecoration(
-                color: CD.parchment.withValues(alpha: 0.92),
-                borderRadius: BorderRadius.circular(14),
-              ),
-              child: Row(
-                children: [
-                  const Text('📖', style: TextStyle(fontSize: 20)),
-                  const SizedBox(width: 8),
-                  Text('도감  $ownedCount / $totalCount',
-                      style: posterTitle(16)),
-                  const SizedBox(width: 10),
-                  Expanded(
-                    child: ClipRRect(
-                      borderRadius: BorderRadius.circular(5),
-                      child: LinearProgressIndicator(
-                        value: totalCount == 0 ? 0 : ownedCount / totalCount,
-                        minHeight: 8,
-                        backgroundColor: CD.sand,
-                        color: CD.gold,
-                      ),
+    return ListView(
+      padding: const EdgeInsets.only(bottom: 24),
+      children: [
+        Padding(
+          padding: const EdgeInsets.fromLTRB(16, 8, 16, 2),
+          child: Container(
+            padding:
+                const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+            decoration: BoxDecoration(
+              color: CD.parchment.withValues(alpha: 0.92),
+              borderRadius: BorderRadius.circular(14),
+            ),
+            child: Row(
+              children: [
+                const Text('📖', style: TextStyle(fontSize: 20)),
+                const SizedBox(width: 8),
+                Text('도감  $ownedCount / $totalCount',
+                    style: posterTitle(16)),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: ClipRRect(
+                    borderRadius: BorderRadius.circular(5),
+                    child: LinearProgressIndicator(
+                      value: totalCount == 0 ? 0 : ownedCount / totalCount,
+                      minHeight: 8,
+                      backgroundColor: CD.sand,
+                      color: CD.gold,
                     ),
                   ),
-                  const SizedBox(width: 8),
-                  Text(
-                      '${(ownedCount * 100 / (totalCount == 0 ? 1 : totalCount)).round()}%',
-                      style: const TextStyle(
-                          fontWeight: FontWeight.w900, color: CD.leather)),
-                ],
+                ),
+                const SizedBox(width: 8),
+                Text(
+                    '${(ownedCount * 100 / (totalCount == 0 ? 1 : totalCount)).round()}%',
+                    style: const TextStyle(
+                        fontWeight: FontWeight.w900, color: CD.leather)),
+              ],
+            ),
+          ),
+        ),
+        const Padding(
+          padding: EdgeInsets.fromLTRB(16, 8, 16, 4),
+          child: Text('좌우로 넘겨 총잡이들을 만나보세요 — 미보유 캐릭터도 체험할 수 있어요',
+              style: TextStyle(color: CD.sand, fontSize: 12)),
+        ),
+        SizedBox(
+          height: 470,
+          child: PageView.builder(
+            controller: _page,
+            itemCount: kCharacters.length,
+            onPageChanged: (i) => setState(() => _cur = i),
+            itemBuilder: (context, i) => _CharPage(
+                def: kCharacters[i],
+                active: i == _cur,
+                onUnlock: (d) => _tryUnlock(context, d)),
+          ),
+        ),
+        const SizedBox(height: 8),
+        // 페이지 도트 — 현재 캐릭터 색으로.
+        Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            for (var i = 0; i < kCharacters.length; i++)
+              AnimatedContainer(
+                duration: const Duration(milliseconds: 150),
+                width: i == _cur ? 9 : 5.5,
+                height: i == _cur ? 9 : 5.5,
+                margin: const EdgeInsets.symmetric(horizontal: 2.2),
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  color: i == _cur
+                      ? kCharacters[_cur].color
+                      : CD.parchment.withValues(alpha: 0.5),
+                ),
               ),
-            ),
-          ),
+          ],
         ),
-        const SliverToBoxAdapter(
-          child: Padding(
-            padding: EdgeInsets.fromLTRB(16, 8, 16, 4),
-            child: Text('카드를 누르면 능력 설명 + 체험(6명 봇전)을 할 수 있어요',
-                style: TextStyle(color: CD.sand, fontSize: 12)),
-          ),
-        ),
-        SliverPadding(
-          padding: const EdgeInsets.fromLTRB(16, 8, 16, 12),
-          sliver: SliverGrid(
-            gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-              crossAxisCount: 2,
-              mainAxisSpacing: 12,
-              crossAxisSpacing: 12,
-              childAspectRatio: 0.70,
-            ),
-            delegate: SliverChildBuilderDelegate(
-              (context, i) => _CharCard(def: kCharacters[i]),
-              childCount: kCharacters.length,
-            ),
-          ),
-        ),
-        // 닉네임 변경권은 모든 캐릭터 아래(맨 밑)에 배치.
-        SliverToBoxAdapter(
-          child: Padding(
-            padding: const EdgeInsets.fromLTRB(16, 4, 16, 24),
-            child: _NicknameTicketCard(
-              onBuy: () => _buyNicknameTicket(context),
-              onChange: () => _changeNickname(context),
-            ),
+        // 닉네임 변경권은 캐러셀 아래(맨 밑)에 배치.
+        Padding(
+          padding: const EdgeInsets.fromLTRB(16, 14, 16, 0),
+          child: _NicknameTicketCard(
+            onBuy: () => _buyNicknameTicket(context),
+            onChange: () => _changeNickname(context),
           ),
         ),
       ],
@@ -221,7 +296,212 @@ class _CharactersTabState extends State<CharactersTab> {
   }
 }
 
-/// 상점 상단 튜토리얼 진입 카드(E1/E3) — 일반인으로 vs 컴퓨터.
+/// 캐러셀 한 페이지 — 일러스트가 주인공, 대사 칸(위)/능력 칸(아래) 분리(C안).
+class _CharPage extends StatelessWidget {
+  final CharDef def;
+  final bool active;
+  final void Function(CharDef) onUnlock;
+  const _CharPage(
+      {required this.def, required this.active, required this.onUnlock});
+
+  @override
+  Widget build(BuildContext context) {
+    final meta = Meta.I;
+    final unlocked = meta.isUnlocked(def.id);
+    final equipped = meta.equipped == def.id;
+    return AnimatedScale(
+      scale: active ? 1 : 0.94,
+      duration: const Duration(milliseconds: 180),
+      child: Container(
+        margin: const EdgeInsets.symmetric(horizontal: 6, vertical: 4),
+        padding: const EdgeInsets.all(12),
+        decoration: BoxDecoration(
+          color: CD.parchment.withValues(alpha: unlocked ? 0.96 : 0.80),
+          borderRadius: BorderRadius.circular(20),
+          border: Border.all(
+            color: equipped ? CD.gold : def.color.withValues(alpha: 0.7),
+            width: equipped ? 3 : 2,
+          ),
+          boxShadow: equipped
+              ? [
+                  BoxShadow(
+                      color: CD.gold.withValues(alpha: 0.45), blurRadius: 10)
+                ]
+              : null,
+        ),
+        child: Column(
+          children: [
+            Expanded(
+              child: Stack(
+                children: [
+                  Positioned.fill(
+                    child: CharacterHero(
+                        id: def.id.name,
+                        icon: def.icon,
+                        color: def.color,
+                        height: 200),
+                  ),
+                  if (!unlocked)
+                    Positioned(
+                      right: 8,
+                      top: 8,
+                      child: Container(
+                        padding: const EdgeInsets.all(6),
+                        decoration: const BoxDecoration(
+                            color: CD.leather, shape: BoxShape.circle),
+                        child: const Icon(Icons.lock,
+                            size: 15, color: Colors.white),
+                      ),
+                    ),
+                  if (equipped)
+                    Positioned(
+                      right: 8,
+                      top: 8,
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 9, vertical: 4),
+                        decoration: BoxDecoration(
+                          color: CD.gold,
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        child: const Text('장착 중',
+                            style: TextStyle(
+                                color: Colors.white,
+                                fontSize: 11,
+                                fontWeight: FontWeight.w900)),
+                      ),
+                    ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 8),
+            Text(def.name, style: posterTitle(22)),
+            const SizedBox(height: 6),
+            // ── 대사 칸(위) — 캐릭터 개성 한 줄 ──
+            Container(
+              width: double.infinity,
+              padding:
+                  const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
+              decoration: BoxDecoration(
+                color: def.color.withValues(alpha: 0.14),
+                borderRadius: BorderRadius.circular(CD.rChip),
+              ),
+              child: Text(def.quote,
+                  textAlign: TextAlign.center,
+                  style: TextStyle(
+                      fontSize: 12.5,
+                      fontStyle: FontStyle.italic,
+                      fontWeight: FontWeight.w700,
+                      color: def.color,
+                      height: 1.3)),
+            ),
+            const SizedBox(height: 6),
+            // ── 능력 칸(아래) — 수치 포함 설명 ──
+            Container(
+              width: double.infinity,
+              padding:
+                  const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
+              decoration: BoxDecoration(
+                color: Colors.white.withValues(alpha: 0.55),
+                borderRadius: BorderRadius.circular(CD.rChip),
+              ),
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Icon(def.icon, color: def.color, size: 16),
+                  const SizedBox(width: 7),
+                  Expanded(
+                    child: Text(def.ability,
+                        style: const TextStyle(
+                            fontSize: 12, height: 1.4, color: CD.ink)),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 10),
+            Row(
+              children: [
+                Expanded(
+                  child: FilledButton.icon(
+                    style: FilledButton.styleFrom(
+                      backgroundColor: CD.leather,
+                      padding: const EdgeInsets.symmetric(vertical: 11),
+                      shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12)),
+                    ),
+                    onPressed: () {
+                      Sfx.confirm();
+                      // 미보유여도 그 직업으로 6명 봇전 체험.
+                      Navigator.of(context).push(MaterialPageRoute(
+                        builder: (_) => OfflineGameScreen(
+                            forcedChar: def.id, forcedBots: 5),
+                      ));
+                    },
+                    icon: const Icon(Icons.sports_esports, size: 17),
+                    label: const Text('체험',
+                        style: TextStyle(fontWeight: FontWeight.w900)),
+                  ),
+                ),
+                const SizedBox(width: 10),
+                Expanded(child: _primaryAction(context, unlocked, equipped)),
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _primaryAction(BuildContext context, bool unlocked, bool equipped) {
+    final lockedMystery =
+        def.id == CharId.mystery && !Meta.I.canBuyMystery;
+    if (equipped) {
+      return FilledButton(
+        onPressed: null,
+        style: FilledButton.styleFrom(
+          disabledBackgroundColor: CD.gold.withValues(alpha: 0.85),
+          padding: const EdgeInsets.symmetric(vertical: 11),
+          shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(12)),
+        ),
+        child: const Text('장착됨',
+            style: TextStyle(
+                color: Colors.white, fontWeight: FontWeight.w900)),
+      );
+    }
+    if (unlocked) {
+      return FilledButton(
+        style: FilledButton.styleFrom(
+          backgroundColor: CD.sage,
+          padding: const EdgeInsets.symmetric(vertical: 11),
+          shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(12)),
+        ),
+        onPressed: () {
+          HapticFeedback.lightImpact();
+          Sfx.confirm();
+          Meta.I.equip(def.id);
+        },
+        child: const Text('장착',
+            style: TextStyle(fontWeight: FontWeight.w900)),
+      );
+    }
+    return FilledButton.icon(
+      style: FilledButton.styleFrom(
+        backgroundColor: CD.rust,
+        padding: const EdgeInsets.symmetric(vertical: 11),
+        shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(12)),
+      ),
+      onPressed: () => onUnlock(def),
+      icon: Icon(lockedMystery ? Icons.lock : Icons.monetization_on,
+          color: CD.gold, size: 17),
+      label: Text(lockedMystery ? '모든 캐릭터 필요' : '${def.cost}',
+          style: const TextStyle(fontWeight: FontWeight.w900)),
+    );
+  }
+}
+
 /// 닉네임 변경권 판매 + 변경 카드(E1/G2).
 class _NicknameTicketCard extends StatelessWidget {
   final VoidCallback onBuy;
@@ -289,379 +569,6 @@ class _NicknameTicketCard extends StatelessWidget {
                     style: const TextStyle(fontSize: 12)),
               ),
             ],
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _CharCard extends StatelessWidget {
-  final CharDef def;
-  const _CharCard({required this.def});
-
-  // P2: 카드 탭 → 큰 일러스트 + 이름 + 능력 전문 + 가격/소유/구매·장착·체험.
-  // 멋진 상세 모달 — 기존 구매/장착/체험 흐름을 그대로 재사용(새 로직 없음).
-  void _showDetail(BuildContext context) {
-    showModalBottomSheet(
-      context: context,
-      backgroundColor: CD.parchment,
-      isScrollControlled: true,
-      shape: const RoundedRectangleBorder(
-          borderRadius: BorderRadius.vertical(top: Radius.circular(24))),
-      builder: (ctx) => ListenableBuilder(
-        // 구매·장착 후 Meta 변경 시 시트가 즉시 새 상태로 갱신되도록.
-        listenable: Meta.I,
-        builder: (ctx, _) {
-          final meta = Meta.I;
-          final unlocked = meta.isUnlocked(def.id);
-          final equipped = meta.equipped == def.id;
-          final lockedMystery =
-              def.id == CharId.mystery && !meta.canBuyMystery;
-          return SafeArea(
-            child: SingleChildScrollView(
-              child: Padding(
-                padding: const EdgeInsets.fromLTRB(20, 12, 20, 20),
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
-                  children: [
-                    Center(
-                      child: Container(
-                        width: 44,
-                        height: 4,
-                        decoration: BoxDecoration(
-                          color: CD.muted.withValues(alpha: 0.4),
-                          borderRadius: BorderRadius.circular(2),
-                        ),
-                      ),
-                    ),
-                    const SizedBox(height: 14),
-                    CharacterHero(
-                        id: def.id.name,
-                        icon: def.icon,
-                        color: def.color,
-                        height: 230),
-                    const SizedBox(height: 14),
-                    Row(
-                      children: [
-                        Expanded(
-                            child: Text(def.name, style: posterTitle(26))),
-                        if (equipped)
-                          _statusChip('장착 중', CD.gold, Icons.check_circle)
-                        else if (unlocked)
-                          _statusChip('보유', CD.sage, Icons.inventory_2)
-                        else if (lockedMystery)
-                          _statusChip('잠김', CD.leather, Icons.lock),
-                      ],
-                    ),
-                    const SizedBox(height: 12),
-                    Container(
-                      width: double.infinity,
-                      padding: const EdgeInsets.all(14),
-                      decoration: BoxDecoration(
-                        color: def.color.withValues(alpha: 0.10),
-                        borderRadius: BorderRadius.circular(14),
-                        border: Border.all(
-                            color: def.color.withValues(alpha: 0.35)),
-                      ),
-                      child: Row(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Icon(def.icon, color: def.color, size: 22),
-                          const SizedBox(width: 10),
-                          Expanded(
-                            child: Text(def.ability,
-                                style: const TextStyle(
-                                    fontSize: 14,
-                                    height: 1.5,
-                                    color: CD.ink)),
-                          ),
-                        ],
-                      ),
-                    ),
-                    const SizedBox(height: 16),
-                    Row(
-                      children: [
-                        Expanded(
-                          child: OutlinedButton.icon(
-                            style: OutlinedButton.styleFrom(
-                              foregroundColor: CD.leather,
-                              side: const BorderSide(
-                                  color: CD.leather, width: 1.5),
-                              padding:
-                                  const EdgeInsets.symmetric(vertical: 13),
-                            ),
-                            onPressed: () {
-                              Navigator.pop(ctx);
-                              Sfx.confirm();
-                              // 미보유여도 그 직업으로 6명 봇전 체험.
-                              Navigator.of(context).push(MaterialPageRoute(
-                                builder: (_) => OfflineGameScreen(
-                                    forcedChar: def.id, forcedBots: 5),
-                              ));
-                            },
-                            icon: const Icon(Icons.sports_esports, size: 18),
-                            label: const Text('체험',
-                                style:
-                                    TextStyle(fontWeight: FontWeight.w900)),
-                          ),
-                        ),
-                        const SizedBox(width: 10),
-                        Expanded(
-                            child: _detailPrimaryAction(
-                                context, unlocked, equipped, lockedMystery)),
-                      ],
-                    ),
-                  ],
-                ),
-              ),
-            ),
-          );
-        },
-      ),
-    );
-  }
-
-  // 상세 시트의 주 버튼 — 장착됨/장착/구매. 기존 카드와 동일 로직 호출.
-  Widget _detailPrimaryAction(
-      BuildContext context, bool unlocked, bool equipped, bool lockedMystery) {
-    if (equipped) {
-      return FilledButton(
-        onPressed: null,
-        style: FilledButton.styleFrom(
-          disabledBackgroundColor: CD.gold.withValues(alpha: 0.85),
-          padding: const EdgeInsets.symmetric(vertical: 13),
-        ),
-        child: const Text('장착됨',
-            style: TextStyle(color: Colors.white, fontWeight: FontWeight.w900)),
-      );
-    }
-    if (unlocked) {
-      return FilledButton(
-        style: FilledButton.styleFrom(
-            backgroundColor: CD.sage,
-            padding: const EdgeInsets.symmetric(vertical: 13)),
-        onPressed: () {
-          HapticFeedback.lightImpact();
-          Sfx.confirm();
-          Meta.I.equip(def.id);
-        },
-        child: const Text('장착', style: TextStyle(fontWeight: FontWeight.w900)),
-      );
-    }
-    return FilledButton.icon(
-      style: FilledButton.styleFrom(
-          backgroundColor: CD.leather,
-          padding: const EdgeInsets.symmetric(vertical: 13)),
-      onPressed: () => _tryUnlock(context),
-      icon: Icon(lockedMystery ? Icons.lock : Icons.monetization_on,
-          color: CD.gold, size: 18),
-      label: Text(lockedMystery ? '모든 캐릭터 필요' : '${def.cost}',
-          style: const TextStyle(fontWeight: FontWeight.w900)),
-    );
-  }
-
-  Widget _statusChip(String label, Color color, IconData icon) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-      decoration: BoxDecoration(
-        color: color.withValues(alpha: 0.15),
-        borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: color.withValues(alpha: 0.6)),
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Icon(icon, size: 14, color: color),
-          const SizedBox(width: 4),
-          Text(label,
-              style: TextStyle(
-                  color: color, fontSize: 12, fontWeight: FontWeight.w900)),
-        ],
-      ),
-    );
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final meta = Meta.I;
-    final unlocked = meta.isUnlocked(def.id);
-    final equipped = meta.equipped == def.id;
-
-    return GestureDetector(
-      onTap: () => _showDetail(context),
-      child: AnimatedContainer(
-      duration: const Duration(milliseconds: 180),
-      decoration: BoxDecoration(
-        color: CD.parchment.withValues(alpha: unlocked ? 0.96 : 0.78),
-        borderRadius: BorderRadius.circular(18),
-        border: Border.all(
-          color: equipped ? CD.gold : def.color.withValues(alpha: 0.65),
-          width: equipped ? 3 : 2,
-        ),
-        boxShadow: equipped
-            ? [BoxShadow(color: CD.gold.withValues(alpha: 0.45), blurRadius: 10)]
-            : null,
-      ),
-      child: Padding(
-        padding: const EdgeInsets.all(12),
-        child: Column(
-          children: [
-            Stack(
-              clipBehavior: Clip.none,
-              children: [
-                CharacterPortrait(
-                  id: def.id.name,
-                  icon: def.icon,
-                  color: def.color,
-                  size: 64,
-                  dim: !unlocked,
-                ),
-                if (equipped)
-                  Positioned(
-                    right: -6,
-                    top: -6,
-                    child: Container(
-                      padding: const EdgeInsets.all(4),
-                      decoration: const BoxDecoration(
-                          color: CD.gold, shape: BoxShape.circle),
-                      child: const Icon(Icons.check,
-                          size: 14, color: Colors.white),
-                    ),
-                  ),
-                if (!unlocked)
-                  Positioned(
-                    right: -6,
-                    bottom: -6,
-                    child: Container(
-                      padding: const EdgeInsets.all(5),
-                      decoration: const BoxDecoration(
-                          color: CD.leather, shape: BoxShape.circle),
-                      child: const Icon(Icons.lock,
-                          size: 13, color: Colors.white),
-                    ),
-                  ),
-              ],
-            ),
-            const SizedBox(height: 8),
-            Text(def.name, style: posterTitle(17)),
-            const SizedBox(height: 4),
-            Expanded(
-              // E2: 긴 설명도 잘리지 않게 — 넘치면 스크롤로 전부 읽힌다.
-              child: SingleChildScrollView(
-                child: Text(
-                  def.ability,
-                  textAlign: TextAlign.center,
-                  style: const TextStyle(
-                      fontSize: 11.5, color: CD.muted, height: 1.35),
-                ),
-              ),
-            ),
-            const SizedBox(height: 6),
-            SizedBox(
-              width: double.infinity,
-              child: equipped
-                  ? FilledButton(
-                      onPressed: null,
-                      style: FilledButton.styleFrom(
-                        disabledBackgroundColor:
-                            CD.gold.withValues(alpha: 0.85),
-                        visualDensity: VisualDensity.compact,
-                      ),
-                      child: const Text('장착됨',
-                          style: TextStyle(
-                              color: Colors.white,
-                              fontWeight: FontWeight.w900)),
-                    )
-                  : unlocked
-                      ? FilledButton(
-                          style: FilledButton.styleFrom(
-                            backgroundColor: CD.sage,
-                            visualDensity: VisualDensity.compact,
-                          ),
-                          onPressed: () {
-                            HapticFeedback.lightImpact();
-                            Sfx.confirm();
-                            Meta.I.equip(def.id);
-                          },
-                          child: const Text('장착',
-                              style:
-                                  TextStyle(fontWeight: FontWeight.w900)),
-                        )
-                      : FilledButton.icon(
-                          style: FilledButton.styleFrom(
-                            backgroundColor: CD.leather,
-                            visualDensity: VisualDensity.compact,
-                          ),
-                          onPressed: () => _tryUnlock(context),
-                          icon: Icon(
-                              (def.id == CharId.mystery && !Meta.I.canBuyMystery)
-                                  ? Icons.lock
-                                  : Icons.monetization_on,
-                              color: CD.gold,
-                              size: 16),
-                          label: Text(
-                              (def.id == CharId.mystery && !Meta.I.canBuyMystery)
-                                  ? '모든 캐릭터 필요'
-                                  : '${def.cost}',
-                              style: const TextStyle(
-                                  fontWeight: FontWeight.w900)),
-                        ),
-            ),
-          ],
-        ),
-      ),
-    ),
-    );
-  }
-
-  void _tryUnlock(BuildContext context) {
-    final meta = Meta.I;
-    // ???는 다른 캐릭터를 모두 보유해야 구매 가능.
-    if (def.id == CharId.mystery && !meta.canBuyMystery) {
-      HapticFeedback.heavyImpact();
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-        content: Text('다른 캐릭터를 모두 모은 뒤에 구매할 수 있어요'),
-        behavior: SnackBarBehavior.floating,
-      ));
-      return;
-    }
-    if (meta.coins < def.cost) {
-      HapticFeedback.heavyImpact();
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-        content: Text(
-            '코인이 ${def.cost - meta.coins}개 부족해요 — 승리·출석으로 모아보세요!'),
-        behavior: SnackBarBehavior.floating,
-      ));
-      return;
-    }
-    showDialog(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        backgroundColor: CD.parchment,
-        title: Text('${def.name} 해금', style: posterTitle(20)),
-        content: Text('${def.ability}\n\n${def.cost}코인으로 해금할까요?',
-            style: const TextStyle(height: 1.5)),
-        actions: [
-          TextButton(
-              onPressed: () => Navigator.pop(ctx), child: const Text('취소')),
-          FilledButton(
-            style: FilledButton.styleFrom(backgroundColor: CD.rust),
-            onPressed: () {
-              Navigator.pop(ctx);
-              if (Meta.I.unlock(def.id)) {
-                HapticFeedback.mediumImpact();
-                Sfx.coin();
-                Meta.I.equip(def.id);
-                ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-                  content: Text('${def.name} 해금 + 장착 완료!'),
-                  behavior: SnackBarBehavior.floating,
-                ));
-              }
-            },
-            child: const Text('해금!',
-                style: TextStyle(fontWeight: FontWeight.w900)),
           ),
         ],
       ),

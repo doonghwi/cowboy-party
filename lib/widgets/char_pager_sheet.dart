@@ -83,25 +83,44 @@ Future<void> showCharPagerSheet(
                               ),
                               const SizedBox(height: 8),
                               Text(d.name, style: posterTitle(20)),
-                              const SizedBox(height: 6),
+                              const SizedBox(height: 5),
+                              // 대사 칸(위) + 능력 칸(아래) — 문구 C안(2026-07-15).
                               Container(
                                 width: double.infinity,
-                                padding: const EdgeInsets.all(9),
+                                padding: const EdgeInsets.symmetric(
+                                    horizontal: 9, vertical: 5),
                                 decoration: BoxDecoration(
-                                  color: d.color.withValues(alpha: 0.10),
+                                  color: d.color.withValues(alpha: 0.14),
                                   borderRadius:
                                       BorderRadius.circular(CD.rChip),
-                                  border: Border.all(
-                                      color:
-                                          d.color.withValues(alpha: 0.35)),
+                                ),
+                                child: Text(d.quote,
+                                    textAlign: TextAlign.center,
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                    style: TextStyle(
+                                        fontSize: 11.5,
+                                        fontStyle: FontStyle.italic,
+                                        fontWeight: FontWeight.w700,
+                                        color: d.color)),
+                              ),
+                              const SizedBox(height: 5),
+                              Container(
+                                width: double.infinity,
+                                padding: const EdgeInsets.all(8),
+                                decoration: BoxDecoration(
+                                  color:
+                                      Colors.white.withValues(alpha: 0.6),
+                                  borderRadius:
+                                      BorderRadius.circular(CD.rChip),
                                 ),
                                 child: Text(d.ability,
                                     textAlign: TextAlign.center,
                                     maxLines: 3,
                                     overflow: TextOverflow.ellipsis,
                                     style: const TextStyle(
-                                        fontSize: 12,
-                                        height: 1.4,
+                                        fontSize: 11.5,
+                                        height: 1.35,
                                         color: CD.ink)),
                               ),
                             ],

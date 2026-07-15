@@ -53,7 +53,8 @@ class _PlayTabState extends State<PlayTab> {
     if (!mounted || !Meta.I.ready || Meta.I.tutorialSeen) return;
     await Meta.I.markTutorialSeen();
     if (!mounted) return;
-    final go = await showDialog<bool>(
+    // 첫 진입 = 가이드 결투(보안관 특훈)로 안내(2026-07-15 사용자 선택 A안).
+    final go = await showDialog<String>(
       context: context,
       builder: (ctx) => AlertDialog(
         backgroundColor: CD.sand,
@@ -62,25 +63,36 @@ class _PlayTabState extends State<PlayTab> {
                 color: CD.ink, fontWeight: FontWeight.w900, fontSize: 17)),
         content: const Text(
           '2~6명이 눈치로 빵야·장전·방어를 겨루는 서부 대결이에요.\n'
-          '캐릭터마다 특수 능력이 달라요 — 게임 방법을 먼저 볼까요?',
+          '보안관의 3분 특훈으로 기본기를 익혀볼까요? (완주 보상 있어요)',
           style: TextStyle(color: CD.ink, fontSize: 14, height: 1.4),
         ),
         actions: [
           TextButton(
-            onPressed: () => Navigator.pop(ctx, false),
+            onPressed: () => Navigator.pop(ctx, 'later'),
             child: const Text('나중에',
                 style: TextStyle(color: CD.leather, fontWeight: FontWeight.w700)),
           ),
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, 'howto'),
+            child: const Text('게임 방법 글로 보기',
+                style: TextStyle(color: CD.leather, fontWeight: FontWeight.w700)),
+          ),
           FilledButton(
-            onPressed: () => Navigator.pop(ctx, true),
+            onPressed: () => Navigator.pop(ctx, 'tutorial'),
             style: FilledButton.styleFrom(backgroundColor: CD.rust),
-            child: const Text('게임 방법 보기',
+            child: const Text('특훈 시작!',
                 style: TextStyle(fontWeight: FontWeight.w800)),
           ),
         ],
       ),
     );
-    if (go == true && mounted) {
+    if (!mounted) return;
+    if (go == 'tutorial') {
+      Navigator.push(
+          context,
+          MaterialPageRoute(
+              builder: (_) => const OfflineGameScreen(tutorial: true)));
+    } else if (go == 'howto') {
       Navigator.push(context,
           MaterialPageRoute(builder: (_) => const HowToPlayScreen()));
     }

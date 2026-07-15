@@ -20,6 +20,10 @@ export 'char_core.dart';
 class CharDef {
   final CharId id;
   final String name;
+
+  /// 캐릭터 대사 한 줄(2026-07-15 사용자 선택 C안) — 상점/선택 화면에서
+  /// 능력 설명 **위 별도 칸**에 표시. 서부극 말투 플레이버.
+  final String quote;
   final String ability; // 수치 포함 한 문장 (UX_UI.md §6)
   final IconData icon;
   final Color color;
@@ -29,6 +33,7 @@ class CharDef {
   const CharDef({
     required this.id,
     required this.name,
+    required this.quote,
     required this.ability,
     required this.icon,
     required this.color,
@@ -41,7 +46,8 @@ const List<CharDef> kCharacters = [
   CharDef(
     id: CharId.commoner,
     name: '일반인',
-    ability: '특별한 능력이 없는 기본 총잡이 — 장전·방어·빵야로 정공법 승부',
+    quote: '"특별한 재주는 없어. 그래도 총은 쏠 줄 알지."',
+    ability: '능력 없이 장전·방어·빵야로만 싸우는 기본 총잡이예요',
     icon: Icons.person,
     color: Color(0xFF8A7A5E),
     cost: 0,
@@ -49,7 +55,8 @@ const List<CharDef> kCharacters = [
   CharDef(
     id: CharId.prepper,
     name: '준비자',
-    ability: '총알 1발을 장전한 채로 시작한다',
+    quote: '"준비된 자가 첫 방을 쏘는 법."',
+    ability: '총알 1발을 장전한 채로 시작해요',
     icon: Icons.work_history,
     color: Color(0xFFD9A441),
     cost: 1000,
@@ -57,7 +64,8 @@ const List<CharDef> kCharacters = [
   CharDef(
     id: CharId.sniper,
     name: '스나이퍼',
-    ability: '빵야가 20% 확률로 방어를 무시한다',
+    quote: '"방패 뒤에 숨어도 소용없지."',
+    ability: '빵야가 20% 확률로 방어를 뚫어요',
     icon: Icons.my_location,
     color: Color(0xFF9E2B25),
     cost: 1500,
@@ -65,7 +73,8 @@ const List<CharDef> kCharacters = [
   CharDef(
     id: CharId.speedloader,
     name: '스피드로더',
-    ability: '장전할 때 50% 확률로 2발이 들어간다',
+    quote: '"내 손은 눈보다 빠르다."',
+    ability: '장전할 때 50% 확률로 2발이 들어가요',
     icon: Icons.fast_forward,
     color: Color(0xFFC8541E),
     cost: 2000,
@@ -73,7 +82,8 @@ const List<CharDef> kCharacters = [
   CharDef(
     id: CharId.doctor,
     name: '의사',
-    ability: '게임당 1번 죽을 공격을 버텨낸다 — 단, 버텨낸 직후 총알이 0이 된다',
+    quote: '"한 번은 살려주지. 공짜는 아니지만."',
+    ability: '게임당 1번, 죽을 공격을 버텨요 — 대신 그 직후 총알이 0이 돼요',
     icon: Icons.healing,
     color: Color(0xFF2E6E5A),
     cost: 2500,
@@ -81,7 +91,8 @@ const List<CharDef> kCharacters = [
   CharDef(
     id: CharId.smoker,
     name: '스모커',
-    ability: '연막(게임당 2번, 행동과 함께): 그 턴 들어오는 공격을 발당 50% 확률로 회피',
+    quote: '"연기 속에선 아무도 날 못 맞혀."',
+    ability: '연막(게임당 2번, 행동과 함께): 그 턴 들어오는 공격을 발당 50% 확률로 피해요',
     icon: Icons.cloud,
     color: Color(0xFF6B7A8F),
     cost: 3000,
@@ -90,7 +101,8 @@ const List<CharDef> kCharacters = [
   CharDef(
     id: CharId.hunter,
     name: '사냥꾼',
-    ability: '덫(게임당 1번, 그 턴 행동 불가): 나를 쏜 일반탄을 전부 반사한다',
+    quote: '"덫에 걸린 건 네 총알이야."',
+    ability: '덫(게임당 1번, 그 턴 행동 불가): 나를 쏜 일반탄을 전부 돌려보내요',
     icon: Icons.crisis_alert,
     color: Color(0xFF7A3E18),
     cost: 3500,
@@ -99,7 +111,8 @@ const List<CharDef> kCharacters = [
   CharDef(
     id: CharId.resetter,
     name: '리셋터',
-    ability: '무효(게임당 1번, 그 턴 행동 불가): 그 턴 다른 모두의 행동 결과를 없던 일로 만든다',
+    quote: '"오늘 일은 없던 걸로 하지."',
+    ability: '무효(게임당 1번, 그 턴 행동 불가): 그 턴 다른 모두의 행동을 없던 일로 만들어요',
     icon: Icons.restart_alt,
     color: Color(0xFF2E5E8E),
     cost: 4000,
@@ -108,7 +121,8 @@ const List<CharDef> kCharacters = [
   CharDef(
     id: CharId.duelist,
     name: '결투가',
-    ability: '반응속도 결투(전원 동시 사망)에 가면 반드시 승리한다 (결투가끼리면 무효)',
+    quote: '"마지막 결투는 언제나 내 것."',
+    ability: '반응속도 결투(전원 동시 사망)에 가면 반드시 이겨요 (결투가끼리면 무효)',
     icon: Icons.sports_martial_arts,
     color: Color(0xFF3A2A55),
     cost: 4500,
@@ -116,7 +130,8 @@ const List<CharDef> kCharacters = [
   CharDef(
     id: CharId.pacifist,
     name: '평화주의자',
-    ability: '빵야를 쏠 수 없다. 장전을 6번 채우면 그 즉시 승리',
+    quote: '"총구를 내려놔. 그게 이기는 길이야."',
+    ability: '빵야를 쏠 수 없어요. 대신 장전을 6번 채우면 그 즉시 승리해요',
     icon: Icons.spa,
     color: Color(0xFF4E8D7C),
     cost: 5000,
@@ -124,7 +139,8 @@ const List<CharDef> kCharacters = [
   CharDef(
     id: CharId.shadow,
     name: '그림자',
-    ability: '장전·방어와 총알 수가 상대에게 보이지 않는다 (빵야·피격 시 방어는 드러남)',
+    quote: '"내 패는 아무도 못 봐."',
+    ability: '장전·방어와 총알 수가 상대에게 보이지 않아요 (빵야·피격 시 방어는 드러나요)',
     icon: Icons.visibility_off,
     color: Color(0xFF2B2B3A),
     cost: 5500,
@@ -132,7 +148,8 @@ const List<CharDef> kCharacters = [
   CharDef(
     id: CharId.roulette,
     name: '러시안룰렛',
-    ability: '운명의 방아쇠(한 턴): 50:50로 나 또는 상대에게 총알을 쏜다. 상대를 향하면 일반탄처럼 — 방어로 막히고 덫으로 반사됨',
+    quote: '"운명이 정해줄 거야 — 너인지, 나인지."',
+    ability: '운명의 방아쇠(한 턴): 50:50으로 나 또는 상대에게 총알을 쏴요. 상대를 향하면 일반탄처럼 방어에 막히고 덫에 반사돼요',
     icon: Icons.casino,
     color: Color(0xFF8E1E1E),
     cost: 6000,
@@ -141,7 +158,8 @@ const List<CharDef> kCharacters = [
   CharDef(
     id: CharId.dualgun,
     name: '쌍권총',
-    ability: '더블 빵야(한 턴): 총알 2발로 두 명을 동시에 쏜다',
+    quote: '"한 발로는 부족하지."',
+    ability: '더블 빵야(한 턴): 총알 2발로 두 명을 동시에 쏴요',
     icon: Icons.filter_2,
     color: Color(0xFFB5642A),
     cost: 6500,
@@ -150,7 +168,8 @@ const List<CharDef> kCharacters = [
   CharDef(
     id: CharId.paparazzi,
     name: '파파라치',
-    ability: '엿보기(게임당 1번): 한 명의 이번 턴 행동을 미리 보고 내 행동을 정한다',
+    quote: '"네 다음 수, 이미 찍어뒀어."',
+    ability: '엿보기(게임당 1번): 한 명의 이번 턴 행동을 미리 보고 내 행동을 정해요',
     icon: Icons.photo_camera,
     color: Color(0xFF4A6FA5),
     cost: 7000,
@@ -159,7 +178,8 @@ const List<CharDef> kCharacters = [
   CharDef(
     id: CharId.voodoo,
     name: '부두술사',
-    ability: '저주(턴당 1번, 그 턴 행동 불가): 한 명을 10턴 뒤 사망시킨다. 부두술사가 죽으면 풀린다',
+    quote: '"저주는 천천히, 그러나 반드시 닿는다."',
+    ability: '저주(턴당 1번, 그 턴 행동 불가): 한 명을 10턴 뒤 쓰러뜨려요. 부두술사가 먼저 죽으면 풀려요',
     icon: Icons.auto_fix_high,
     color: Color(0xFF5B3A8E),
     cost: 7500,
@@ -172,7 +192,8 @@ const List<CharDef> kCharacters = [
   // CharDef(
   //   id: CharId.mystery,
   //   name: '???',
-  //   ability: '미공개로 시작 — 능력을 처음 쓰면 정체가 드러난다. 직업은 매 게임 랜덤. (모든 캐릭터를 가지면 구매 가능)',
+  //   quote: '"정체는 방아쇠가 말해줄 거야."',
+  //   ability: '미공개로 시작 — 능력을 처음 쓰면 정체가 드러나요. 직업은 매 게임 랜덤 (모든 캐릭터를 가지면 구매 가능)',
   //   icon: Icons.help_center,
   //   color: Color(0xFF3A3A3A),
   //   cost: 10000,
