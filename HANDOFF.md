@@ -3,6 +3,13 @@
 > 새 세션에서 이 파일을 먼저 읽고 이어서 진행. 모든 작업물은 디스크에 있고 main에 커밋됨.
 > ⚠️ 아래 좌표 일부는 구 Windows 경로(C:\dev\…) — 현재는 Mac `/Users/doonghwi/Documents/dailyapp/`.
 
+## 2026-07-15(4차) 라운드2 처리 → 치장 초안 v2(TFT식) + 라운드3 게시 + 대시보드 탭 확장 2건
+- **라운드2 답변 처리**: 휘장=A(현재 반영본 유지, 종결). 스킨 3문항은 노트로 방향 전환 — "캐릭터별 의상 말고 **모든 캐릭터 공용 장착형**(TFT 참고: 맵·타격·처치 연출)" + "**다른 재화 종류** 신설" → `growth/SKIN_UPDATE_DRAFT.md` **v2로 전면 개정**(카테고리 6종 매핑: 결투장/명중/처치/셀레브레이션+이모트·프레임 예약, 재화 3안: 황금 별/은화/보안관 배지, 가격 축 6~20). 1~4번 카테고리는 전부 코드 페인팅이라 이미지 생성 대기 없음·표시 전용(로직버전 그대로).
+- **라운드3 6문항 게시**(decisions.json — r1·r2는 decided 아카이브): 치장 1차 카테고리 조합/새 재화 컨셉/획득 페이스 + **SFX 2차 3건**(장전·쇼다운 예열·입장 — 후보 wav를 `growth/reports/sfx_round2/`로 복사, 탭에서 바로 재생). 컨셉 시안 `growth/reports/design_round3/cosmetic_categories.png`(도구: test/round3_cosmetics_capture_test.dart, R3_CAPTURE_DIR).
+- **사용자 지시(고정 규칙)**: 앞으로 **사용자 선택이 필요한 모든 것(사운드 포함)은 🗳️ 선택 탭으로** 올린다(사운드 보드 html 대체). 선택 탭에 문항 `audios` 필드 지원 추가(super_dashboard.py).
+- **🚦 출시 탭 신설**(사용자 지시): `~/bintage/1_sourcing/0_monitor/cowboy_release_check.py`가 Play Developer API(서비스계정=업로드 키 재사용)로 트랙별 versionCode·상태 조회 → repo pubspec 기대 버전과 비교(✅/⚠️/🛑 헤드라인), 리뷰 5건, 크래시율(Reporting API 미개통이라 안내만 — 공개 후 API만 켜면 자동 표시). 데이터 `~/bintage/data/0_monitor/cowboy_release_status.json`, 대시보드 재생성 시 15분 캐시로 자동 갱신. **v24 alpha completed 확인됨.**
+- venv 메모: 대시보드 venv(`1a_crawl/.venv`)에 google-auth 설치함(uv pip).
+
 ## 2026-07-15(3차) 홍보 에셋(가로 16:9·30초 영상) + v24 다듬기
 - **스토어 에셋 큐 잔여분 처리**: 가로 16:9 스크린샷 3장(`store/screenshots/wide/`, 합성 스크립트 `tool/make_wide_screenshots.py` — 소스 폰캡처는 `wide_src/`) + **30초 홍보 영상** 세로/가로(`promo/video/promo_30s_*.mp4` — v23·24 실플레이 5클립을 ffmpeg trim+concat, menu.mp3 페이드). 자료실 '홍보 준비물'에 게시. 아이콘 2안·피처그래픽 일러스트판만 사용자 이미지 생성 대기.
 - **v24 다듬기 3건**: ①게스트가 온라인 행동 전이면 친구 탭이 '연결 중'에 머묾 → FriendsTab 진입 시 tryAnonymous 보장 ②온보딩 '5000골드'→'코인' ③첫 실행에 온보딩·특훈 팝업 겹침 → 닉네임 미설정이면 특훈 권유를 다음 실행으로.

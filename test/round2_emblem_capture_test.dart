@@ -9,7 +9,6 @@ import 'package:cowboy_party/game/characters.dart';
 import 'package:cowboy_party/theme.dart';
 import 'package:cowboy_party/widgets/rank_emblem.dart';
 import 'package:cowboy_party/widgets/seat_card.dart';
-import 'package:cowboy_party/widgets/tier_frame.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
 import 'package:flutter/services.dart';

@@ -298,7 +298,7 @@ class _SeatMock extends StatelessWidget {
                   borderRadius: BorderRadius.circular(7),
                 ),
                 child: const Text('Lv.12',
-                    style: const TextStyle(
+                    style: TextStyle(
                         color: CD.rust,
                         fontWeight: FontWeight.w900,
                         fontSize: 11.5)),

@@ -335,7 +335,7 @@ class _OfflineGameScreenState extends State<OfflineGameScreen> {
         content: Text(
           granted
               ? '장전·방어·빵야 — 기본기를 완벽히 익혔어.\n'
-                  '첫 완주 보상으로 ${kGuidedTutorialGold}코인을 줄게.\n'
+                  '첫 완주 보상으로 $kGuidedTutorialGold코인을 줄게.\n'
                   '이제 진짜 결투에서 만나자, 카우보이!'
               : '기본기는 여전하군. 이제 진짜 결투로!',
           style: const TextStyle(height: 1.5),
