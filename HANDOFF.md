@@ -9,6 +9,7 @@
 - **사용자 지시(고정 규칙)**: 앞으로 **사용자 선택이 필요한 모든 것(사운드 포함)은 🗳️ 선택 탭으로** 올린다(사운드 보드 html 대체). 선택 탭에 문항 `audios` 필드 지원 추가(super_dashboard.py).
 - **🚦 출시 탭 신설**(사용자 지시): `~/bintage/1_sourcing/0_monitor/cowboy_release_check.py`가 Play Developer API(서비스계정=업로드 키 재사용)로 트랙별 versionCode·상태 조회 → repo pubspec 기대 버전과 비교(✅/⚠️/🛑 헤드라인), 리뷰 5건, 크래시율(Reporting API 미개통이라 안내만 — 공개 후 API만 켜면 자동 표시). 데이터 `~/bintage/data/0_monitor/cowboy_release_status.json`, 대시보드 재생성 시 15분 캐시로 자동 갱신. **v24 alpha completed 확인됨.**
 - venv 메모: 대시보드 venv(`1a_crawl/.venv`)에 google-auth 설치함(uv pip).
+- **🤖 클로드 탭 신설(사용자 지시, cowboy·bintage 양쪽)**: 이 프로젝트를 위한 클로드가 지금 돌아가는지+무슨 내용인지+세션 목록. `serve.py /api/claude_sessions`가 `~/.claude/projects/*/*.jsonl`을 라이브 스캔(mtime=활동, cwd+첫 요청 키워드로 프로젝트 분류, 워크트리 이동은 꼬리 cwd 반영), 탭은 30초 자동 갱신. 🟢 3분 내 활동 / 🟡 30분 내 / ⚪ 그 외(48시간 창).
 
 ## 2026-07-15(3차) 홍보 에셋(가로 16:9·30초 영상) + v24 다듬기
 - **스토어 에셋 큐 잔여분 처리**: 가로 16:9 스크린샷 3장(`store/screenshots/wide/`, 합성 스크립트 `tool/make_wide_screenshots.py` — 소스 폰캡처는 `wide_src/`) + **30초 홍보 영상** 세로/가로(`promo/video/promo_30s_*.mp4` — v23·24 실플레이 5클립을 ffmpeg trim+concat, menu.mp3 페이드). 자료실 '홍보 준비물'에 게시. 아이콘 2안·피처그래픽 일러스트판만 사용자 이미지 생성 대기.
