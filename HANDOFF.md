@@ -3,6 +3,11 @@
 > 새 세션에서 이 파일을 먼저 읽고 이어서 진행. 모든 작업물은 디스크에 있고 main에 커밋됨.
 > ⚠️ 아래 좌표 일부는 구 Windows 경로(C:\dev\…) — 현재는 Mac `/Users/doonghwi/Documents/dailyapp/`.
 
+## 2026-07-15(3차) 홍보 에셋(가로 16:9·30초 영상) + v24 다듬기
+- **스토어 에셋 큐 잔여분 처리**: 가로 16:9 스크린샷 3장(`store/screenshots/wide/`, 합성 스크립트 `tool/make_wide_screenshots.py` — 소스 폰캡처는 `wide_src/`) + **30초 홍보 영상** 세로/가로(`promo/video/promo_30s_*.mp4` — v23·24 실플레이 5클립을 ffmpeg trim+concat, menu.mp3 페이드). 자료실 '홍보 준비물'에 게시. 아이콘 2안·피처그래픽 일러스트판만 사용자 이미지 생성 대기.
+- **v24 다듬기 3건**: ①게스트가 온라인 행동 전이면 친구 탭이 '연결 중'에 머묾 → FriendsTab 진입 시 tryAnonymous 보장 ②온보딩 '5000골드'→'코인' ③첫 실행에 온보딩·특훈 팝업 겹침 → 닉네임 미설정이면 특훈 권유를 다음 실행으로.
+- **⚠️ 에뮬 QA 함정(LESSONS에도 기록)**: 업로드 키 서명 release APK 사이드로드는 Firebase API 키 안드로이드 제한(SHA 미등록)으로 **익명 인증이 차단** → 방 만들기 전부 실패. 규칙/logicV 문제 아님(웹 키 REST로 검증). 에뮬은 debug 빌드로 QA할 것.
+
 ## 2026-07-15(2차) 디자인 라운드1 전면 반영 — v23
 - **선택 탭 답변 반영 완료**(cowboy_picks.json → 구현): 방장=금색 카드+칩(seat_card) / 휘장=**TierFramed**(widgets/tier_frame.dart — 카드 틀 밖 모서리 장식·상단 크레스트·숨쉬는 발광, LoL 시즌 테두리풍) / 스킬=초상화 링 게이지(_AbilityRing, abilityUses=남은횟수 문자열 파싱, 발동 시 금빛 플래시 — '치료!' 텍스트·좌하단 배지 제거) / 상점=캐러셀(characters_tab 재작성) / 문구=CharDef에 **quote 필드 신설**(15명 대사) + 대사 칸/능력 칸 분리(상점·페이저) / 튜토리얼=**보안관의 특훈**(OfflineGameScreen(tutorial:true) — 3턴 시나리오 봇, ActionBar allowedKinds 잠금, 코치 말풍선, 완주 시 Meta.grantGuidedTutorialReward 300G, 진입=첫실행 팝업·설정).
 - decisions.json 전 문항 status:decided+answer 아카이브. 스킨 업데이트 초안 growth/SKIN_UPDATE_DRAFT.md(사용자 검토 대기).

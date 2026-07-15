@@ -51,6 +51,9 @@ class _PlayTabState extends State<PlayTab> {
   Future<void> _maybeShowFirstRunTutorial() async {
     _maybeShowWelcomeBack();
     if (!mounted || !Meta.I.ready || Meta.I.tutorialSeen) return;
+    // 최초 실행엔 온보딩(닉네임/로그인)이 먼저 뜬다 — 팝업이 겹치지 않게
+    // 이번엔 건너뛰고 다음 실행에서 특훈을 권한다(2026-07-15).
+    if (Meta.I.nickname.isEmpty) return;
     await Meta.I.markTutorialSeen();
     if (!mounted) return;
     // 첫 진입 = 가이드 결투(보안관 특훈)로 안내(2026-07-15 사용자 선택 A안).

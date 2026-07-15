@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 
 import '../audio/sfx.dart';
 import '../game/characters.dart';
+import '../meta/auth_service.dart';
 import '../meta/meta_service.dart';
 import '../online/friend_service.dart';
 import '../online/online_service.dart';
@@ -35,6 +36,11 @@ class _FriendsTabState extends State<FriendsTab> {
   @override
   void initState() {
     super.initState();
+    // 게스트도 익명 인증을 마쳐야 친구 노드를 읽을 수 있다 — 탭 진입 시 보장.
+    // (온라인 행동을 한 번도 안 한 게스트가 '연결 중'에 머물던 문제, 2026-07-15)
+    AuthService.I.tryAnonymous().then((_) {
+      if (mounted) setState(() {});
+    });
     _poll = Timer.periodic(const Duration(seconds: 15), (_) => _refresh());
     _loadRecent();
   }
