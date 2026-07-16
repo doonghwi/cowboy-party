@@ -138,6 +138,14 @@ class Bgm {
         try {
           await _p.pause();
         } catch (_) {}
+        // 원샷 스팅도 정지 — 일회성이라 복귀 시 재개하지 않는다.
+        for (final p in List.of(_stings)) {
+          try {
+            await p.stop();
+            await p.dispose();
+          } catch (_) {}
+        }
+        _stings.clear();
         break;
       case AppLifecycleState.inactive:
         break; // 전환 과도기 — 무시
@@ -167,13 +175,21 @@ class Bgm {
     }
   }
 
+  /// 재생 중인 원샷 스팅들 — 라이프사이클에서 함께 꺼야 한다(2026-07-16 제보:
+  /// 승리 스팅이 홈으로 나가도 계속 재생).
+  static final List<AudioPlayer> _stings = [];
+
   /// 원샷 뮤직 스팅(승리 팡파레 등) — 루프 없이 한 번 재생하고 끝.
   /// 배경음과 섞여 재생된다(AudioContext가 포커스를 안 뺏음).
   static void sting(String name, {double volume = 0.5}) {
     if (Sfx.muted) return;
     try {
       final p = AudioPlayer();
-      p.onPlayerComplete.listen((_) => p.dispose());
+      _stings.add(p);
+      p.onPlayerComplete.listen((_) {
+        _stings.remove(p);
+        p.dispose();
+      });
       p.play(AssetSource('music/$name.mp3'), volume: volume);
     } catch (_) {}
   }

@@ -18,6 +18,7 @@ import '../online/friend_service.dart';
 import 'friends_sheet.dart';
 import '../online/online_service.dart';
 import '../theme.dart';
+import '../widgets/level_up_overlay.dart';
 import '../widgets/char_pager_sheet.dart';
 import '../widgets/action_bar.dart';
 import '../widgets/celebration.dart';
@@ -184,6 +185,11 @@ class _OnlineGameScreenState extends State<OnlineGameScreen> {
 
   bool _leaving = false; // 이중 pop(검은 화면) 방지 가드
   OnlinePhase _phaseNow = OnlinePhase.waiting;
+  // 결과 확인은 각자 페이스로(#5, 2026-07-16): 남들이 먼저 리셋/퇴장해 방이
+  // 대기실로 바뀌거나 삭제돼도 내 결과 화면을 붙잡아 둔다.
+  RoomView? _overHold;
+  bool _roomGone = false;
+  int _lastReadyTapMs = 0; // 준비 연타 방지(#9)
 
   Future<void> _leaveAndPop() async {
     if (_leaving) return; // 연타/스트림 경합으로 두 번 pop되던 버그(2026-07-16)
@@ -235,6 +241,7 @@ class _OnlineGameScreenState extends State<OnlineGameScreen> {
     _presenceSeat = view.mySeat;
     _startedNow = view.started;
     _phaseNow = view.phase;
+    if (view.phase == OnlinePhase.over) _overHold = view;
     // Remember my name so a sticky quit can show it after my node is gone.
     final myName = view.me?.name;
     if (myName != null && myName.isNotEmpty) _myName = myName;
@@ -409,7 +416,15 @@ class _OnlineGameScreenState extends State<OnlineGameScreen> {
                       child: CircularProgressIndicator(color: CD.rust));
                 }
                 final raw = snap.data!.snapshot.value;
-                if (raw is! Map) return _info('방이 사라졌어요.', back: true);
+                if (raw is! Map) {
+                  // 방 노드가 정리돼도(전원 퇴장→청소) 결과 화면은 유지(#5).
+                  final hold = _overHold;
+                  if (hold != null) {
+                    _roomGone = true;
+                    return _table(hold);
+                  }
+                  return _info('방이 사라졌어요.', back: true);
+                }
                 final data = Map.from(raw);
                 final view = OnlineService.computeView(
                     data, widget.service.clientId,
@@ -420,7 +435,7 @@ class _OnlineGameScreenState extends State<OnlineGameScreen> {
                 _handleNudge(data, view);
                 _ensureSubmitDelivered(view);
                 _maybeReset(view, data['scored'] == true);
-                _maybeReward(view);
+                _maybeReward(view, data);
                 _manageTurnTimer(view);
                 _maybePeekUnblock(view);
                 if (view.iShouldClaimHost) widget.service.ensureHost(widget.code);
@@ -439,6 +454,9 @@ class _OnlineGameScreenState extends State<OnlineGameScreen> {
                     return const Center(
                         child: CircularProgressIndicator(color: CD.rust));
                   }
+                  // 남들이 먼저 '대기실로'를 눌러 방이 리셋돼도, 내가 결과를
+                  // 아직 안 닫았으면 결과 화면을 유지한다(#5).
+                  if (_overHold != null) return _table(_overHold!);
                   return _waiting(view, data);
                 }
                 if (view.iAmOut) {
@@ -502,7 +520,14 @@ class _OnlineGameScreenState extends State<OnlineGameScreen> {
 
   // F1: 대기실에서 내 캐릭터 변경(보유한 캐릭터 중에서). 시작 전만.
   // #8(2026-07-15): 아이콘 그리드 → 일러스트 페이저(능력 설명 포함).
-  void _changeCharInRoom(int mySeat) {
+  void _changeCharInRoom(int mySeat, bool iAmReady) {
+    // 준비 완료 상태에선 변경 금지 — 방장 시작 직전에 캐릭터가 바뀌는 혼선 방지(#8).
+    if (iAmReady) {
+      TopToast.show(context,
+          message: '준비를 풀어야 캐릭터를 바꿀 수 있어요',
+          icon: Icons.lock_outline);
+      return;
+    }
     final owned = [for (final d in kCharacters) if (Meta.I.isUnlocked(d.id)) d];
     showCharPagerSheet(
       context,
@@ -554,7 +579,7 @@ class _OnlineGameScreenState extends State<OnlineGameScreen> {
   }
 
   /// 게임이 결판나면 코인·시즌 포인트를 1회 지급 (관전자 제외).
-  void _maybeReward(RoomView view) {
+  void _maybeReward(RoomView view, Map data) {
     if (view.phase != OnlinePhase.over || view.status != GameStatus.won) {
       if (view.phase != OnlinePhase.over) _rewarded = false;
       return;
@@ -576,10 +601,27 @@ class _OnlineGameScreenState extends State<OnlineGameScreen> {
       for (final s in view.seats)
         if (s.seat != view.mySeat && s.name.isNotEmpty) s.name,
     ]);
+    // ⑫ 친선전 전적: 친선전 방이면 상대 uid별로 내 승패를 누적(친구일 때만).
+    if (data['friendly'] == true) {
+      final players = data['players'];
+      if (players is Map) {
+        for (final v in players.values) {
+          if (v is Map &&
+              v['id'] is String &&
+              v['id'] != widget.service.clientId) {
+            FriendService.I.recordFriendly(v['id'] as String, won: iWon);
+          }
+        }
+      }
+    }
     // #9 데일리 미션 진행 + 달성 보상.
+    final lvBefore = Meta.I.level;
     final rew = Meta.I.noteGamePlayed(won: iWon);
+    final leveledTo = Meta.I.level > lvBefore ? Meta.I.level : -1;
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted) return;
+      // ⑭ 레벨업 모션(2026-07-16 요청) — 결과와 함께 금빛 연출.
+      if (leveledTo > 0) LevelUpOverlay.show(context, leveledTo);
       TopToast.show(
         context,
         message: !rew.isEmpty
@@ -642,9 +684,19 @@ class _OnlineGameScreenState extends State<OnlineGameScreen> {
           runSpacing: 6,
           children: [
             FilledButton.icon(
-              onPressed: () => showFriendsSheet(context,
-                  onInvite: (uid) =>
-                      FriendService.I.invite(uid, widget.code)),
+              onPressed: () {
+                // 이미 이 방에 있는 친구는 초대 버튼 대신 '같이 있음'(#11).
+                final players = data['players'];
+                final inRoom = <String>{
+                  if (players is Map)
+                    for (final v in players.values)
+                      if (v is Map && v['id'] is String) v['id'] as String,
+                };
+                showFriendsSheet(context,
+                    inRoomUids: inRoom,
+                    onInvite: (uid) =>
+                        FriendService.I.invite(uid, widget.code));
+              },
               style: FilledButton.styleFrom(
                 backgroundColor: CD.gold,
                 padding: const EdgeInsets.symmetric(
@@ -660,7 +712,7 @@ class _OnlineGameScreenState extends State<OnlineGameScreen> {
             FilledButton.icon(
               onPressed: view.mySeat < 0
                   ? null
-                  : () => _changeCharInRoom(view.mySeat),
+                  : () => _changeCharInRoom(view.mySeat, view.iAmReady),
               style: FilledButton.styleFrom(
                 backgroundColor: CD.sage,
                 padding: const EdgeInsets.symmetric(
@@ -771,8 +823,15 @@ class _OnlineGameScreenState extends State<OnlineGameScreen> {
                       child: FilledButton.icon(
                         onPressed: view.mySeat < 0
                             ? null
-                            : () => widget.service
-                                .setReady(widget.code, view.mySeat, !iAmReady),
+                            : () {
+                                // 연타로 준비가 깜빡여 방장이 시작 못 하던 것 방지(#9).
+                                final now =
+                                    DateTime.now().millisecondsSinceEpoch;
+                                if (now - _lastReadyTapMs < 800) return;
+                                _lastReadyTapMs = now;
+                                widget.service.setReady(
+                                    widget.code, view.mySeat, !iAmReady);
+                              },
                         style: FilledButton.styleFrom(
                           backgroundColor: iAmReady ? CD.sage : CD.leather,
                           padding: const EdgeInsets.symmetric(vertical: 15),
@@ -793,17 +852,31 @@ class _OnlineGameScreenState extends State<OnlineGameScreen> {
     );
   }
 
+  /// #5: 결과 화면에서 대기실로 — 방 상태에 따라 리셋/화면 전환/퇴장을 고른다.
+  void _backToLobby() {
+    if (_roomGone) {
+      _leaveAndPop();
+      return;
+    }
+    if (_phaseNow == OnlinePhase.waiting) {
+      // 남이 이미 리셋함 — 내 화면만 대기실로 전환.
+      setState(() => _overHold = null);
+      return;
+    }
+    widget.service.resetBoard(widget.code, toLobby: true);
+    setState(() => _overHold = null);
+  }
+
   /// 방장 시작 버튼: 전원 준비돼야 시작, 아니면 대기실 전원에게 레디 독촉 신호.
   void _hostStart(bool allReady) {
     if (allReady) {
       widget.service.startGame(widget.code);
     } else {
       widget.service.nudgeReady(widget.code); // 미준비자 화면이 울린다
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-        behavior: SnackBarBehavior.floating,
-        content: Text('아직 준비하지 않은 사람이 있어요. 모두 "준비"를 누르면 시작할 수 있어요.'),
-        duration: Duration(seconds: 2),
-      ));
+      // 방장도 같은 재촉 토스트를 본다(#2, 2026-07-16) — 문구는 한 줄로.
+      TopToast.show(context,
+          message: '🔔 준비 안 한 사람에게 재촉을 보냈어요',
+          icon: Icons.notifications_active);
     }
   }
 
@@ -848,6 +921,7 @@ class _OnlineGameScreenState extends State<OnlineGameScreen> {
             blocked: sv.blocked,
             abilityUses: sv.abilityUses,
             curseTurnsLeft: sv.curseTurnsLeft,
+            curses: sv.curses,
             curseKillFx: sv.curseKillFx,
             hideAmmo: sv.hideAmmo,
             hideAction: sv.hideAction,
@@ -1034,7 +1108,9 @@ class _OnlineGameScreenState extends State<OnlineGameScreen> {
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted) return;
       setState(() {});
-      TopToast.show(context, message: '🔔 방장이 시작하려고 해요 — 준비를 눌러주세요!');
+      TopToast.show(context,
+          message: '🔔 방장의 재촉! 준비를 눌러주세요',
+          icon: Icons.notifications_active);
     });
   }
 
@@ -1218,6 +1294,7 @@ class _OnlineGameScreenState extends State<OnlineGameScreen> {
         onSmokeToggle: (v) => setState(() => _smokeOn = v),
         showPeek: myChar == CharId.paparazzi && !view.myPaparazziUsed,
         peekEnabled: true,
+        peekSelecting: _peekSelecting,
         onPeek: () => setState(() {
           Sfx.click();
           _peekSelecting = true;
@@ -1350,13 +1427,12 @@ class _OnlineGameScreenState extends State<OnlineGameScreen> {
                 Expanded(
                   flex: 2,
                   child: FilledButton(
-                    onPressed: () =>
-                        widget.service.resetBoard(widget.code, toLobby: true),
+                    onPressed: _backToLobby,
                     style: FilledButton.styleFrom(
                       backgroundColor: CD.rust,
                       padding: const EdgeInsets.symmetric(vertical: 13),
                     ),
-                    child: const Text('대기실로 돌아가기'),
+                    child: Text(_roomGone ? '나가기' : '대기실로 돌아가기'),
                   ),
                 ),
               ],

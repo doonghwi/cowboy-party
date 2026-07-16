@@ -39,6 +39,7 @@ class ActionBar extends StatelessWidget {
   /// 파파라치 엿보기.
   final bool showPeek; // 파파라치 + 미사용
   final bool peekEnabled; // 오프라인 true (온라인은 준비 중)
+  final bool peekSelecting; // 대상 선택 중 — 버튼 눌림 표시(2026-07-16 제보)
   final VoidCallback? onPeek;
 
   const ActionBar({
@@ -60,6 +61,7 @@ class ActionBar extends StatelessWidget {
     this.allowedKinds,
     this.showPeek = false,
     this.peekEnabled = false,
+    this.peekSelecting = false,
     this.onPeek,
   });
 
@@ -204,12 +206,14 @@ class ActionBar extends StatelessWidget {
           const SizedBox(height: 8),
         ] else if (_showPeek) ...[
           _parallelBar(
-            on: false,
+            on: peekSelecting,
             color: const Color(0xFF4A6FA5),
             icon: Icons.photo_camera,
-            label: peekEnabled
-                ? '엿보기 — 한 명 행동 미리보기 (게임당 1번)'
-                : '엿보기 (준비 중)',
+            label: peekSelecting
+                ? '엿보기 — 엿볼 상대를 탭하세요!'
+                : peekEnabled
+                    ? '엿보기 — 한 명 행동 미리보기 (게임당 1번)'
+                    : '엿보기 (준비 중)',
             onTap: peekEnabled ? onPeek : null,
           ),
           const SizedBox(height: 8),

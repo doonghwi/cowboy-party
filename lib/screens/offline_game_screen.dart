@@ -12,6 +12,7 @@ import '../game/party_logic.dart';
 import '../meta/analytics.dart';
 import '../meta/meta_service.dart';
 import '../theme.dart';
+import '../widgets/level_up_overlay.dart';
 import '../widgets/action_bar.dart';
 import '../widgets/celebration.dart';
 import '../widgets/circular_table.dart';
@@ -902,6 +903,7 @@ class _OfflineGameScreenState extends State<OfflineGameScreen> {
               : abilityUsesLabel(_chars[s], _pstate, s),
           curseTurnsLeft:
               s < _pstate.curseFuse.length ? _pstate.curseFuse[s] : 0,
+          curses: _pstate.cursesOn(s),
           curseKillFx: fx(_lastOut?.curseKill, s),
           hideAmmo: shadowHide(s),
           hideAction: hideAct(s),
@@ -1162,7 +1164,12 @@ class _OfflineGameScreenState extends State<OfflineGameScreen> {
     _offlineRewarded = true;
     Ana.log('game_end',
         {'mode': 'cpu', 'players': _n, 'won': _winner == 0 ? 1 : 0});
+    final lvBefore = Meta.I.level;
     final rew = Meta.I.noteGamePlayed(won: _winner == 0);
+    // ⑭ 레벨업 모션(2026-07-16) — 오프라인 판에서도 동일 연출.
+    if (Meta.I.level > lvBefore && mounted) {
+      LevelUpOverlay.show(context, Meta.I.level);
+    }
     if (!rew.isEmpty) {
       WidgetsBinding.instance.addPostFrameCallback((_) {
         if (mounted) {

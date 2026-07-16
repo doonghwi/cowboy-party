@@ -14,7 +14,12 @@ import 'online_service.dart';
 class FriendInfo {
   final String uid;
   final String name;
-  const FriendInfo(this.uid, this.name);
+
+  /// 친선전 누적 전적(⑫ 2026-07-16) — 내 관점 승/패.
+  final int friendlyWins;
+  final int friendlyLosses;
+  const FriendInfo(this.uid, this.name,
+      {this.friendlyWins = 0, this.friendlyLosses = 0});
 }
 
 class FriendRequest {
@@ -70,6 +75,7 @@ class FriendService {
         await r.child('presence/$uid').set({
           'at': ServerValue.timestamp,
           'name': _myName,
+          'lv': Meta.I.level, // 친구 프로필 표시용(⑬ 2026-07-16)
         });
       } catch (_) {}
     }
@@ -95,6 +101,37 @@ class FriendService {
       }
     } catch (_) {}
     return out;
+  }
+
+  /// 친구 한 명의 presence 상세(온라인 여부+레벨) — 프로필 시트용(⑬).
+  Future<({bool on, int lv})> presenceInfo(String uid) async {
+    final r = _root;
+    if (r == null) return (on: false, lv: 0);
+    try {
+      final snap = await r.child('presence/$uid').get();
+      final v = snap.value;
+      final at = (v is Map && v['at'] is num) ? (v['at'] as num).toInt() : 0;
+      final lv = (v is Map && v['lv'] is num) ? (v['lv'] as num).toInt() : 0;
+      final now = DateTime.now().millisecondsSinceEpoch;
+      return (on: now - at < kOnlineWithinMs, lv: lv);
+    } catch (_) {
+      return (on: false, lv: 0);
+    }
+  }
+
+  /// 친선전 결과 1건 누적(⑫) — friends/<나>/<친구>/{fw,fl}. 친구가 아니면 무시.
+  Future<void> recordFriendly(String fuid, {required bool won}) async {
+    final r = _root;
+    final me = _uid;
+    if (r == null || me == null || fuid.isEmpty || fuid == me) return;
+    try {
+      final entry = await r.child('friends/$me/$fuid/name').get();
+      if (entry.value == null) return; // 친구 아님 — 유령 항목 방지
+      await r
+          .child('friends/$me/$fuid/${won ? 'fw' : 'fl'}')
+          .runTransaction((cur) =>
+              Transaction.success((cur is int ? cur : 0) + 1));
+    } catch (_) {}
   }
 
   // ── 친구 요청/수락 ──────────────────────────────────────────────────────
@@ -174,7 +211,10 @@ class FriendService {
         v.forEach((uid, raw) {
           final name =
               (raw is Map && raw['name'] is String) ? raw['name'] as String : '카우보이';
-          out.add(FriendInfo(uid.toString(), name));
+          int cnt(String k) =>
+              (raw is Map && raw[k] is num) ? (raw[k] as num).toInt() : 0;
+          out.add(FriendInfo(uid.toString(), name,
+              friendlyWins: cnt('fw'), friendlyLosses: cnt('fl')));
         });
       }
       out.sort((a, b) => a.name.compareTo(b.name));

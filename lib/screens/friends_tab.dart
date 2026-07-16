@@ -93,6 +93,7 @@ class _FriendsTabState extends State<FriendsTab> {
       await service.createRoom(code, name, 2,
           charIndex: Meta.I.equippedIndex,
           public: false,
+          friendly: true, // ⑫ 전적 누적 대상
           title: '$name vs ${f.name} 친선전');
       await FriendService.I.invite(f.uid, code);
     } catch (_) {
@@ -152,7 +153,60 @@ class _FriendsTabState extends State<FriendsTab> {
                               : CD.muted)),
                 ],
               ),
-              const SizedBox(height: 16),
+              const SizedBox(height: 12),
+              // ⑬ 프로필 정보(2026-07-16): 레벨·친선전 전적·최근 함께 플레이.
+              FutureBuilder<({bool on, int lv})>(
+                future: FriendService.I.presenceInfo(f.uid),
+                builder: (context, snap) {
+                  final lv = snap.data?.lv ?? 0;
+                  return FutureBuilder<List<String>>(
+                    future: FriendService.I.recentPlayers(),
+                    builder: (context, recentSnap) {
+                      final recent =
+                          (recentSnap.data ?? const []).contains(f.name);
+                      Widget stat(IconData ic, String label, String value) =>
+                          Padding(
+                            padding: const EdgeInsets.symmetric(vertical: 3),
+                            child: Row(children: [
+                              Icon(ic, size: 15, color: CD.leather),
+                              const SizedBox(width: 7),
+                              Text(label,
+                                  style: const TextStyle(
+                                      fontSize: 12.5, color: CD.muted)),
+                              const Spacer(),
+                              Text(value,
+                                  style: const TextStyle(
+                                      fontSize: 13,
+                                      fontWeight: FontWeight.w900,
+                                      color: CD.leather)),
+                            ]),
+                          );
+                      return Container(
+                        width: double.infinity,
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 14, vertical: 8),
+                        decoration: BoxDecoration(
+                          color: CD.sand.withValues(alpha: 0.55),
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        child: Column(children: [
+                          stat(Icons.military_tech, '계정 레벨',
+                              lv > 0 ? 'Lv.$lv' : '미공개'),
+                          stat(
+                              Icons.sports_kabaddi,
+                              '나와의 친선전',
+                              (f.friendlyWins + f.friendlyLosses) > 0
+                                  ? '${f.friendlyWins}승 ${f.friendlyLosses}패'
+                                  : '아직 없음'),
+                          stat(Icons.history, '최근 함께 플레이',
+                              recent ? '있음' : '기록 없음'),
+                        ]),
+                      );
+                    },
+                  );
+                },
+              ),
+              const SizedBox(height: 12),
               SizedBox(
                 width: double.infinity,
                 child: FilledButton.icon(

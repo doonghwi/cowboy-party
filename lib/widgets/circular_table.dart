@@ -47,6 +47,7 @@ class TableSeat {
 
   /// 부두 저주(C2): 남은 턴(0=없음)을 좌석에 상시 표시, 만료 사망은 별도 이펙트.
   final int curseTurnsLeft;
+  final List<(int, int)> curses; // 규칙 v2: 시전자별 저주 [(시전자, 남은턴)]
   final bool curseKillFx;
 
   /// 그림자: 탄약/행동을 가린다.
@@ -90,6 +91,7 @@ class TableSeat {
     this.resetFx = false,
     this.rouletteSelfFx = false,
     this.curseTurnsLeft = 0,
+    this.curses = const [],
     this.curseKillFx = false,
     this.hideAmmo = false,
     this.hideAction = false,
@@ -230,6 +232,8 @@ class CircularTable extends StatelessWidget {
                   rankTier: tierForRank(seats[s].rank),
                   abilityUses: seats[s].abilityUses,
                   curseTurnsLeft: seats[s].curseTurnsLeft,
+                  curses: seats[s].curses,
+                  seatIndex: s,
                   abilityFx: reveal ? _fxLabel(seats[s]) : null,
                   scale: 0,
                   targetable: targetMode && !seats[s].isMe && seats[s].alive,
@@ -327,7 +331,9 @@ class CircularTable extends StatelessWidget {
             // 부두 저주: 저주 걸린 좌석에 상시 오라, 만료 사망 시 데스 버스트.
             if (reveal)
               for (var s = 0; s < n; s++)
-                if ((seats[s].curseTurnsLeft > 0 || seats[s].curseKillFx) &&
+                if ((seats[s].curseTurnsLeft > 0 ||
+                        seats[s].curses.isNotEmpty ||
+                        seats[s].curseKillFx) &&
                     !seats[s].hideAction)
                   Positioned.fill(
                     child: CurseAura(

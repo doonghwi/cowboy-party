@@ -47,6 +47,7 @@ class SeatView {
   final String? abilityUses; // 유한 능력 사용량 '사용/총'(#11, 모두에게 표시)
   final bool curseKillFx; // 저주 만료로 이 턴 사망
   final int curseTurnsLeft; // 부두 저주 남은 턴(0=저주 없음) — 모두에게 표시(C2)
+  final List<(int, int)> curses; // 규칙 v2: 시전자별 저주 [(시전자, 남은턴)]
   final bool late; // 게임 중 난입 — 다음 판부터 참여(관전)
 
   // 그림자(shadow): 상대가 볼 때 가려짐.
@@ -89,6 +90,7 @@ class SeatView {
     this.abilityUses,
     this.curseKillFx = false,
     this.curseTurnsLeft = 0,
+    this.curses = const [],
     this.late = false,
     this.hideAmmo = false,
     this.hideAction = false,
@@ -251,7 +253,7 @@ class RoomView {
 /// 방 생성 시 이 값을 기록하고, 다르면 입장을 막는다.
 /// **규칙·능력·리플레이에 영향 주는 수정 시 반드시 +1 할 것.**
 /// 버전 표기 없는 방(구버전·봇 러너)은 과도기 동안 통과시킨다.
-const int kLogicVersion = 1;
+const int kLogicVersion = 2;
 
 enum JoinResult { joined, notFound, full, alreadyStarted, wrongPassword, kicked, versionMismatch }
 
@@ -398,7 +400,8 @@ class OnlineService {
       String title = '',
       bool public = true,
       String password = '',
-      bool match = false}) async {
+      bool match = false,
+      bool friendly = false}) async {
     // 보안 규칙이 방 쓰기에 로그인을 요구함(익명 폴백) — 쓰기 전에 보장.
     await AuthService.I.tryAnonymous();
     await _ensureTimeSync(); // seen/createdAt이 서버시계 기준이 되도록
@@ -411,6 +414,8 @@ class OnlineService {
       'pw': public ? '' : password.trim(),
       // 매칭 전용 방(#2): 목록에 안 뜨고 빠른 시작끼리만 모임.
       'match': match,
+      // 친선전 방(⑫): 끝나면 친구별 전적에 누적(표시 전용 플래그).
+      if (friendly) 'friendly': true,
       'title': title.trim().isEmpty ? '$name의 결투장' : title.trim(),
       'hostName': name,
       'game': 0,
@@ -1481,6 +1486,7 @@ class OnlineService {
           rouletteSelfFx: rouletteSelfFx,
           abilityUses: abilityUsesNow(),
           curseFuse: pstate.curseFuse,
+          curseMatrix: pstate.curseMatrix,
           myTrapAvailable: mySeat >= 0 &&
               mySeat < n &&
               chars[mySeat] == CharId.hunter &&
@@ -1675,6 +1681,7 @@ class OnlineService {
           rouletteSelfFx: rouletteSelfFx,
           abilityUses: abilityUsesNow(),
           curseFuse: pstate.curseFuse,
+          curseMatrix: pstate.curseMatrix,
           curseKillFx: out.curseKill,
           specialWin: specialWin,
         );
@@ -1721,6 +1728,7 @@ class OnlineService {
     List<CharId> chars = const [],
     List<CharId> displayChars = const [],
     List<int> curseFuse = const [],
+    List<List<int>> curseMatrix = const [],
     List<bool> curseKillFx = const [],
     bool Function(int)? lateFn,
     List<bool> healedFx = const [],
@@ -1799,6 +1807,12 @@ class OnlineService {
           abilityUses: s < abilityUses.length ? abilityUses[s] : null,
           curseKillFx: fx(curseKillFx, s),
           curseTurnsLeft: s < curseFuse.length ? curseFuse[s] : 0,
+          curses: s < curseMatrix.length
+              ? [
+                  for (var c = 0; c < curseMatrix[s].length; c++)
+                    if (curseMatrix[s][c] > 0) (c, curseMatrix[s][c])
+                ]
+              : const [],
           late: late(s),
           hideAmmo: isShadowHidden(s),
           hideAction: hideActFor(s),

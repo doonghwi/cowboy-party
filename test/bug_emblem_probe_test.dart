@@ -19,17 +19,18 @@ void main() {
     await tester.binding.setSurfaceSize(const Size(420, 900));
 
     List<TableSeat> seats({required bool waiting}) => [
-          for (var s = 0; s < 4; s++)
+          for (var s = 0; s < 6; s++)
             TableSeat(
-              name: s == 1 ? '랭커' : 'p$s',
-              level: waiting ? (s == 1 ? 21 : 3) : -1,
-              rank: s == 1 ? 1 : 0,
+              name: s == 0 ? 'doonghwi' : (s == 1 ? '랭커' : '빈자리'),
+              level: waiting ? (s == 0 ? 7 : (s == 1 ? 21 : 0)) : -1,
+              rank: s == 0 ? 5 : (s == 1 ? 1 : 0),
               ammo: waiting ? 0 : 2,
               alive: true,
               isMe: s == 0,
-              joined: true,
-              submitted: false,
-              char: s == 1 ? CharId.sniper : CharId.commoner,
+              isHostSeat: s == 0,
+              joined: waiting ? true : (s < 2),
+              submitted: s == 0,
+              char: s == 0 ? CharId.duelist : (s == 1 ? CharId.sniper : CharId.none),
             ),
         ];
 

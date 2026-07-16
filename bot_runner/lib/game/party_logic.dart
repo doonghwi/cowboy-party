@@ -208,22 +208,66 @@ class PartyState {
   final List<bool> paparazziUsed; // 파파라치 엿보기 사용 여부
   final List<bool> resetterUsed; // 리셋터 '무효' 사용 여부
 
-  // 부두 저주 — **대상 좌석별로 독립**(동시에 여러 명을 저주할 수 있다).
-  // 부두술사가 여럿이어도 각자 따로 저주를 건다. 좌석 s가 저주받지 않았으면
-  // curseFuse[s] == 0, curseCaster[s] == -1.
-  final List<int> curseFuse; // 좌석별 사망까지 남은 턴(0 = 저주 없음)
-  final List<int> curseCaster; // 좌석별 저주를 건 부두술사 좌석(-1 없음)
+  // 부두 저주 — **시전자별 독립 스택**(규칙 v2, 2026-07-16 사용자 결정).
+  // curseMatrix[대상][시전자] = 남은 턴(0 = 없음). 한 대상이 여러 부두의
+  // 저주를 동시에 보유할 수 있고, 각 저주의 도화선(kCurseFuse턴)이 따로 탄다.
+  // ⚠️ 게임 규칙 — 바꾸면 kLogicVersion을 올리고 bot_runner 사본도 동기화할 것.
+  final List<List<int>> curseMatrix;
 
-  const PartyState({
+  PartyState({
     required this.doctorUsed,
     required this.trapUsed,
     required this.smokeLeft,
     required this.reloads,
     required this.paparazziUsed,
     required this.resetterUsed,
-    this.curseFuse = const [],
-    this.curseCaster = const [],
-  });
+    // 레거시 파라미터(단일 저주 시절 테스트 호환) — matrix 미지정 시 변환.
+    List<int> curseFuse = const [],
+    List<int> curseCaster = const [],
+    List<List<int>>? curseMatrix,
+  }) : curseMatrix = curseMatrix ??
+            _legacyMatrix(doctorUsed.length, curseFuse, curseCaster);
+
+  static List<List<int>> _legacyMatrix(
+      int n, List<int> fuse, List<int> caster) {
+    final m = [for (var v = 0; v < n; v++) List<int>.filled(n, 0)];
+    for (var v = 0; v < n && v < fuse.length; v++) {
+      final c = v < caster.length ? caster[v] : -1;
+      if (fuse[v] > 0 && c >= 0 && c < n) m[v][c] = fuse[v];
+    }
+    return m;
+  }
+
+  /// 호환 뷰: 좌석별 "가장 임박한" 저주 남은 턴(0=없음).
+  List<int> get curseFuse => [
+        for (final row in curseMatrix)
+          row.where((f) => f > 0).fold<int>(0, (a, f) => a == 0 || f < a ? f : a)
+      ];
+
+  /// 호환 뷰: 가장 임박한 저주의 시전자(-1 없음).
+  List<int> get curseCaster => [
+        for (final row in curseMatrix)
+          () {
+            var best = -1, bf = 1 << 30;
+            for (var c = 0; c < row.length; c++) {
+              if (row[c] > 0 && row[c] < bf) {
+                bf = row[c];
+                best = c;
+              }
+            }
+            return best;
+          }()
+      ];
+
+  /// 좌석 v에 걸린 저주 목록 [(시전자, 남은 턴)] — 표시용.
+  List<(int, int)> cursesOn(int v) {
+    if (v < 0 || v >= curseMatrix.length) return const [];
+    final row = curseMatrix[v];
+    return [
+      for (var c = 0; c < row.length; c++)
+        if (row[c] > 0) (c, row[c])
+    ];
+  }
 
   factory PartyState.initial(List<CharId> chars) => PartyState(
         doctorUsed: List.filled(chars.length, false),
@@ -234,8 +278,10 @@ class PartyState {
         reloads: List.filled(chars.length, 0),
         paparazziUsed: List.filled(chars.length, false),
         resetterUsed: List.filled(chars.length, false),
-        curseFuse: List.filled(chars.length, 0),
-        curseCaster: List.filled(chars.length, -1),
+        curseMatrix: [
+          for (var v = 0; v < chars.length; v++)
+            List<int>.filled(chars.length, 0)
+        ],
       );
 }
 
@@ -377,11 +423,16 @@ TurnOutcome resolvePartyTurn({
   final reloads = List<int>.from(state.reloads);
   final paparazziUsed = List<bool>.from(state.paparazziUsed);
   final resetterUsed = List<bool>.from(state.resetterUsed);
-  // 좌석별 저주 상태(길이 보정 — 옛 PartyState/빈 리스트도 안전하게).
-  final curseFuse =
-      List<int>.generate(n, (i) => i < state.curseFuse.length ? state.curseFuse[i] : 0);
-  final curseCaster = List<int>.generate(
-      n, (i) => i < state.curseCaster.length ? state.curseCaster[i] : -1);
+  // 저주 매트릭스(길이 보정 — 옛 PartyState/빈 리스트도 안전하게).
+  final curse = [
+    for (var v = 0; v < n; v++)
+      List<int>.generate(
+          n,
+          (c) => v < state.curseMatrix.length &&
+                  c < state.curseMatrix[v].length
+              ? state.curseMatrix[v][c]
+              : 0)
+  ];
 
   // 리셋터 '무효': 살아있는 리셋터가 미사용 상태로 무효를 내면 이번 턴은
   // 모든 전투 결과(피격/장전/저주발동 등)가 없던 일이 된다. 단 총알·특수자원은 소모.
@@ -523,15 +574,17 @@ TurnOutcome resolvePartyTurn({
     if (rouletteSelf[i]) hit[i] = true;
   }
 
-  // 4) 저주 발동 (이번 턴 만료되는가) — 좌석별로 독립 판정. 건 부두술사가
-  //    이 턴까지 살아있어야 함.
+  // 4) 저주 발동 (이번 턴 만료되는가) — (대상, 시전자) 쌍마다 독립 판정.
+  //    건 부두술사가 이 턴까지 살아있어야 함. 여러 저주 중 하나라도 만료면 사망.
   for (var v = 0; v < n; v++) {
-    if (curseFuse[v] <= 0 || !aliveBefore[v]) continue;
-    final caster = curseCaster[v];
-    final casterAlive = caster >= 0 && aliveBefore[caster] && !hit[caster];
-    if (casterAlive && curseFuse[v] <= 1) {
-      hit[v] = true;
-      curseKill[v] = true;
+    if (!aliveBefore[v]) continue;
+    for (var c = 0; c < n; c++) {
+      if (curse[v][c] <= 0) continue;
+      final casterAlive = aliveBefore[c] && !hit[c];
+      if (casterAlive && curse[v][c] <= 1) {
+        hit[v] = true;
+        curseKill[v] = true;
+      }
     }
   }
 
@@ -590,35 +643,31 @@ TurnOutcome resolvePartyTurn({
   // 7) 저주 상태 갱신(좌석별): 기존 저주 진행/해제 후 새 저주 적용.
   //    무효 턴이면 저주 상태도 그대로 보존(없던 일).
   if (!turnVoided) {
-    // 7a) 기존 저주 진행/해제 — 대상이나 시전자가 죽었으면 해제.
+    // 7a) 기존 저주 진행/해제 — (대상, 시전자)마다: 어느 쪽이 죽었으면 해제,
+    //     아니면 도화선 감소(만료 사망은 위 4단계에서 처리됨).
     for (var v = 0; v < n; v++) {
-      if (curseFuse[v] <= 0) continue;
-      final caster = curseCaster[v];
-      final casterDead = caster < 0 || !aliveAfter[caster];
-      if (casterDead || !aliveAfter[v]) {
-        curseFuse[v] = 0;
-        curseCaster[v] = -1;
-      } else {
-        curseFuse[v] -= 1; // 도화선 감소 (만료 사망은 위 4단계에서 처리됨)
-        if (curseFuse[v] <= 0) {
-          curseFuse[v] = 0;
-          curseCaster[v] = -1;
+      for (var c = 0; c < n; c++) {
+        if (curse[v][c] <= 0) continue;
+        if (!aliveAfter[c] || !aliveAfter[v]) {
+          curse[v][c] = 0;
+        } else {
+          curse[v][c] -= 1;
+          if (curse[v][c] < 0) curse[v][c] = 0;
         }
       }
     }
-    // 7b) 새 저주 적용 — 살아있는 부두술사 각자 자기 대상에게(동시에 여러 명 가능).
-    // 이미 저주 중인 대상에 재시전하면 **무효**(도화선 유지) — 재시전으로 도화선을
-    // 10으로 되돌려 죽음을 무한히 미루는 것을 막는다(제보 #2). 같은 턴에 두 부두가
-    // 같은 (비저주) 대상을 노리면 먼저 처리된 좌석의 저주만 걸린다.
+    // 7b) 새 저주 적용 — 살아있는 부두술사 각자 자기 대상에게. **규칙 v2**:
+    // 저주는 시전자별로 쌓인다 — 서로 다른 부두는 같은 대상에게 각자 저주 가능
+    // (도화선 kCurseFuse턴이 따로 탐, 색으로 구분 표시). 같은 시전자가 자기
+    // 저주가 남아 있는 대상에 재시전하면 무효(도화선 리셋 악용 방지, 제보 #2).
     for (var i = 0; i < n; i++) {
       if (chars[i] != CharId.voodoo || !aliveBefore[i] || hit[i]) continue;
       final m = moves[i];
       if (m.kind == ActKind.voodoo &&
           targetOk(i, m.target) &&
           aliveAfter[m.target] &&
-          curseFuse[m.target] <= 0) {
-        curseFuse[m.target] = kCurseFuse;
-        curseCaster[m.target] = i;
+          curse[m.target][i] <= 0) {
+        curse[m.target][i] = kCurseFuse;
         voodooCast[i] = true;
       }
     }
@@ -633,8 +682,7 @@ TurnOutcome resolvePartyTurn({
     reloads: reloads,
     paparazziUsed: paparazziUsed,
     resetterUsed: resetterUsed,
-    curseFuse: curseFuse,
-    curseCaster: curseCaster,
+    curseMatrix: curse,
   );
 
   TurnOutcome build(GameStatus status, int? winner, String? special) =>

@@ -11,20 +11,24 @@ import '../widgets/top_toast.dart';
 /// 닉네임으로 추가. [onInvite]가 있으면(대기실에서 열림) 온라인 친구에게
 /// "초대" 버튼이 보인다.
 Future<void> showFriendsSheet(BuildContext context,
-    {void Function(String uid)? onInvite}) {
+    {void Function(String uid)? onInvite,
+    Set<String> inRoomUids = const {}}) {
   return showModalBottomSheet(
     context: context,
     isScrollControlled: true,
     backgroundColor: CD.sand,
     shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
-    builder: (_) => _FriendsSheet(onInvite: onInvite),
+    builder: (_) => _FriendsSheet(onInvite: onInvite, inRoomUids: inRoomUids),
   );
 }
 
 class _FriendsSheet extends StatefulWidget {
-  const _FriendsSheet({this.onInvite});
+  const _FriendsSheet({this.onInvite, this.inRoomUids = const {}});
   final void Function(String uid)? onInvite;
+
+  /// 이미 이 방에 있는 친구 uid — 초대 대신 '같이 있음' 표시(2026-07-16 제보).
+  final Set<String> inRoomUids;
 
   @override
   State<_FriendsSheet> createState() => _FriendsSheetState();
@@ -184,7 +188,23 @@ class _FriendsSheetState extends State<_FriendsSheet> {
                                     color: (_online[f.uid] ?? false)
                                         ? const Color(0xFF3FA66A)
                                         : CD.muted)),
-                            if (widget.onInvite != null) ...[
+                            if (widget.onInvite != null &&
+                                widget.inRoomUids.contains(f.uid)) ...[
+                              const SizedBox(width: 8),
+                              Container(
+                                padding: const EdgeInsets.symmetric(
+                                    horizontal: 10, vertical: 6),
+                                decoration: BoxDecoration(
+                                  color: CD.sage.withValues(alpha: 0.18),
+                                  borderRadius: BorderRadius.circular(9),
+                                ),
+                                child: const Text('같이 있음',
+                                    style: TextStyle(
+                                        fontWeight: FontWeight.w900,
+                                        fontSize: 12,
+                                        color: CD.sage)),
+                              ),
+                            ] else if (widget.onInvite != null) ...[
                               const SizedBox(width: 8),
                               FilledButton(
                                 onPressed: (_online[f.uid] ?? false)

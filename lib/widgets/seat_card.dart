@@ -63,6 +63,13 @@ class SeatCard extends StatelessWidget {
   /// 부두 저주(C2): 남은 턴(0=없음)을 좌석에 상시 표시 — 모두에게 보임.
   final int curseTurnsLeft;
 
+  /// 규칙 v2(2026-07-16): 시전자별 저주 목록 [(시전자 좌석, 남은 턴)].
+  /// 비어 있으면 구 필드 curseTurnsLeft 단일 배지로 폴백.
+  final List<(int, int)> curses;
+
+  /// 내 좌석 번호(부두 아이콘·저주색 매칭용, -1=모름).
+  final int seatIndex;
+
   /// 방장이 닫은 자리(F2) — 자물쇠 아바타.
   final bool blocked;
 
@@ -92,6 +99,8 @@ class SeatCard extends StatelessWidget {
     this.late = false,
     this.abilityFx,
     this.curseTurnsLeft = 0,
+    this.curses = const [],
+    this.seatIndex = -1,
     this.blocked = false,
     this.abilityUses,
   });
@@ -242,7 +251,10 @@ class SeatCard extends StatelessWidget {
                   child: Container(
                     padding: const EdgeInsets.all(3),
                     decoration: BoxDecoration(
-                      color: charDef(char).color,
+                      // 부두술사는 자기 저주색으로 — 여러 부두를 색으로 구분(v2).
+                      color: char == CharId.voodoo && seatIndex >= 0
+                          ? curseColorOf(seatIndex)
+                          : charDef(char).color,
                       shape: BoxShape.circle,
                       border: Border.all(color: Colors.white, width: 1.2),
                     ),
@@ -253,27 +265,41 @@ class SeatCard extends StatelessWidget {
             ],
           ),
           // C2: 저주 남은 턴 — 코너 배지와 절대 겹치지 않도록 아바타 아래
-          // **전용 줄**에 둔다.
-          if (curseTurnsLeft > 0 && alive) ...[
+          // **전용 줄**에 둔다. 규칙 v2: 시전자별 저주가 각자 색 배지로 나란히.
+          if (alive && (curses.isNotEmpty || curseTurnsLeft > 0)) ...[
             SizedBox(height: mini ? 3 : 4),
-            Container(
-              padding:
-                  const EdgeInsets.symmetric(horizontal: 6, vertical: 1),
-              decoration: BoxDecoration(
-                color: const Color(0xFF5B3A8E),
-                borderRadius: BorderRadius.circular(CD.rChip),
-                border: Border.all(color: Colors.white, width: 1.2),
-              ),
+            FittedBox(
+              fit: BoxFit.scaleDown,
               child: Row(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  const Text('💀', style: TextStyle(fontSize: 9)),
-                  const SizedBox(width: 3),
-                  Text('저주 $curseTurnsLeft',
-                      style: const TextStyle(
-                          color: Colors.white,
-                          fontSize: 10,
-                          fontWeight: FontWeight.w900)),
+                  for (final (i, cu) in (curses.isNotEmpty
+                          ? curses
+                          : [(-1, curseTurnsLeft)])
+                      .indexed) ...[
+                    if (i > 0) const SizedBox(width: 3),
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 6, vertical: 1),
+                      decoration: BoxDecoration(
+                        color: curseColorOf(cu.$1),
+                        borderRadius: BorderRadius.circular(CD.rChip),
+                        border: Border.all(color: Colors.white, width: 1.2),
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          const Text('💀', style: TextStyle(fontSize: 9)),
+                          const SizedBox(width: 3),
+                          Text('저주 ${cu.$2}',
+                              style: const TextStyle(
+                                  color: Colors.white,
+                                  fontSize: 10,
+                                  fontWeight: FontWeight.w900)),
+                        ],
+                      ),
+                    ),
+                  ],
                 ],
               ),
             ),
@@ -375,9 +401,14 @@ class SeatCard extends StatelessWidget {
                 fontSize: mini ? 10 : 11.5)),
       );
       if (!isHost) return lvChip;
-      return Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [lvChip, const SizedBox(width: 4), _hostChip(mini)],
+      // Lv+방장 칩이 좁은 카드(6인방 92px)를 넘치면 통째로 살짝 축소 —
+      // 넘침이 내용을 왼쪽으로 쏠려 보이게 하던 버그(2026-07-16 제보).
+      return FittedBox(
+        fit: BoxFit.scaleDown,
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [lvChip, const SizedBox(width: 4), _hostChip(mini)],
+        ),
       );
     }
     if (hideAmmo) {
@@ -587,4 +618,20 @@ class _RingPainter extends CustomPainter {
   @override
   bool shouldRepaint(covariant _RingPainter old) =>
       old.color != color || old.frac != frac || old.glow != glow;
+}
+
+
+/// 좌석별 저주(시전자) 구분색 — 부두술사가 여럿일 때 "누구 저주인지"를
+/// 색으로 읽게 한다(규칙 v2, 2026-07-16). 6좌석 팔레트, 시전자 좌석으로 결정.
+Color curseColorOf(int casterSeat) {
+  const palette = [
+    Color(0xFF5B3A8E), // 보라(기존 저주색)
+    Color(0xFF1E7A52), // 진초록
+    Color(0xFF1F5F9E), // 남파랑
+    Color(0xFFB05A1D), // 구리주황
+    Color(0xFFA63A6C), // 자주
+    Color(0xFF12766E), // 청록
+  ];
+  if (casterSeat < 0) return palette[0];
+  return palette[casterSeat % palette.length];
 }

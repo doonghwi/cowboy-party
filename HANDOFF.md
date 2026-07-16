@@ -3,6 +3,13 @@
 > 새 세션에서 이 파일을 먼저 읽고 이어서 진행. 모든 작업물은 디스크에 있고 main에 커밋됨.
 > ⚠️ 아래 좌표 일부는 구 Windows 경로(C:\dev\…) — 현재는 Mac `/Users/doonghwi/Documents/dailyapp/`.
 
+## 2026-07-16(8차) 버그 리포트 12+2건 → v26 (⚠️ kLogicVersion 2)
+- **⑦저주 규칙 v2(핵심)**: PartyState `curseFuse/curseCaster` → **`curseMatrix[대상][시전자]`**(시전자별 독립 스택, 각 kCurseFuse턴). 같은 시전자 재시전 무효는 계승, 다른 시전자는 같은 대상에 추가 가능. 레거시 생성자 파라미터+`curseFuse/curseCaster` 게터(가장 임박 뷰)로 구 코드·테스트 호환. **kLogicVersion 1→2**, `bot_runner/lib/game/party_logic.dart` 동일 파일 복사(md5 일치 확인 후) — 러너는 logicV 미기록 유지(과도기: 봇 방에서 v25·v26 혼재 가능, 2부두 동시 저주 시에만 이론상 어긋남). 표시: SeatView/TableSeat/SeatCard `curses` 목록 + `curseColorOf(시전좌석)` 팔레트 6색, 부두 아이콘도 자기 색. 회귀 test/curse_stack_v2_test.dart 5건.
+- **①랭커 카드 치우침/축소**: 원인 = 6인방 92px 카드에서 Lv+방장 칩 Row가 14px 넘침(RenderFlex) → 내용이 왼쪽 쏠림. FittedBox(scaleDown)로 해결. 위젯 프로브로 재현·검증.
+- **⑤결과 화면 유지**: `_overHold`(over 뷰 캐시) — 남들이 먼저 리셋(대기실行)하거나 방이 삭제돼도 내 결과 화면 유지, '대기실로 돌아가기'(_backToLobby)가 상태별 분기(리셋됨→화면만 전환/방 삭제→나가기).
+- **③BGM**: 원인 = Bgm.sting()의 일회용 AudioPlayer가 라이프사이클 미추적 → _stings 목록으로 추적, paused에서 정지.
+- 기타: ②재촉 TopToast 통일(방장 '재촉을 보냈어요'/비방장 '방장의 재촉!' — 한 줄) ⑥peekSelecting 눌림 표시 ⑧준비 중 캐릭터 변경 잠금+안내 ⑨준비 800ms 디바운스 ⑪초대 시트 inRoomUids='같이 있음' ⑫친선전 방 friendly 플래그→friends/<me>/<f>/{fw,fl} 누적(비친구 가드) ⑬presence에 lv 추가+프로필 시트 정보 3종 ⑭LevelUpOverlay(위젯 신설, 온·오프라인 종료 훅) ⑩cowboy.gg 정상(490게임 누적 확인).
+
 ## 2026-07-16(7차) 버그 4건 수정 → v25
 - **①나가기 UX**: 뒤로가기/앱바 back → `_confirmLeave()` 확인창(대기방 '방을 나가시겠어요?' / 게임 중 '게임을 나가시겠어요?+탈락 안내', 게임 종료 후엔 즉시). `_leaveAndPop`에 `_leaving` 재진입 가드 — **leave await 지연 중 '방에서 나왔어요' 화면의 나가기를 또 누르면 이중 pop → 검은 화면**이던 버그. '나왔어요' 안내 화면 자체를 제거(좌석 소실 시 조용히 자동 복귀).
 - **②휘장 인게임 유실(핵심)**: 앱 코드는 전 경로 정상(위젯 프로브로 검증) — 진범은 **봇 러너 hostStartGame의 players 압축이 lv·rank 필드 누락**. 봇이 방장인 방에서 시작 순간 서버 데이터가 지워져 대기방 복귀 후에도 소실. 러너 압축에 lv·rank 보존 추가 + 봇 claim 3곳에 lv(이름 해시 2..30) 부여, launchctl 재시작. 인계: `_shared/notes/botrunner.md`, 교훈: LESSONS(다중 작성자 스키마 정합).
