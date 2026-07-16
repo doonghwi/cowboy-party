@@ -1109,7 +1109,7 @@ class _OnlineGameScreenState extends State<OnlineGameScreen> {
       if (!mounted) return;
       setState(() {});
       TopToast.show(context,
-          message: '🔔 방장의 재촉! 준비를 눌러주세요',
+          message: '🔔 준비 버튼을 눌러 주세요!',
           icon: Icons.notifications_active);
     });
   }
