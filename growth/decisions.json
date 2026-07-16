@@ -1,34 +1,124 @@
 {
   "updated": "2026-07-17",
   "note": "bintage 슈퍼 대시보드 cowboy '🗳️ 선택' 탭이 읽는다. 사용자가 탭에서 고른 답은 ~/bintage/data/0_monitor/cowboy_picks.json 에 저장되고, 카우보이 세션이 다음 작업 때 읽는다. 결정 끝난 질문은 status를 decided로 바꾸고 answer를 기록해 아카이브. 사용자 지시(2026-07-15): 앞으로 사용자 선택이 필요한 모든 것(사운드 포함)은 이 탭으로 올린다. audios 필드로 소리 후보 재생 지원.",
-  "round": "라운드5 — 에셋 툴 실기 비교 가입 1문항 (라운드4는 결정 완료·구현 중)",
+  "round": "라운드5 — 이미지 툴 1문항 + ElevenLabs 사운드 실물 2문항",
   "questions": [
     {
       "id": "r5_tool_trial",
       "status": "open",
-      "title": "1. 에셋 툴 실기 비교 — 어떤 무료 체험부터 가입할까요?",
-      "desc": "말씀대로 마케팅 이미지(아래 참고 시트)로는 판단이 어렵습니다. 확실한 방법은 무료 체험 계정으로 '우리 카우보이 그림체' 프롬프트를 각 툴에서 직접 뽑아 실물을 나란히 보는 것 — 가입만 해주시면(구글 로그인 클릭 몇 번) 생성·비교·게시는 제가 합니다. 사운드도 마찬가지로 ElevenLabs SFX(문장→효과음, $5/월·무료 체험 있음)로 '묵직한 장전음'과 '쇼다운 예열음'을 실제로 뽑아 들려드릴 수 있어요.",
+      "title": "1. 이미지 에셋 실기 — 무료 수동 협업 vs 소액 API 자동?",
+      "desc": "사운드는 ElevenLabs 연결 완료(아래 2·3번에서 첫 결과물 청취!). 이미지는 확인 결과 Scenario API가 유료 전용이라 두 갈래입니다: ①무료 웹 수동 협업 — Scenario/Recraft 무료 가입 후 제가 드리는 프롬프트를 붙여넣어 생성, 다운로드 폴더에 저장하시면 수거·비교·게시는 제가 ②소액 API 자동 — Recraft $10 선불(벡터·아이콘 강점) 또는 Leonardo $9/월(범용 투명 PNG)로 제가 전자동 생성. 참고 시트는 그대로 첨부.",
       "img": "growth/reports/asset_examples/tool_public_samples.png",
       "options": [
         {
           "key": "A",
-          "label": "A안 · Scenario 무료 가입(추천)",
-          "desc": "게임 특화+그림체 학습. 하루 50크레딧 무료 — 이펙트·휘장·스킨 샘플 실기"
+          "label": "A안 · 무료 웹 수동 협업부터",
+          "desc": "비용 0 — 프롬프트 붙여넣기 몇 번으로 실물 비교 후 유료 결정"
         },
         {
           "key": "B",
-          "label": "B안 · Scenario+Recraft 둘 다(무료)",
-          "desc": "그림은 Scenario, 아이콘·벡터는 Recraft — 양쪽 실물 비교"
+          "label": "B안 · Recraft $10 API(추천)",
+          "desc": "아이콘·휘장·벡터 자동 생성 — 선불이라 구독 부담 없음"
         },
         {
           "key": "C",
-          "label": "C안 · B + ElevenLabs 사운드까지",
-          "desc": "이미지+사운드(장전 묵직·쇼다운 예열) 전부 실기 — 유일한 유료는 ElevenLabs $5/월"
+          "label": "C안 · Leonardo $9/월 API",
+          "desc": "범용 그림·투명 PNG 자동 생성"
         },
         {
           "key": "D",
-          "label": "D안 · 참고 시트만 보고 하나 확정",
-          "desc": "기타 의견에 툴 이름을 적어주세요"
+          "label": "D안 · B+C 둘 다",
+          "desc": "용도별 최강 조합"
+        }
+      ]
+    },
+    {
+      "id": "sfx_reload4",
+      "status": "open",
+      "title": "2. 🔊 장전음 — AI 생성 후보 3종 vs 켄니2 유지",
+      "desc": "'묵직한 게 없다' 하셔서 ElevenLabs로 직접 생성했습니다. 현재 반영본(켄니2)과 비교해 골라주세요.",
+      "img": "",
+      "audios": [
+        {
+          "label": "현 반영본 · 켄니2 금속 클릭",
+          "path": "growth/reports/sfx_round3/kenney_metalClick.wav"
+        },
+        {
+          "label": "AI-A · 묵직한 실린더 철컥철컥",
+          "path": "growth/reports/sfx_ai1/reload_ai_a.mp3"
+        },
+        {
+          "label": "AI-B · 깊고 무거운 해머 콕킹(저음 쿵)",
+          "path": "growth/reports/sfx_ai1/reload_ai_b.mp3"
+        },
+        {
+          "label": "AI-C · 2단 청크청크(시네마틱)",
+          "path": "growth/reports/sfx_ai1/reload_ai_c.mp3"
+        }
+      ],
+      "options": [
+        {
+          "key": "A",
+          "label": "AI-A",
+          "desc": "실린더 철컥철컥"
+        },
+        {
+          "key": "B",
+          "label": "AI-B",
+          "desc": "묵직한 해머 콕킹"
+        },
+        {
+          "key": "C",
+          "label": "AI-C",
+          "desc": "2단 청크청크"
+        },
+        {
+          "key": "D",
+          "label": "켄니2 유지",
+          "desc": "현 반영본 그대로"
+        }
+      ]
+    },
+    {
+      "id": "sfx_showdown4",
+      "status": "open",
+      "title": "3. 🔊 쇼다운 예열음 — AI 생성 후보 3종 (이번엔 들리게 중음대로!)",
+      "desc": "저음 문제를 반영해 일반 스피커에서도 들리는 중음대 위주로 생성했습니다.",
+      "img": "",
+      "audios": [
+        {
+          "label": "AI-A · 방울뱀+현 트레몰로 고조",
+          "path": "growth/reports/sfx_ai1/showdown_ai_a.mp3"
+        },
+        {
+          "label": "AI-B · 심장박동+시계 초침 긴장",
+          "path": "growth/reports/sfx_ai1/showdown_ai_b.mp3"
+        },
+        {
+          "label": "AI-C · 종소리+바람(서부 결투 신호)",
+          "path": "growth/reports/sfx_ai1/showdown_ai_c.mp3"
+        }
+      ],
+      "options": [
+        {
+          "key": "A",
+          "label": "AI-A",
+          "desc": "방울뱀 고조"
+        },
+        {
+          "key": "B",
+          "label": "AI-B",
+          "desc": "심장박동+초침"
+        },
+        {
+          "key": "C",
+          "label": "AI-C",
+          "desc": "결투 종소리"
+        },
+        {
+          "key": "D",
+          "label": "효과음 없이 유지",
+          "desc": "음악 전환만(현행)"
         }
       ]
     },
