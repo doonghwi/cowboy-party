@@ -29,6 +29,10 @@ class BotClient {
 
   String get name => _cred.name;
   String get uid => _cred.uid;
+
+  /// 대기방 Lv 표시용 안정 레벨(이름 해시 → 2..30). 봇도 사람처럼 보이게 —
+  /// 없으면 앱이 'Lv.?'로 그리던 문제(2026-07-16 제보).
+  int get lv => 2 + _cred.name.codeUnits.fold<int>(0, (a, b) => a + b) % 29;
   void _log(String m) => print('[봇 ${_cred.name}] $m');
   Future<String> get _tok => _auth.freshIdToken(_cred);
 
@@ -114,6 +118,7 @@ class BotClient {
       'seen': Rtdb.serverTimestamp,
       'at': Rtdb.serverTimestamp, // 입장 시각 — 앱 방장 승계(오래된 순) 규약
       'char': charIdx,
+      'lv': lv, // 대기방 Lv 표시 규약(앱 v21+)
     }, auth: await _tok);
     return seat;
   }
@@ -485,6 +490,7 @@ class BotClient {
           'seen': Rtdb.serverTimestamp,
           'at': Rtdb.serverTimestamp,
           'char': _randCharIdx(),
+          'lv': lv,
         }
       },
       'createdAt': Rtdb.serverTimestamp,
@@ -499,6 +505,7 @@ class BotClient {
       'seen': Rtdb.serverTimestamp,
       'at': Rtdb.serverTimestamp,
       'char': _randCharIdx(),
+      'lv': lv,
     }, auth: await _tok);
   }
 
@@ -595,6 +602,11 @@ class BotClient {
         'seen': Rtdb.serverTimestamp,
         'at': entries[i].value['at'] ?? Rtdb.serverTimestamp, // 승계 기준 보존
         'char': ci,
+        // 앱 규약(v21+): lv·rank도 판을 넘어 보존 — 러너가 시작한 방에서
+        // 휘장·레벨이 지워지던 버그 수정(2026-07-16 제보).
+        'lv': entries[i].value['lv'] ?? 0,
+        if (entries[i].value['rank'] != null)
+          'rank': entries[i].value['rank'],
       };
       charsMap['p$i'] = ci;
     }

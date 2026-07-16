@@ -182,7 +182,12 @@ class _OnlineGameScreenState extends State<OnlineGameScreen> {
     });
   }
 
+  bool _leaving = false; // 이중 pop(검은 화면) 방지 가드
+  OnlinePhase _phaseNow = OnlinePhase.waiting;
+
   Future<void> _leaveAndPop() async {
+    if (_leaving) return; // 연타/스트림 경합으로 두 번 pop되던 버그(2026-07-16)
+    _leaving = true;
     final seat = _presenceSeat;
     final started = _startedNow;
     _presenceSeat = -1;
@@ -193,9 +198,43 @@ class _OnlineGameScreenState extends State<OnlineGameScreen> {
     if (mounted) Navigator.of(context).pop();
   }
 
+  /// 뒤로가기 = 확인부터. 대기방/게임 중 문구를 나눠 묻고,
+  /// 게임이 끝난 화면에서는 묻지 않고 바로 나간다(2026-07-16 사용자 제안).
+  void _confirmLeave() {
+    if (_leaving) return;
+    if (_phaseNow == OnlinePhase.over || !_startedNow && _presenceSeat < 0) {
+      _leaveAndPop();
+      return;
+    }
+    final inGame = _startedNow;
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: CD.parchment,
+        title: Text(inGame ? '게임을 나가시겠어요?' : '방을 나가시겠어요?'),
+        content: inGame ? const Text('나가면 이번 판은 탈락으로 처리돼요.') : null,
+        actions: [
+          TextButton(
+              onPressed: () => Navigator.pop(ctx),
+              child: const Text('계속하기')),
+          FilledButton(
+            style: FilledButton.styleFrom(backgroundColor: CD.danger),
+            onPressed: () {
+              Navigator.pop(ctx);
+              _leaveAndPop();
+            },
+            child: const Text('나가기',
+                style: TextStyle(fontWeight: FontWeight.w900)),
+          ),
+        ],
+      ),
+    );
+  }
+
   void _track(RoomView view) {
     _presenceSeat = view.mySeat;
     _startedNow = view.started;
+    _phaseNow = view.phase;
     // Remember my name so a sticky quit can show it after my node is gone.
     final myName = view.me?.name;
     if (myName != null && myName.isNotEmpty) _myName = myName;
@@ -343,13 +382,13 @@ class _OnlineGameScreenState extends State<OnlineGameScreen> {
     return PopScope(
       canPop: false,
       onPopInvokedWithResult: (didPop, _) {
-        if (!didPop) _leaveAndPop();
+        if (!didPop) _confirmLeave();
       },
       child: Scaffold(
         appBar: AppBar(
           leading: IconButton(
             icon: const Icon(Icons.arrow_back),
-            onPressed: _leaveAndPop,
+            onPressed: _confirmLeave,
           ),
           title: Text('대결방', style: posterTitle(20)),
           actions: [
@@ -390,7 +429,15 @@ class _OnlineGameScreenState extends State<OnlineGameScreen> {
                 }
                 if (view.phase == OnlinePhase.waiting) {
                   if (view.mySeat < 0) {
-                    return _info('방에서 나왔어요.', back: true);
+                    // 내 좌석이 이미 사라짐 — 안내 화면·나가기 버튼 없이
+                    // 조용히 이전 화면으로(이중 pop 검은 화면 제보, 2026-07-16).
+                    if (!_leaving) {
+                      WidgetsBinding.instance.addPostFrameCallback((_) {
+                        if (mounted) _leaveAndPop();
+                      });
+                    }
+                    return const Center(
+                        child: CircularProgressIndicator(color: CD.rust));
                   }
                   return _waiting(view, data);
                 }

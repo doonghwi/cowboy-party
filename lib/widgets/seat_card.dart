@@ -301,6 +301,9 @@ class SeatCard extends StatelessWidget {
                     color: CD.sage,
                     fontSize: 11,
                     fontWeight: FontWeight.bold))
+          // 빈자리는 총알 줄을 그리지 않는다(대기방 '총알 0' 제보, 2026-07-16).
+          else if (alive && !joined)
+            const SizedBox.shrink()
           else if (alive)
             _ammoRow(mini)
           else
@@ -355,13 +358,17 @@ class SeatCard extends StatelessWidget {
   Widget _ammoRow(bool mini) {
     // 대기방: 총알 대신 계정 레벨(2026-07-13 사용자 결정 — 프로필처럼).
     if (level >= 0) {
+      // 레벨 미기록(구 봇 claim 등)은 'Lv.?' 대신 표시 생략(2026-07-16 제보).
+      if (level == 0) {
+        return isHost ? _hostChip(mini) : const SizedBox.shrink();
+      }
       final lvChip = Container(
         padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1),
         decoration: BoxDecoration(
           color: CD.rust.withValues(alpha: 0.14),
           borderRadius: BorderRadius.circular(7),
         ),
-        child: Text('Lv.${level > 0 ? level : '?'}',
+        child: Text('Lv.$level',
             style: TextStyle(
                 color: CD.rust,
                 fontWeight: FontWeight.w900,
