@@ -818,7 +818,8 @@ class _OnlineGameScreenState extends State<OnlineGameScreen> {
           TableSeat(
             isHostSeat: sv.seat == hostSeat,
             // 대기방(readyOf != null)에서만 레벨 노출, 휘장은 게임 중에도.
-            level: readyOf != null && sv.joined ? sv.level : -1,
+            // 빈자리는 level 0 → SeatCard가 총알/레벨 줄을 아예 생략(2026-07-16).
+            level: readyOf != null ? (sv.joined ? sv.level : 0) : -1,
             rank: sv.rank,
             name: view.started && !sv.joined ? '나감' : sv.name,
             ammo: sv.ammo,
