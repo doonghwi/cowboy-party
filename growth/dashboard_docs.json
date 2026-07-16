@@ -1,11 +1,16 @@
 {
-  "updated": "2026-07-15",
+  "updated": "2026-07-16",
   "note": "bintage 대시보드 cowboy '자료실' 탭이 읽는다. 사용자가 컴퓨터에서 파일을 찾지 않도록 보고서·시안·프롬프트를 여기로 노출(사용자 지시 2026-07-13).",
   "sections": [
     {
       "title": "📢 상의 필요 — 디자인 선택은 '🗳️ 선택' 탭에서",
       "desc": "디자인 라운드1(6문항)은 전부 결정·반영 완료(v23) — 🗳️ 선택 탭에 결정 내역이 아카이브돼 있습니다. 새 상의 거리가 생기면 다시 이 탭/선택 탭에 올라옵니다.\n사운드 2차: 아래 사운드 보드 링크에서 장전/쇼다운예열/입장음만 고르면 SFX 완성.",
       "items": [
+        {
+          "kind": "md",
+          "title": "🎨 게임 에셋 AI 툴 조사 — 명중 이펙트 퀄리티 개선용(결정은 선택 탭 7번)",
+          "path": "growth/ASSET_TOOL_RESEARCH.md"
+        },
         {
           "kind": "md",
           "title": "🎨 스킨 업데이트 초안 — 검토 후 '진행' 한마디면 착수",
@@ -20,13 +25,6 @@
           "kind": "md",
           "title": "UI 개편 계획 전문",
           "path": "growth/UI_REDESIGN_PLAN.md"
-        },
-        {
-          "kind": "link",
-          "title": "🔊 사운드 보드 열기(2차 3개만 남음)",
-          "path": "/Users/doonghwi/Downloads/cowboy_sound_board",
-          "copy": true,
-          "href": ""
         }
       ]
     },
