@@ -16,6 +16,11 @@ class BotSpec {
       {this.fixedChar, this.personality, this.reloadOnly = false});
 }
 
+/// 게임 규칙(로직) 버전 — 앱 lib/online/online_service.dart kLogicVersion과
+/// **반드시 동일**해야 한다. 앱 규칙이 바뀌면(logicV +1) 러너 로직 사본 동기화와
+/// 함께 이 값도 올릴 것. (2026-07-17: 저주 스택 v2 = 2)
+const int kAppLogicVersion = 2;
+
 class Config {
   Config._();
 

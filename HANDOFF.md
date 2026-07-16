@@ -3,6 +3,12 @@
 > 새 세션에서 이 파일을 먼저 읽고 이어서 진행. 모든 작업물은 디스크에 있고 main에 커밋됨.
 > ⚠️ 아래 좌표 일부는 구 Windows 경로(C:\dev\…) — 현재는 Mac `/Users/doonghwi/Documents/dailyapp/`.
 
+## 2026-07-17(9차) 🍎 iOS 앱스토어 첫 제출(심사 대기) + 릴리스 전자동화 + 크로스플레이 게이트
+- **iOS 1.0 심사 제출 완료**(새벽 4시경, 빌드 29). 1회성 설정 전 과정과 함정은 `growth/IOS_RELEASE_AUTOMATION.md`에 정리. 핵심 함정: ①기기 0대면 개발 서명 불가 → **맥을 Designed-for-iPad 빌드로 기기 등록**해 해결 ②iOS AppIcon이 플러터 기본→구식 모자 2연속 오탑재 → 진실 소스는 `store/icon_512.png`(카우보이 얼굴), LESSONS 기록 ③6.5" 스크린샷 규격(1284×2778) 별도 필요.
+- **전자동 파이프라인**: ASC API 키(D3TN3JP93R, `~/.appstoreconnect/`, 드라이브 백업) 기반 — `tools/upload_appstore.sh`(빌드+업로드, 검증 완료: 빌드 29를 무클릭 업로드) + `tools/release_ios.sh`(pilot 처리 대기→deliver 새소식·빌드 선택·심사 제출, **첫 실전은 1.0.1**) + **🚦 출시 탭에 App Store 상태 통합**(심사 대기/판매 중/반려 실시간 — cowboy_release_check.py, 대시보드 venv에 pyjwt·cryptography 추가).
+- **크로스플레이 데싱크(사용자 제보 후속)**: 과거 웹↔앱 불일치 원인 = 버전 게이트 이전 혼방 + 웹 백그라운드 탭 하트비트 스로틀. iOS↔Android는 같은 logicV(2)+게이트로 안전. 남아 있던 구멍(봇 방 logicV 미기록 → 구버전 혼입) 봉쇄: **러너가 방에 logicV 도장 + 매치메이커가 버전 다른 방 회피**(config kAppLogicVersion=2 — 앱과 동기 유지 필수).
+- 메모리: automation-first(반복 작업은 자동화 먼저 제안 — 질책 반영).
+
 ## 2026-07-16(8차) 버그 리포트 12+2건 → v26 (⚠️ kLogicVersion 2)
 - **⑦저주 규칙 v2(핵심)**: PartyState `curseFuse/curseCaster` → **`curseMatrix[대상][시전자]`**(시전자별 독립 스택, 각 kCurseFuse턴). 같은 시전자 재시전 무효는 계승, 다른 시전자는 같은 대상에 추가 가능. 레거시 생성자 파라미터+`curseFuse/curseCaster` 게터(가장 임박 뷰)로 구 코드·테스트 호환. **kLogicVersion 1→2**, `bot_runner/lib/game/party_logic.dart` 동일 파일 복사(md5 일치 확인 후) — 러너는 logicV 미기록 유지(과도기: 봇 방에서 v25·v26 혼재 가능, 2부두 동시 저주 시에만 이론상 어긋남). 표시: SeatView/TableSeat/SeatCard `curses` 목록 + `curseColorOf(시전좌석)` 팔레트 6색, 부두 아이콘도 자기 색. 회귀 test/curse_stack_v2_test.dart 5건.
 - **①랭커 카드 치우침/축소**: 원인 = 6인방 92px 카드에서 Lv+방장 칩 Row가 14px 넘침(RenderFlex) → 내용이 왼쪽 쏠림. FittedBox(scaleDown)로 해결. 위젯 프로브로 재현·검증.

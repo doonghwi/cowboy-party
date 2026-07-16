@@ -47,6 +47,9 @@ class Matchmaker {
       final room = _asMap(entry.value);
       if (room == null) continue;
       if (room['match'] != true || room['started'] == true) continue;
+      // 규칙 버전이 다른 방(구버전 앱 포함)엔 봇을 넣지 않는다 — 봇 리플레이가
+      // 그 방의 규칙과 어긋나 결과가 갈라지는 사고 방지(2026-07-17).
+      if (room['logicV'] != kAppLogicVersion) continue;
       if (_handled.contains(code)) continue;
 
       final players = _asMap(room['players']) ?? const {};

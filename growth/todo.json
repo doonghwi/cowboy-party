@@ -12,10 +12,10 @@
      "note": "검토 결과는 계정 소유자 이메일로 옴 — 승인 메일 받으면 알려주세요. 그 즉시 Claude가 스토어 등록정보 최종 점검(스크린샷 교체 포함)+프로덕션 승격 진행. 상태는 🚦 출시 탭"
     },
     {
-     "t": "🍎 iOS 출시 — 계정 승인됨 ✅ → 남은 사용자 클릭 2개",
+     "t": "🍎 iOS 1.0 심사 대기 중 — 결과 메일(mjhee2647@snu.ac.kr) 확인",
      "who": "사용자",
-     "st": "block",
-     "note": "①Xcode 열기 → 설정(⌘,) → Accounts → + → 새 Apple Developer 계정 Apple ID 로그인(팀 생김) ②Firebase 콘솔 cowboy-party 프로젝트 → Authentication → Sign-in method → 'Apple' 추가 후 사용 설정(iOS만이면 추가 입력 없이 저장). 이 2개 끝나면 Claude가 서명·capability·ipa 빌드·App Store Connect 업로드 진행(메타데이터·스크린샷은 이미 준비됨 store/appstore_metadata.md)"
+     "st": "wait",
+     "note": "2026-07-17 새벽 제출(빌드 29, 카우보이 얼굴 아이콘). 보통 1~3일. 상태는 🚦 출시 탭에 실시간 표시(심사 대기/심사 중/판매 중/반려). 반려 오면 사유를 세션에 전달"
     },
     {
      "t": "📱 v27 QA — 버그 리포트 12+2건 반영분(문구 수정 포함)",
@@ -92,6 +92,18 @@
   {
    "title": "✅ 최근 완료",
    "items": [
+    {
+     "t": "🍎 iOS 앱스토어 첫 제출 완료 + 릴리스 전자동화 — 계정 연결·서명(기기 없는 맥 등록 트릭)·ASC 앱 생성·메타데이터·등급 13+·개인정보·가격·DSA + 빌드 29(아이콘 교체) 제출. ASC API 키로 upload_appstore.sh(업로드)·release_ios.sh(빌드→제출 전체)·🚦 출시 탭 애플 상태 통합. 키는 드라이브 백업",
+     "who": "사용자+Claude",
+     "st": "done",
+     "note": "2026-07-17. 설계 문서 growth/IOS_RELEASE_AUTOMATION.md. release_ios.sh 첫 실전은 1.0.1"
+    },
+    {
+     "t": "크로스플레이 데싱크 방지 — 봇 러너 방에도 logicV 도장 + 매치메이커가 규칙 버전 다른 방 회피(웹·앱 혼방 데싱크 제보 후속). iOS↔Android는 동일 logicV 게이트로 안전",
+     "who": "Claude",
+     "st": "done",
+     "note": "2026-07-17. bot_runner config kAppLogicVersion=2 — 앱 kLogicVersion과 동기 유지 필수(러너 노트 기록)"
+    },
     {
      "t": "버그 리포트 12건+추가 2건 → v26 — ①랭커 카드 넘침(치우침) ②재촉 토스트 통일·한줄 ③승리 스팅 백그라운드 정지 ⑤결과 화면 유지(남들 퇴장/방 삭제에도) ⑥파파라치 눌림 표시 ⑦저주 시전자별 스택+색 구분(규칙 v2, kLogicVersion 2, 러너 로직 동기화) ⑧준비 후 캐릭터 변경 잠금 ⑨준비 연타 방지 ⑩승률 사이트 정상 확인(490게임) ⑪같은 방 친구 초대 차단 ⑫친선전 전적 누적(친구 프로필) ⑬프로필 정보 보강(레벨·전적·최근) ⑭레벨업 연출",
      "who": "Claude",

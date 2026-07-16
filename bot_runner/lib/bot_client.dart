@@ -480,6 +480,9 @@ class BotClient {
       'public': public,
       'pw': '',
       'match': false,
+      // 규칙 버전 게이트(2026-07-17): 봇 방도 도장 — 다른 버전 앱의 혼입으로
+      // 리플레이가 어긋나던 구멍(웹·앱 데싱크 제보) 봉쇄. 앱이 입장을 거른다.
+      'logicV': kAppLogicVersion,
       'title': '${_cred.name}의 결투장',
       'hostName': _cred.name,
       'game': 0,
