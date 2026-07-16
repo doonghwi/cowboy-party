@@ -8,7 +8,22 @@
       "items": [
         {
           "kind": "md",
-          "title": "🎨 게임 에셋 AI 툴 조사 — 명중 이펙트 퀄리티 개선용(결정은 선택 탭 7번)",
+          "title": "🧰 에셋 전수 목록 — 사용 중/필요한 것/조달 방법(사용자 요청)",
+          "path": "growth/ASSET_INVENTORY.md"
+        },
+        {
+          "kind": "img",
+          "title": "명중 이펙트 — 지금 코드 vs 켄니 텍스처 합성(Claude 편집, 무료)",
+          "path": "growth/reports/asset_examples/hit_fx_upgrade_compare.png"
+        },
+        {
+          "kind": "img",
+          "title": "켄니 파티클 팩(CC0) 실물 텍스처 12장 샘플",
+          "path": "growth/reports/asset_examples/kenney_texture_samples.png"
+        },
+        {
+          "kind": "md",
+          "title": "🎨 게임 에셋 AI 툴 조사 — 결정은 선택 탭 7번",
           "path": "growth/ASSET_TOOL_RESEARCH.md"
         },
         {

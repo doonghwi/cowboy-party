@@ -3,7 +3,10 @@
 > 새 세션에서 이 파일을 먼저 읽고 이어서 진행. 모든 작업물은 디스크에 있고 main에 커밋됨.
 > ⚠️ 아래 좌표 일부는 구 Windows 경로(C:\dev\…) — 현재는 Mac `/Users/doonghwi/Documents/dailyapp/`.
 
-## 2026-07-16(6차) 에셋 AI 툴 조사 + 출시 절차 안내
+## 2026-07-16(6차) 에셋 AI 툴 조사 + 켄니 실물 비교 + 에셋 전수 목록 + 출시 절차 안내
+- **켄니 파티클 팩(CC0) 확보**: `growth/assets_src/kenney_particles/` 80장(화염·스파크·별·연기·베기 등, 흰색+알파=착색 자유). GitHub 미러(Calinou/kenney-particle-pack)에서 — kenney.nl 직링크는 해시 변경으로 깨짐. **"지금 코드 vs 켄니 합성" 비교 목업**과 텍스처 12장 샘플을 자료실+선택 탭 7번에 게시(`growth/reports/asset_examples/`) — 이펙트류는 AI 툴 없이도 켄니+Claude 편집으로 격상 가능함을 시연.
+- **에셋 전수 목록** `growth/ASSET_INVENTORY.md`(사용자 요청): 사용 중 에셋(이미지=캐릭터 16장이 사실상 전부, 나머진 코드 드로잉) + 필요 에셋 우선순위·수량·조달 매핑(★1 이펙트 텍스처=켄니 즉시 가능).
+- 선택 탭 7번을 "켄니만(무료)/켄니+Scenario 체험/켄니+Recraft/켄니+Leonardo" 구도로 재편(이펙트는 어차피 켄니).
 - **에셋 툴 조사**(명중 이펙트 퀄리티 지적 후속): `growth/ASSET_TOOL_RESEARCH.md` — Scenario(게임 특화·스타일 학습·무료 체험)/Leonardo(투명 PNG $9)/Recraft(벡터 $10)/VFX 특화 무료툴 비교, 이펙트는 "AI 텍스처+기존 파티클" 하이브리드 추천. 자료실 게시 + **선택 탭 라운드4 7번 문항**(A Scenario 체험 추천). 키 받으면 `~/.zshrc`에 저장 후 생성→후처리→시안 검사 파이프라인은 Claude 담당.
 - **출시 안내**: Play=기간 요건 충족, 관건은 테스터 12명 옵트인 수(콘솔 홈 카드 확인). Apple=자동 아님·사람 심사 1~3일, 구글 로그인 있어 **Sign in with Apple 필수 구현** 필요(등록 후 Claude가). todo ① 노트에 상세.
 - 자료실 낡은 '사운드 보드 열기' 링크 제거(선택 탭으로 대체됨).
