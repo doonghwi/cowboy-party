@@ -190,6 +190,7 @@ class _OnlineGameScreenState extends State<OnlineGameScreen> {
   RoomView? _overHold;
   bool _roomGone = false;
   int _lastReadyTapMs = 0; // 준비 연타 방지(#9)
+  int _prevJoined = -1; // 입장음 트리거(대기실 인원 증가 감지)
 
   Future<void> _leaveAndPop() async {
     if (_leaving) return; // 연타/스트림 경합으로 두 번 pop되던 버그(2026-07-16)
@@ -242,6 +243,15 @@ class _OnlineGameScreenState extends State<OnlineGameScreen> {
     _startedNow = view.started;
     _phaseNow = view.phase;
     if (view.phase == OnlinePhase.over) _overHold = view;
+    // 대기실 입장음(라운드4 확정: 나무 노크) — 인원이 늘어난 순간만, 첫 스냅샷 제외.
+    if (view.phase == OnlinePhase.waiting) {
+      if (_prevJoined >= 0 && view.joinedCount > _prevJoined) {
+        Sfx.play('enter', volume: 0.85);
+      }
+      _prevJoined = view.joinedCount;
+    } else {
+      _prevJoined = -1;
+    }
     // Remember my name so a sticky quit can show it after my node is gone.
     final myName = view.me?.name;
     if (myName != null && myName.isNotEmpty) _myName = myName;
