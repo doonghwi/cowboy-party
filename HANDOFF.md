@@ -8,6 +8,7 @@
 - **전자동 파이프라인**: ASC API 키(D3TN3JP93R, `~/.appstoreconnect/`, 드라이브 백업) 기반 — `tools/upload_appstore.sh`(빌드+업로드, 검증 완료: 빌드 29를 무클릭 업로드) + `tools/release_ios.sh`(pilot 처리 대기→deliver 새소식·빌드 선택·심사 제출, **첫 실전은 1.0.1**) + **🚦 출시 탭에 App Store 상태 통합**(심사 대기/판매 중/반려 실시간 — cowboy_release_check.py, 대시보드 venv에 pyjwt·cryptography 추가).
 - **크로스플레이 데싱크(사용자 제보 후속)**: 과거 웹↔앱 불일치 원인 = 버전 게이트 이전 혼방 + 웹 백그라운드 탭 하트비트 스로틀. iOS↔Android는 같은 logicV(2)+게이트로 안전. 남아 있던 구멍(봇 방 logicV 미기록 → 구버전 혼입) 봉쇄: **러너가 방에 logicV 도장 + 매치메이커가 버전 다른 방 회피**(config kAppLogicVersion=2 — 앱과 동기 유지 필수).
 - 메모리: automation-first(반복 작업은 자동화 먼저 제안 — 질책 반영).
+- **⚠️ 배포 동결 정책(사용자, 2026-07-17)**: 수정사항은 커밋·검증까지만 하고 배포 홀드 → **애플 1.0 승인 후 양대 스토어+웹 동시 배포**(빌드 번호 동일 유지). 이후에도 동시 배포가 기본, 긴급 핫픽스만 예외(사용자 확인). 메모리 cowboy-release-batching.
 
 ## 2026-07-16(8차) 버그 리포트 12+2건 → v26 (⚠️ kLogicVersion 2)
 - **⑦저주 규칙 v2(핵심)**: PartyState `curseFuse/curseCaster` → **`curseMatrix[대상][시전자]`**(시전자별 독립 스택, 각 kCurseFuse턴). 같은 시전자 재시전 무효는 계승, 다른 시전자는 같은 대상에 추가 가능. 레거시 생성자 파라미터+`curseFuse/curseCaster` 게터(가장 임박 뷰)로 구 코드·테스트 호환. **kLogicVersion 1→2**, `bot_runner/lib/game/party_logic.dart` 동일 파일 복사(md5 일치 확인 후) — 러너는 logicV 미기록 유지(과도기: 봇 방에서 v25·v26 혼재 가능, 2부두 동시 저주 시에만 이론상 어긋남). 표시: SeatView/TableSeat/SeatCard `curses` 목록 + `curseColorOf(시전좌석)` 팔레트 6색, 부두 아이콘도 자기 색. 회귀 test/curse_stack_v2_test.dart 5건.
