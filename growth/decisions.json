@@ -1,7 +1,7 @@
 {
   "updated": "2026-07-17",
   "note": "bintage 슈퍼 대시보드 cowboy '🗳️ 선택' 탭이 읽는다. 사용자가 탭에서 고른 답은 ~/bintage/data/0_monitor/cowboy_picks.json 에 저장되고, 카우보이 세션이 다음 작업 때 읽는다. 결정 끝난 질문은 status를 decided로 바꾸고 answer를 기록해 아카이브. 사용자 지시(2026-07-15): 앞으로 사용자 선택이 필요한 모든 것(사운드 포함)은 이 탭으로 올린다. audios 필드로 소리 후보 재생 지원.",
-  "round": "라운드5 — 사운드 2문항(재생성). 이미지 툴은 보류",
+  "round": "라운드5 — 장전음 1문항(3차). 쇼다운=없음 유지 확정",
   "questions": [
     {
       "id": "r5_tool_trial",
@@ -36,51 +36,60 @@
     {
       "id": "sfx_reload4",
       "status": "open",
-      "title": "1. 🔊 장전음 2차 — '묵직한 총 장전소리'로 다시 생성",
-      "desc": "1차 AI 후보가 전부 퇴짜라 프롬프트 충실도를 높여 다시 뽑았습니다(저음 임팩트 강조).",
+      "title": "1. 🔊 장전음 3차 — E 방향, '높은 띵' 제거 변형들",
+      "desc": "노트 반영: E의 묵직함은 유지하고 중간의 높은 띵 성분을 뺐습니다. 'E-EQ'는 E 원본에서 고음만 깎은 직접 수정본이라 가장 비슷할 거예요.",
       "img": "",
       "audios": [
         {
-          "label": "현 반영본 · 켄니2 금속 클릭",
-          "path": "growth/reports/sfx_round3/kenney_metalClick.wav"
-        },
-        {
-          "label": "AI-D · 묵직한 총 장전(심플 프롬프트)",
-          "path": "growth/reports/sfx_ai1/reload_ai_d.mp3"
-        },
-        {
-          "label": "AI-E · 육중한 샷건 장전(저음 쿵+철컥)",
+          "label": "E 원본(참고 — 좋다고 하신 방향)",
           "path": "growth/reports/sfx_ai1/reload_ai_e.mp3"
         },
         {
-          "label": "AI-F · 깊은 단발 클렁크",
-          "path": "growth/reports/sfx_ai1/reload_ai_f.mp3"
+          "label": "E-EQ · E에서 높은음만 제거",
+          "path": "growth/reports/sfx_ai1/reload_e_eq.mp3"
         },
         {
-          "label": "AI-G · 무겁고 묵직한 권총 장전",
-          "path": "growth/reports/sfx_ai1/reload_ai_g.mp3"
+          "label": "E1 · 샷건 저음 쿵+철컥(띵 없음)",
+          "path": "growth/reports/sfx_ai1/reload_e1.mp3"
+        },
+        {
+          "label": "E2 · 어둡고 둔탁한 철컥철컥",
+          "path": "growth/reports/sfx_ai1/reload_e2.mp3"
+        },
+        {
+          "label": "E3 · 2단 클렁크-철컥(저음)",
+          "path": "growth/reports/sfx_ai1/reload_e3.mp3"
+        },
+        {
+          "label": "E4 · 볼트액션 둔중 임팩트",
+          "path": "growth/reports/sfx_ai1/reload_e4.mp3"
         }
       ],
       "options": [
         {
-          "key": "D",
-          "label": "AI-D",
-          "desc": "심플 묵직"
+          "key": "Q",
+          "label": "E-EQ",
+          "desc": "E 원본 고음 제거판"
         },
         {
-          "key": "E",
-          "label": "AI-E",
-          "desc": "샷건급 육중"
+          "key": "1",
+          "label": "E1",
+          "desc": "샷건 쿵+철컥"
         },
         {
-          "key": "F",
-          "label": "AI-F",
-          "desc": "단발 클렁크"
+          "key": "2",
+          "label": "E2",
+          "desc": "둔탁 철컥철컥"
         },
         {
-          "key": "G",
-          "label": "AI-G",
-          "desc": "묵직 권총"
+          "key": "3",
+          "label": "E3",
+          "desc": "2단 클렁크"
+        },
+        {
+          "key": "4",
+          "label": "E4",
+          "desc": "볼트액션 둔중"
         },
         {
           "key": "K",
@@ -91,7 +100,7 @@
     },
     {
       "id": "sfx_showdown4",
-      "status": "open",
+      "status": "decided",
       "title": "2. 🔊 쇼다운 예열 — 새 방향 2종 vs 효과음 없이 유지",
       "desc": "1차 후보 전부 퇴짜. 현행은 효과음 없이 음악만 긴장곡으로 바뀌는 방식이고 그 음악은 정상 재생 중입니다 — 그래서 '없음 유지'도 유력합니다. 새 방향 2종만 짧게 뽑았어요.",
       "img": "",
@@ -121,7 +130,8 @@
           "label": "효과음 없이 유지(추천)",
           "desc": "음악 전환만 — 현행 그대로"
         }
-      ]
+      ],
+      "answer": "N · 효과음 없이 유지 확정(2026-07-17) — 음악 전환(Smoking Gun)만. 쇼다운 예열음 건 종결"
     },
     {
       "id": "r4_hit_fx",
