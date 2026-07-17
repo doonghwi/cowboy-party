@@ -1,244 +1,259 @@
 {
-  "updated": "2026-07-17",
-  "note": "bintage 대시보드 cowboy '자료실' 탭이 읽는다. 사용자가 컴퓨터에서 파일을 찾지 않도록 보고서·시안·프롬프트를 여기로 노출(사용자 지시 2026-07-13).",
-  "sections": [
+ "updated": "2026-07-18",
+ "note": "bintage 대시보드 cowboy '자료실' 탭이 읽는다. 사용자가 컴퓨터에서 파일을 찾지 않도록 보고서·시안·프롬프트를 여기로 노출(사용자 지시 2026-07-13).",
+ "sections": [
+  {
+   "title": "📢 상의 필요 — 디자인 선택은 '🗳️ 선택' 탭에서",
+   "desc": "디자인 라운드1(6문항)은 전부 결정·반영 완료(v23) — 🗳️ 선택 탭에 결정 내역이 아카이브돼 있습니다. 새 상의 거리가 생기면 다시 이 탭/선택 탭에 올라옵니다.\n사운드 2차: 아래 사운드 보드 링크에서 장전/쇼다운예열/입장음만 고르면 SFX 완성.",
+   "items": [
     {
-      "title": "📢 상의 필요 — 디자인 선택은 '🗳️ 선택' 탭에서",
-      "desc": "디자인 라운드1(6문항)은 전부 결정·반영 완료(v23) — 🗳️ 선택 탭에 결정 내역이 아카이브돼 있습니다. 새 상의 거리가 생기면 다시 이 탭/선택 탭에 올라옵니다.\n사운드 2차: 아래 사운드 보드 링크에서 장전/쇼다운예열/입장음만 고르면 SFX 완성.",
-      "items": [
-        {
-          "kind": "md",
-          "title": "🧰 에셋 전수 목록 — 사용 중/필요한 것/조달 방법(사용자 요청)",
-          "path": "growth/ASSET_INVENTORY.md"
-        },
-        {
-          "kind": "img",
-          "title": "명중 이펙트 — 지금 코드 vs 켄니 텍스처 합성(Claude 편집, 무료)",
-          "path": "growth/reports/asset_examples/hit_fx_upgrade_compare.png"
-        },
-        {
-          "kind": "img",
-          "title": "켄니 파티클 팩(CC0) 실물 텍스처 12장 샘플",
-          "path": "growth/reports/asset_examples/kenney_texture_samples.png"
-        },
-        {
-          "kind": "md",
-          "title": "🎨 에셋 조달 상세 v2 — 툴별 가능 작업 + 켄니 팩 28종 카탈로그(실존 검증) — 결정은 선택 탭 7번",
-          "path": "growth/ASSET_TOOL_RESEARCH.md"
-        },
-        {
-          "kind": "md",
-          "title": "🎨 스킨 업데이트 초안 — 검토 후 '진행' 한마디면 착수",
-          "path": "growth/SKIN_UPDATE_DRAFT.md"
-        },
-        {
-          "kind": "md",
-          "title": "튜토리얼 제작 계획(선택 탭 6번 문항의 상세)",
-          "path": "growth/TUTORIAL_PLAN.md"
-        },
-        {
-          "kind": "md",
-          "title": "UI 개편 계획 전문",
-          "path": "growth/UI_REDESIGN_PLAN.md"
-        }
-      ]
+     "kind": "md",
+     "title": "🧰 에셋 전수 목록 — 사용 중/필요한 것/조달 방법(사용자 요청)",
+     "path": "growth/ASSET_INVENTORY.md"
     },
     {
-      "title": "📋 변경 보고서 — 최신: v26 (버그 리포트 12+2건)",
-      "desc": "[v24 · 2026-07-15] v23에 다듬기 3건 추가: 게스트 친구 탭 즉시 연결(익명 인증 보장) · 온보딩 '골드'→'코인' · 첫 실행 팝업이 온보딩과 겹치지 않게(특훈 권유는 다음 실행). 테스트 246.\n[v23 · 2026-07-15] 선택하신 대로 반영: ①방장=금색 카드+방장 칩(C안) ②휘장=카드 틀을 벗어나는 화려한 티어 프레임(B안 변형, LoL 시즌 테두리풍 — 모서리 장식·상단 크레스트·숨쉬는 발광) ③스킬=초상화 링 게이지(B안, 발동 시 금빛 플래시 — '치료!' 텍스트 제거) ④상점=캐러셀(A안, 큰 일러스트+도트) ⑤문구=대사 칸+능력 칸 분리(C안, 15명 전원 전용 대사 신규) ⑥튜토리얼='보안관의 특훈'(A안 가이드 봇전 — 3턴 시나리오·버튼 잠금·코치 말풍선·완주 300코인, 첫 실행 팝업+설정에서 진입). 테스트 246 통과(특훈 시나리오 자동검증 포함).\n다음 상의: 스킨 업데이트 초안(아래 문서) 검토 후 방향 결정.",
-      "items": [
-        {
-          "kind": "img",
-          "title": "v26 저주 규칙 v2 — 부두 2명의 저주가 색으로 구분되어 쌓임(보라=부두A·초록=부두B, 부두 아이콘도 자기 색)",
-          "path": "growth/reports/bugfix_v26/curse_stack.png"
-        },
-        {
-          "kind": "img",
-          "title": "v25 대기방 뒤로가기 — '방을 나가시겠어요?' 확인창(검은 화면 버그 수정)",
-          "path": "growth/reports/bugfix_v25/leave_confirm_waiting.png"
-        },
-        {
-          "kind": "img",
-          "title": "v25 게임 중 뒤로가기 — '게임을 나가시겠어요? 탈락 처리' 확인창",
-          "path": "growth/reports/bugfix_v25/leave_confirm_ingame.png"
-        },
-        {
-          "kind": "img",
-          "title": "v25 대기방 빈자리 — '총알 0' 제거",
-          "path": "growth/reports/bugfix_v25/waiting_no_ammo.png"
-        },
-        {
-          "kind": "img",
-          "title": "v25 봇 공개방 — 봇도 Lv 정상 표시(Lv.? 제거), 휘장 유실은 러너 압축 수정",
-          "path": "growth/reports/bugfix_v25/bot_levels.png"
-        },
-        {
-          "kind": "img",
-          "title": "v23 좌석 카드 — 방장 금카드 · 티어 프레임 · 스킬 링 게이지",
-          "path": "growth/reports/round1_final/seatcards_new.png"
-        },
-        {
-          "kind": "img",
-          "title": "v23 상점 캐러셀 — 대사/능력 두 칸(테스트 렌더라 일러스트는 실기기에서)",
-          "path": "growth/reports/round1_final/shop_carousel.png"
-        },
-        {
-          "kind": "img",
-          "title": "v23 보안관의 특훈 — 코치 말풍선+버튼 잠금",
-          "path": "growth/reports/round1_final/tutorial_coach.png"
-        },
-        {
-          "kind": "img",
-          "title": "v22 캐릭터 변경 — 일러스트 페이저(실기기에선 일러스트 표시)",
-          "path": "growth/reports/phase2_v22/char_pager_sheet.png"
-        },
-        {
-          "kind": "img",
-          "title": "v22 액션 버튼 — 서브 설명 제거로 깔끔해진 모습",
-          "path": "growth/reports/phase2_v22/actionbar_clean.png"
-        },
-        {
-          "kind": "img",
-          "title": "랭커 휘장 3티어(챌린저·마스터·다이아) — 테두리 발광+크레스트",
-          "path": "growth/reports/rank_emblems.png"
-        },
-        {
-          "kind": "img",
-          "title": "친구 시트(닉네임 요청)",
-          "path": "growth/reports/friends_sheet.png"
-        },
-        {
-          "kind": "img",
-          "title": "보상 탭 — 개편 전",
-          "path": "growth/reports/before_rewards_tab.png"
-        },
-        {
-          "kind": "img",
-          "title": "보상 탭 — 개편 후(브롤패스식 가로 트랙)",
-          "path": "growth/reports/after_rewards_tab.png"
-        },
-        {
-          "kind": "img",
-          "title": "명중 리빌(타격감)",
-          "path": "store/screenshots/renewal/07_hit_reveal.png"
-        },
-        {
-          "kind": "img",
-          "title": "DRAW! 슬램(움짤)",
-          "path": "growth/promo_clips/draw_slam.gif"
-        },
-        {
-          "kind": "img",
-          "title": "승리 콘페티(움짤)",
-          "path": "growth/promo_clips/victory_confetti.gif"
-        },
-        {
-          "kind": "img",
-          "title": "명중 연출 3단계(움짤)",
-          "path": "growth/promo_clips/hit_burst.gif"
-        },
-        {
-          "kind": "audio",
-          "title": "채택된 총성(크랙+펀치, 3변형 중 1)",
-          "path": "assets/sounds/gunshot_a.wav"
-        },
-        {
-          "kind": "audio",
-          "title": "명중음(펀치B)",
-          "path": "assets/sounds/hit.wav"
-        },
-        {
-          "kind": "audio",
-          "title": "새 로비 음악(Cattails)",
-          "path": "assets/music/menu.mp3"
-        },
-        {
-          "kind": "audio",
-          "title": "쇼다운 긴장곡(Smoking Gun, 62초 컷)",
-          "path": "assets/music/showdown.mp3"
-        },
-        {
-          "kind": "audio",
-          "title": "승리 팡파레(Cowboy Sting, 페이드인)",
-          "path": "assets/music/sting.mp3"
-        }
-      ]
+     "kind": "img",
+     "title": "명중 이펙트 — 지금 코드 vs 켄니 텍스처 합성(Claude 편집, 무료)",
+     "path": "growth/reports/asset_examples/hit_fx_upgrade_compare.png"
     },
     {
-      "title": "🖼️ 이미지 생성 프롬프트 (사용자 스크립트용)",
-      "desc": "생성한 이미지를 store/graphics/ 또는 스킨 보드에 주시면 제가 규격화·합성·반영합니다.",
-      "items": [
-        {
-          "kind": "md",
-          "title": "스토어 그래픽 프롬프트(아이콘 A/B·피처그래픽 등)",
-          "path": "growth/STORE_GRAPHICS_PROMPTS.md"
-        },
-        {
-          "kind": "md",
-          "title": "스킨 활용안 + 스킨 생성 프롬프트",
-          "path": "growth/SKIN_PLAN.md"
-        }
-      ]
+     "kind": "img",
+     "title": "켄니 파티클 팩(CC0) 실물 텍스처 12장 샘플",
+     "path": "growth/reports/asset_examples/kenney_texture_samples.png"
     },
     {
-      "title": "📣 홍보 준비물 (게시만 하면 됨)",
-      "desc": "디시 글에는 선물코드 5개 생성·치환 필요(요청 시 제가 생성).\n신규(2026-07-15): 가로 16:9 스토어 스크린샷 3장 + 30초 홍보 영상(세로/가로) — Play 등록·SNS 게시용.",
-      "items": [
-        {
-          "kind": "link",
-          "title": "🎬 30초 홍보 영상(세로 9:20)",
-          "path": "promo/video/promo_30s_portrait.mp4",
-          "copy": true,
-          "href": ""
-        },
-        {
-          "kind": "link",
-          "title": "🎬 30초 홍보 영상(가로 16:9, 유튜브용)",
-          "path": "promo/video/promo_30s_wide.mp4",
-          "copy": true,
-          "href": ""
-        },
-        {
-          "kind": "img",
-          "title": "가로 16:9 ① 결투(특훈·명중)",
-          "path": "store/screenshots/wide/wide_01_duel.png"
-        },
-        {
-          "kind": "img",
-          "title": "가로 16:9 ② 소셜(친구 탭·대기실)",
-          "path": "store/screenshots/wide/wide_02_social.png"
-        },
-        {
-          "kind": "img",
-          "title": "가로 16:9 ③ 수집(상점 캐러셀·패스)",
-          "path": "store/screenshots/wide/wide_03_meta.png"
-        },
-        {
-          "kind": "md",
-          "title": "홍보 카피 4종(디시·트윗·섭외메일·보도자료)",
-          "path": "growth/PROMO_COPY.md"
-        },
-        {
-          "kind": "img",
-          "title": "스토어 스크린샷 01 플레이",
-          "path": "store/screenshots/renewal/01_play_tab.png"
-        },
-        {
-          "kind": "img",
-          "title": "02 보상(신규)",
-          "path": "store/screenshots/renewal/02_rewards_top.png"
-        },
-        {
-          "kind": "img",
-          "title": "04 도감",
-          "path": "store/screenshots/renewal/04_shop_collection.png"
-        },
-        {
-          "kind": "img",
-          "title": "06 대기실",
-          "path": "store/screenshots/renewal/06_waiting_room.png"
-        }
-      ]
+     "kind": "md",
+     "title": "🎨 에셋 조달 상세 v2 — 툴별 가능 작업 + 켄니 팩 28종 카탈로그(실존 검증) — 결정은 선택 탭 7번",
+     "path": "growth/ASSET_TOOL_RESEARCH.md"
+    },
+    {
+     "kind": "md",
+     "title": "🎨 스킨 업데이트 초안 — 검토 후 '진행' 한마디면 착수",
+     "path": "growth/SKIN_UPDATE_DRAFT.md"
+    },
+    {
+     "kind": "md",
+     "title": "튜토리얼 제작 계획(선택 탭 6번 문항의 상세)",
+     "path": "growth/TUTORIAL_PLAN.md"
+    },
+    {
+     "kind": "md",
+     "title": "UI 개편 계획 전문",
+     "path": "growth/UI_REDESIGN_PLAN.md"
     }
-  ]
+   ]
+  },
+  {
+   "title": "📋 변경 보고서 — 최신: 2026-07-18 수정 2건(커밋만, 배포 동결)",
+   "desc": "[2026-07-18] 사용자 제보 2건 반영(배포 동결 중 — 커밋·검증까지만): ①빠른 시작 소인원 방(5인 미만)에서 휘장(랭커) 카드만 왼쪽으로 ~9px 쏠리던 문제 수정 — 원인은 티어 프레임 위젯이 좌석 슬롯 폭(110px)을 카드(92px)에 전달하지 않아 왼쪽 정렬로 붙던 것. 6인방(92px 슬롯)은 폭이 일치해 v26 수정 후 정상이었고, 빠른 시작에서만 남았던 이유. 회귀 테스트 추가. ②친구 탭에 '보낸 요청' 카드 신설 — 보낸 친구 요청이 수락 전까지 '대기중'으로 보이고 취소 가능. 수락되면 자동으로 사라짐(이 기기에서 보낸 요청 기준). 테스트 262·analyze 0·에뮬 확인.\n[v24 · 2026-07-15] v23에 다듬기 3건 추가: 게스트 친구 탭 즉시 연결(익명 인증 보장) · 온보딩 '골드'→'코인' · 첫 실행 팝업이 온보딩과 겹치지 않게(특훈 권유는 다음 실행). 테스트 246.\n[v23 · 2026-07-15] 선택하신 대로 반영: ①방장=금색 카드+방장 칩(C안) ②휘장=카드 틀을 벗어나는 화려한 티어 프레임(B안 변형, LoL 시즌 테두리풍 — 모서리 장식·상단 크레스트·숨쉬는 발광) ③스킬=초상화 링 게이지(B안, 발동 시 금빛 플래시 — '치료!' 텍스트 제거) ④상점=캐러셀(A안, 큰 일러스트+도트) ⑤문구=대사 칸+능력 칸 분리(C안, 15명 전원 전용 대사 신규) ⑥튜토리얼='보안관의 특훈'(A안 가이드 봇전 — 3턴 시나리오·버튼 잠금·코치 말풍선·완주 300코인, 첫 실행 팝업+설정에서 진입). 테스트 246 통과(특훈 시나리오 자동검증 포함).\n다음 상의: 스킨 업데이트 초안(아래 문서) 검토 후 방향 결정.",
+   "items": [
+    {
+     "kind": "img",
+     "title": "빠른시작 쏠림 — 수정 전(휘장 카드가 왼쪽으로 붙음)",
+     "path": "growth/reports/bugfix_0718/before/profile_game.png"
+    },
+    {
+     "kind": "img",
+     "title": "빠른시작 쏠림 — 수정 후(중앙 정렬)",
+     "path": "growth/reports/bugfix_0718/after/profile_game.png"
+    },
+    {
+     "kind": "img",
+     "title": "친구 탭 '보낸 요청(대기중)' 카드",
+     "path": "growth/reports/bugfix_0718/friends_sent_pending.png"
+    },
+    {
+     "kind": "img",
+     "title": "v26 저주 규칙 v2 — 부두 2명의 저주가 색으로 구분되어 쌓임(보라=부두A·초록=부두B, 부두 아이콘도 자기 색)",
+     "path": "growth/reports/bugfix_v26/curse_stack.png"
+    },
+    {
+     "kind": "img",
+     "title": "v25 대기방 뒤로가기 — '방을 나가시겠어요?' 확인창(검은 화면 버그 수정)",
+     "path": "growth/reports/bugfix_v25/leave_confirm_waiting.png"
+    },
+    {
+     "kind": "img",
+     "title": "v25 게임 중 뒤로가기 — '게임을 나가시겠어요? 탈락 처리' 확인창",
+     "path": "growth/reports/bugfix_v25/leave_confirm_ingame.png"
+    },
+    {
+     "kind": "img",
+     "title": "v25 대기방 빈자리 — '총알 0' 제거",
+     "path": "growth/reports/bugfix_v25/waiting_no_ammo.png"
+    },
+    {
+     "kind": "img",
+     "title": "v25 봇 공개방 — 봇도 Lv 정상 표시(Lv.? 제거), 휘장 유실은 러너 압축 수정",
+     "path": "growth/reports/bugfix_v25/bot_levels.png"
+    },
+    {
+     "kind": "img",
+     "title": "v23 좌석 카드 — 방장 금카드 · 티어 프레임 · 스킬 링 게이지",
+     "path": "growth/reports/round1_final/seatcards_new.png"
+    },
+    {
+     "kind": "img",
+     "title": "v23 상점 캐러셀 — 대사/능력 두 칸(테스트 렌더라 일러스트는 실기기에서)",
+     "path": "growth/reports/round1_final/shop_carousel.png"
+    },
+    {
+     "kind": "img",
+     "title": "v23 보안관의 특훈 — 코치 말풍선+버튼 잠금",
+     "path": "growth/reports/round1_final/tutorial_coach.png"
+    },
+    {
+     "kind": "img",
+     "title": "v22 캐릭터 변경 — 일러스트 페이저(실기기에선 일러스트 표시)",
+     "path": "growth/reports/phase2_v22/char_pager_sheet.png"
+    },
+    {
+     "kind": "img",
+     "title": "v22 액션 버튼 — 서브 설명 제거로 깔끔해진 모습",
+     "path": "growth/reports/phase2_v22/actionbar_clean.png"
+    },
+    {
+     "kind": "img",
+     "title": "랭커 휘장 3티어(챌린저·마스터·다이아) — 테두리 발광+크레스트",
+     "path": "growth/reports/rank_emblems.png"
+    },
+    {
+     "kind": "img",
+     "title": "친구 시트(닉네임 요청)",
+     "path": "growth/reports/friends_sheet.png"
+    },
+    {
+     "kind": "img",
+     "title": "보상 탭 — 개편 전",
+     "path": "growth/reports/before_rewards_tab.png"
+    },
+    {
+     "kind": "img",
+     "title": "보상 탭 — 개편 후(브롤패스식 가로 트랙)",
+     "path": "growth/reports/after_rewards_tab.png"
+    },
+    {
+     "kind": "img",
+     "title": "명중 리빌(타격감)",
+     "path": "store/screenshots/renewal/07_hit_reveal.png"
+    },
+    {
+     "kind": "img",
+     "title": "DRAW! 슬램(움짤)",
+     "path": "growth/promo_clips/draw_slam.gif"
+    },
+    {
+     "kind": "img",
+     "title": "승리 콘페티(움짤)",
+     "path": "growth/promo_clips/victory_confetti.gif"
+    },
+    {
+     "kind": "img",
+     "title": "명중 연출 3단계(움짤)",
+     "path": "growth/promo_clips/hit_burst.gif"
+    },
+    {
+     "kind": "audio",
+     "title": "채택된 총성(크랙+펀치, 3변형 중 1)",
+     "path": "assets/sounds/gunshot_a.wav"
+    },
+    {
+     "kind": "audio",
+     "title": "명중음(펀치B)",
+     "path": "assets/sounds/hit.wav"
+    },
+    {
+     "kind": "audio",
+     "title": "새 로비 음악(Cattails)",
+     "path": "assets/music/menu.mp3"
+    },
+    {
+     "kind": "audio",
+     "title": "쇼다운 긴장곡(Smoking Gun, 62초 컷)",
+     "path": "assets/music/showdown.mp3"
+    },
+    {
+     "kind": "audio",
+     "title": "승리 팡파레(Cowboy Sting, 페이드인)",
+     "path": "assets/music/sting.mp3"
+    }
+   ]
+  },
+  {
+   "title": "🖼️ 이미지 생성 프롬프트 (사용자 스크립트용)",
+   "desc": "생성한 이미지를 store/graphics/ 또는 스킨 보드에 주시면 제가 규격화·합성·반영합니다.",
+   "items": [
+    {
+     "kind": "md",
+     "title": "스토어 그래픽 프롬프트(아이콘 A/B·피처그래픽 등)",
+     "path": "growth/STORE_GRAPHICS_PROMPTS.md"
+    },
+    {
+     "kind": "md",
+     "title": "스킨 활용안 + 스킨 생성 프롬프트",
+     "path": "growth/SKIN_PLAN.md"
+    }
+   ]
+  },
+  {
+   "title": "📣 홍보 준비물 (게시만 하면 됨)",
+   "desc": "디시 글에는 선물코드 5개 생성·치환 필요(요청 시 제가 생성).\n신규(2026-07-15): 가로 16:9 스토어 스크린샷 3장 + 30초 홍보 영상(세로/가로) — Play 등록·SNS 게시용.",
+   "items": [
+    {
+     "kind": "link",
+     "title": "🎬 30초 홍보 영상(세로 9:20)",
+     "path": "promo/video/promo_30s_portrait.mp4",
+     "copy": true,
+     "href": ""
+    },
+    {
+     "kind": "link",
+     "title": "🎬 30초 홍보 영상(가로 16:9, 유튜브용)",
+     "path": "promo/video/promo_30s_wide.mp4",
+     "copy": true,
+     "href": ""
+    },
+    {
+     "kind": "img",
+     "title": "가로 16:9 ① 결투(특훈·명중)",
+     "path": "store/screenshots/wide/wide_01_duel.png"
+    },
+    {
+     "kind": "img",
+     "title": "가로 16:9 ② 소셜(친구 탭·대기실)",
+     "path": "store/screenshots/wide/wide_02_social.png"
+    },
+    {
+     "kind": "img",
+     "title": "가로 16:9 ③ 수집(상점 캐러셀·패스)",
+     "path": "store/screenshots/wide/wide_03_meta.png"
+    },
+    {
+     "kind": "md",
+     "title": "홍보 카피 4종(디시·트윗·섭외메일·보도자료)",
+     "path": "growth/PROMO_COPY.md"
+    },
+    {
+     "kind": "img",
+     "title": "스토어 스크린샷 01 플레이",
+     "path": "store/screenshots/renewal/01_play_tab.png"
+    },
+    {
+     "kind": "img",
+     "title": "02 보상(신규)",
+     "path": "store/screenshots/renewal/02_rewards_top.png"
+    },
+    {
+     "kind": "img",
+     "title": "04 도감",
+     "path": "store/screenshots/renewal/04_shop_collection.png"
+    },
+    {
+     "kind": "img",
+     "title": "06 대기실",
+     "path": "store/screenshots/renewal/06_waiting_room.png"
+    }
+   ]
+  }
+ ]
 }

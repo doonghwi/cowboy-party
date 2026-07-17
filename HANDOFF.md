@@ -3,6 +3,12 @@
 > 새 세션에서 이 파일을 먼저 읽고 이어서 진행. 모든 작업물은 디스크에 있고 main에 커밋됨.
 > ⚠️ 아래 좌표 일부는 구 Windows 경로(C:\dev\…) — 현재는 Mac `/Users/doonghwi/Documents/dailyapp/`.
 
+## 2026-07-18(10차) 사용자 제보 2건 — 빠른 시작 쏠림(잔존 건) + 친구 탭 '보낸 요청' (커밋만, 배포 동결)
+- **①빠른 시작 랭커 카드 왼쪽 쏠림(v26 ① 잔존 건)**: 원인 = **소인원 방(n<5)의 좌석 슬롯 폭 110px vs SeatCard(mini) 92px** 불일치. 일반 카드는 tight 제약이 이겨 110으로 늘어나 정상인데, **휘장 카드는 TierFramed의 Stack이 제약을 loose로 풀어** 92px 카드가 topStart(왼쪽)로 붙음 → 랭커만 ~9px 쏠림. 6인방(슬롯 92px)은 폭 일치라 v26 수정 후 정상 — 그래서 "빠른 시작에서만 여전히"였음. 수정 = `tier_frame.dart` Stack에 `fit: StackFit.passthrough` 1줄. 진단법: 에뮬 실매칭(신규 계정은 휘장 없어 재현 안 됨) + 위젯 프로브로 n=4+rankTier 지오메트리 측정. 회귀 `test/profile_shift_probe_test.dart`(캡처 도구 겸용, PROFILE_PROBE_DIR).
+- **②친구 탭 '보낸 요청(대기중)'**: 서버 규칙상 friendReqs는 받는 쪽만 읽을 수 있어 **보낸 쪽은 로컬 기록**(SharedPreferences `sent_reqs_v1`, FriendService.sentRequests/cancelRequest/pruneSentByFriends). 보내면 즉시 '대기중' 카드, 상대 수락으로 친구가 되면 자동 정리, **취소** 버튼은 상대의 받은 요청함에서도 제거(쓰기 규칙이 보낸 이 허용 — 규칙 변경·배포 불필요). 실패 시(닉네임 없음 등) 기록 안 남음. 테스트 `test/friends_sent_pending_test.dart`(FRIENDS_CAPTURE_DIR 캡처 겸용).
+- 검증: 테스트 262·analyze 0·에뮬 QA(빠른 시작 실매칭 4인방 재현, 친구 탭·실패 케이스). 보고서+전/후 스크린샷 자료실 '변경 보고서'(growth/reports/bugfix_0718). 공지 1건 추가. **배포 동결 유지 — 커밋만**, 애플 승인 후 동시 배포에 포함.
+- 선택 탭: 장전음 3차(sfx_reload4)는 여전히 사용자 답변 대기 — 처리할 새 답변 없음.
+
 ## 2026-07-17(9차) 🍎 iOS 앱스토어 첫 제출(심사 대기) + 릴리스 전자동화 + 크로스플레이 게이트
 - **iOS 1.0 심사 제출 완료**(새벽 4시경, 빌드 29). 1회성 설정 전 과정과 함정은 `growth/IOS_RELEASE_AUTOMATION.md`에 정리. 핵심 함정: ①기기 0대면 개발 서명 불가 → **맥을 Designed-for-iPad 빌드로 기기 등록**해 해결 ②iOS AppIcon이 플러터 기본→구식 모자 2연속 오탑재 → 진실 소스는 `store/icon_512.png`(카우보이 얼굴), LESSONS 기록 ③6.5" 스크린샷 규격(1284×2778) 별도 필요.
 - **전자동 파이프라인**: ASC API 키(D3TN3JP93R, `~/.appstoreconnect/`, 드라이브 백업) 기반 — `tools/upload_appstore.sh`(빌드+업로드, 검증 완료: 빌드 29를 무클릭 업로드) + `tools/release_ios.sh`(pilot 처리 대기→deliver 새소식·빌드 선택·심사 제출, **첫 실전은 1.0.1**) + **🚦 출시 탭에 App Store 상태 통합**(심사 대기/판매 중/반려 실시간 — cowboy_release_check.py, 대시보드 venv에 pyjwt·cryptography 추가).

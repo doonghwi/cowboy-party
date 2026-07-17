@@ -19,6 +19,10 @@ class TierFramed extends StatelessWidget {
   Widget build(BuildContext context) {
     return Stack(
       clipBehavior: Clip.none,
+      // 부모 제약을 카드에 그대로 전달 — 기본(loose)이면 좌석 슬롯(예: 4인방
+      // 110px)보다 좁은 카드(92px)가 topStart로 붙어 랭커 카드만 왼쪽으로
+      // 쏠렸다(빠른시작 소인원 방, 2026-07-18 제보).
+      fit: StackFit.passthrough,
       children: [
         child,
         // 장식은 카드 밖 여백까지 그린다 — 부모 Stack들이 Clip.none이라 안 잘림.

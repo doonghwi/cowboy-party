@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:convert';
 
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_database/firebase_database.dart';
@@ -26,6 +27,15 @@ class FriendRequest {
   final String fromUid;
   final String fromName;
   const FriendRequest(this.fromUid, this.fromName);
+}
+
+/// 내가 보낸 친구 요청(대기중 표시용, 2026-07-18 사용자 요청).
+/// 서버 규칙상 friendReqs는 받는 쪽만 읽을 수 있어 보낸 쪽은 로컬로 기억한다.
+class SentRequest {
+  final String uid; // 상대 uid
+  final String name; // 보낼 때 입력한 닉네임
+  final int at;
+  const SentRequest(this.uid, this.name, this.at);
 }
 
 class RoomInvite {
@@ -151,11 +161,15 @@ class FriendService {
       }
       if (target == me) return '자기 자신에게는 보낼 수 없어요';
       final already = await r.child('friends/$me/$target').get();
-      if (already.exists) return '이미 친구예요';
+      if (already.exists) {
+        await forgetSent(target); // 이미 친구인데 대기중으로 남았으면 정리
+        return '이미 친구예요';
+      }
       await r.child('friendReqs/$target/$me').set({
         'name': _myName,
         'at': ServerValue.timestamp,
       });
+      await _rememberSent(target, nickname.trim());
       return '';
     } catch (_) {
       return '요청을 보내지 못했어요. 연결을 확인해 주세요';
@@ -238,6 +252,79 @@ class FriendService {
       }
       return out;
     });
+  }
+
+  // ── 보낸 요청(로컬 기록) — '대기중' 표시용(2026-07-18 사용자 요청) ────────
+  // 이 기기에서 보낸 요청만 안다(서버는 받는 쪽만 조회 가능). 상대가 수락해
+  // 친구가 되면 pruneSentByFriends가 지우고, 취소는 원격 노드도 지운다.
+  static const _kSentKey = 'sent_reqs_v1';
+  static const int kSentMax = 20;
+
+  Future<List<SentRequest>> sentRequests() async {
+    try {
+      final sp = await SharedPreferences.getInstance();
+      final raw = sp.getString(_kSentKey);
+      if (raw == null || raw.isEmpty) return const [];
+      final v = jsonDecode(raw);
+      return [
+        if (v is List)
+          for (final e in v)
+            if (e is Map && e['uid'] is String && e['name'] is String)
+              SentRequest(e['uid'] as String, e['name'] as String,
+                  e['at'] is num ? (e['at'] as num).toInt() : 0),
+      ];
+    } catch (_) {
+      return const [];
+    }
+  }
+
+  Future<void> _saveSent(List<SentRequest> list) async {
+    final sp = await SharedPreferences.getInstance();
+    await sp.setString(
+        _kSentKey,
+        jsonEncode([
+          for (final s in list.take(kSentMax))
+            {'uid': s.uid, 'name': s.name, 'at': s.at},
+        ]));
+  }
+
+  Future<void> _rememberSent(String uid, String name) async {
+    try {
+      final cur = await sentRequests();
+      await _saveSent([
+        SentRequest(uid, name, DateTime.now().millisecondsSinceEpoch),
+        ...cur.where((s) => s.uid != uid),
+      ]);
+    } catch (_) {}
+  }
+
+  Future<void> forgetSent(String uid) async {
+    try {
+      final cur = await sentRequests();
+      if (!cur.any((s) => s.uid == uid)) return;
+      await _saveSent(cur.where((s) => s.uid != uid).toList());
+    } catch (_) {}
+  }
+
+  /// 수락돼 친구가 된 상대를 대기중 목록에서 정리.
+  Future<void> pruneSentByFriends(Iterable<String> friendUids) async {
+    try {
+      final set = friendUids.toSet();
+      final cur = await sentRequests();
+      if (!cur.any((s) => set.contains(s.uid))) return;
+      await _saveSent(cur.where((s) => !set.contains(s.uid)).toList());
+    } catch (_) {}
+  }
+
+  /// 보낸 요청 취소 — 상대의 받은 요청함에서도 지운다(쓰기 규칙: 보낸 이 허용).
+  Future<void> cancelRequest(SentRequest s) async {
+    final me = _uid;
+    if (me != null) {
+      try {
+        await _root?.child('friendReqs/${s.uid}/$me').remove();
+      } catch (_) {}
+    }
+    await forgetSent(s.uid);
   }
 
   // ── 최근 함께 플레이(로컬) — 친구 탭 추천용(#1, 2026-07-15) ──────────────

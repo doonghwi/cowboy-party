@@ -30,6 +30,7 @@ class _FriendsTabState extends State<FriendsTab> {
   Timer? _poll;
   List<FriendInfo> _friends = const [];
   List<String> _recent = const [];
+  List<SentRequest> _sent = const []; // 보낸 요청 — 대기중 표시(2026-07-18)
   bool _sending = false;
   bool _makingRoom = false;
 
@@ -43,6 +44,7 @@ class _FriendsTabState extends State<FriendsTab> {
     });
     _poll = Timer.periodic(const Duration(seconds: 15), (_) => _refresh());
     _loadRecent();
+    _loadSent();
   }
 
   @override
@@ -55,6 +57,17 @@ class _FriendsTabState extends State<FriendsTab> {
   Future<void> _loadRecent() async {
     final r = await FriendService.I.recentPlayers();
     if (mounted) setState(() => _recent = r);
+  }
+
+  Future<void> _loadSent() async {
+    final s = await FriendService.I.sentRequests();
+    if (mounted) setState(() => _sent = s);
+  }
+
+  /// 친구 목록이 갱신될 때 — 수락된 상대를 대기중 목록에서 정리.
+  Future<void> _pruneSent(List<FriendInfo> fs) async {
+    await FriendService.I.pruneSentByFriends(fs.map((f) => f.uid));
+    await _loadSent();
   }
 
   Future<void> _refresh() async {
@@ -74,6 +87,7 @@ class _FriendsTabState extends State<FriendsTab> {
       if (nickname == null) _nickCtl.clear();
       Sfx.confirm();
       TopToast.show(context, message: '친구 요청을 보냈어요! 상대가 수락하면 친구가 돼요');
+      _loadSent(); // 보낸 요청 카드에 바로 '대기중'으로 표시
     } else {
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(
           behavior: SnackBarBehavior.floating, content: Text(err)));
@@ -465,6 +479,66 @@ class _FriendsTabState extends State<FriendsTab> {
               );
             },
           ),
+        // 보낸 요청 — 상대 수락 대기중(이 기기에서 보낸 요청, 2026-07-18).
+        if (_sent.isNotEmpty)
+          _card(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                _sectionTitle('📤', '보낸 요청', '상대가 수락하면 친구가 돼요'),
+                for (final s in _sent)
+                  Padding(
+                    padding: const EdgeInsets.symmetric(vertical: 3),
+                    child: Row(
+                      children: [
+                        CircleAvatar(
+                          radius: 14,
+                          backgroundColor: CD.gold.withValues(alpha: 0.85),
+                          child: const Icon(Icons.hourglass_top,
+                              color: Colors.white, size: 15),
+                        ),
+                        const SizedBox(width: 10),
+                        Expanded(
+                            child: Text(s.name,
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                style: const TextStyle(
+                                    fontWeight: FontWeight.w800,
+                                    fontSize: 13.5))),
+                        Container(
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 9, vertical: 3),
+                          decoration: BoxDecoration(
+                            color: CD.sand.withValues(alpha: 0.85),
+                            borderRadius: BorderRadius.circular(20),
+                          ),
+                          child: const Text('대기중',
+                              style: TextStyle(
+                                  fontSize: 11,
+                                  fontWeight: FontWeight.w900,
+                                  color: CD.leather)),
+                        ),
+                        TextButton(
+                          onPressed: () async {
+                            await FriendService.I.cancelRequest(s);
+                            await _loadSent();
+                            if (context.mounted) {
+                              TopToast.show(context,
+                                  message: '${s.name}님에게 보낸 요청을 취소했어요');
+                            }
+                          },
+                          style: TextButton.styleFrom(
+                              visualDensity: VisualDensity.compact),
+                          child: const Text('취소',
+                              style:
+                                  TextStyle(color: CD.muted, fontSize: 12)),
+                        ),
+                      ],
+                    ),
+                  ),
+              ],
+            ),
+          ),
         // 친구 목록.
         _card(
           child: Column(
@@ -486,6 +560,8 @@ class _FriendsTabState extends State<FriendsTab> {
                     if (fs.length != _friends.length) {
                       _friends = fs;
                       Future.microtask(_refresh);
+                      // 수락된 상대는 '보낸 요청 대기중'에서 정리.
+                      Future.microtask(() => _pruneSent(fs));
                     } else {
                       _friends = fs;
                     }
