@@ -1,11 +1,31 @@
 {
- "updated": "2026-07-18",
+ "updated": "2026-07-23",
  "note": "bintage 대시보드 cowboy '자료실' 탭이 읽는다. 사용자가 컴퓨터에서 파일을 찾지 않도록 보고서·시안·프롬프트를 여기로 노출(사용자 지시 2026-07-13).",
  "sections": [
   {
    "title": "📢 상의 필요 — 디자인 선택은 '🗳️ 선택' 탭에서",
    "desc": "디자인 라운드1(6문항)은 전부 결정·반영 완료(v23) — 🗳️ 선택 탭에 결정 내역이 아카이브돼 있습니다. 새 상의 거리가 생기면 다시 이 탭/선택 탭에 올라옵니다.\n사운드 2차: 아래 사운드 보드 링크에서 장전/쇼다운예열/입장음만 고르면 SFX 완성.",
    "items": [
+    {
+     "kind": "md",
+     "title": "🍎 앱스토어 반려(계정 삭제 없음) 대응 — 재제출 가이드+영어 회신문 ⚠️사용자 액션",
+     "path": "growth/APP_REVIEW_REPLY_0723.md"
+    },
+    {
+     "kind": "img",
+     "title": "계정 삭제 — 설정 메뉴(빌드 30)",
+     "path": "growth/reports/account_deletion_0723/emu_settings.png"
+    },
+    {
+     "kind": "img",
+     "title": "계정 삭제 — 확인 다이얼로그",
+     "path": "growth/reports/account_deletion_0723/emu_delete_confirm.png"
+    },
+    {
+     "kind": "img",
+     "title": "계정 삭제 — 완료(서버 데이터 삭제 검증됨)",
+     "path": "growth/reports/account_deletion_0723/emu_deleted.png"
+    },
     {
      "kind": "md",
      "title": "🧰 에셋 전수 목록 — 사용 중/필요한 것/조달 방법(사용자 요청)",

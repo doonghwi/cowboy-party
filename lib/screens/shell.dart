@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import '../audio/sfx.dart';
+import '../meta/account_deletion.dart';
 import '../meta/announcements.dart';
 import '../meta/auth_service.dart';
 import '../meta/feedback_service.dart';
@@ -29,7 +30,7 @@ const bool kShowAdPlaceholder = true;
 
 /// 앱 빌드 번호(versionCode와 일치시켜 손으로 올린다). 설정에 표시해서
 /// 폰에 어떤 버전이 깔렸는지 눈으로 확인할 수 있게 한다.
-const int kBuildNo = 29;
+const int kBuildNo = 30;
 
 /// 하단 5탭 셸(#1, 2026-07-15): [상점] [보상] [플레이] [친구] [랭킹] —
 /// 플레이가 가운데. + 코인칩 + 설정.
@@ -557,6 +558,23 @@ class _ShellScreenState extends State<ShellScreen> {
                     style: TextStyle(fontSize: 12)),
                 onTap: () => _openFeedback(context),
               ),
+              // 계정 삭제(App Store 5.1.1(v) 필수) — 서버 계정이 있을 때만.
+              if (AuthService.I.cloudUid != null)
+                ListTile(
+                  dense: true,
+                  contentPadding: EdgeInsets.zero,
+                  leading: const Icon(Icons.person_off, color: CD.danger),
+                  title: const Text('계정 삭제',
+                      style: TextStyle(
+                          fontWeight: FontWeight.w800, color: CD.danger)),
+                  subtitle: const Text('서버에 저장된 내 데이터를 지우고 계정을 없애요',
+                      style: TextStyle(fontSize: 12)),
+                  onTap: () {
+                    Navigator.pop(ctx);
+                    showDeleteAccountDialog(context,
+                        onDeleted: () => setState(() {}));
+                  },
+                ),
               const SizedBox(height: 10),
               Center(
                 child: Text('카우보이  v1.0.0 · 빌드 $kBuildNo',

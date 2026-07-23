@@ -468,6 +468,15 @@ class Meta extends ChangeNotifier {
     notifyListeners();
   }
 
+  /// 계정 삭제 후 로컬 닉네임 초기화 — 서버 닉네임 매핑이 사라졌으므로
+  /// 이 기기도 미설정 상태로 돌린다(다음 설정은 다시 무료).
+  void clearNicknameLocal() {
+    _nickname = '';
+    _nicknameSet = false;
+    _save();
+    notifyListeners();
+  }
+
   /// 닉네임 변경권 구매(G2). 성공 시 true.
   bool buyNicknameTicket() {
     if (!trySpend(kNicknameTicketCost)) return false;

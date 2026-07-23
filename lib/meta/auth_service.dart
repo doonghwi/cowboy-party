@@ -197,4 +197,47 @@ class AuthService extends ChangeNotifier {
       if (!kIsWeb) await GoogleSignIn().signOut();
     } catch (_) {}
   }
+
+  /// 계정 삭제 직전 재인증 — Firebase가 requires-recent-login을 요구할 때.
+  /// 로그인 공급자(Google/Apple)로 한 번 더 인증하고 true. 익명은 불필요(true).
+  Future<bool> reauthenticate() async {
+    try {
+      final u = FirebaseAuth.instance.currentUser;
+      if (u == null) return false;
+      if (u.isAnonymous) return true;
+      final providers = u.providerData.map((p) => p.providerId).toSet();
+      if (providers.contains('google.com')) {
+        if (kIsWeb) {
+          await u.reauthenticateWithPopup(GoogleAuthProvider());
+          return true;
+        }
+        final g = await GoogleSignIn(
+          scopes: const ['email'],
+          serverClientId:
+              '162098390378-s2ad0lmi20u81aq3slp4lv581o06oh29.apps.googleusercontent.com',
+        ).signIn();
+        if (g == null) return false;
+        final auth = await g.authentication;
+        await u.reauthenticateWithCredential(GoogleAuthProvider.credential(
+            idToken: auth.idToken, accessToken: auth.accessToken));
+        return true;
+      }
+      if (providers.contains('apple.com')) {
+        if (kIsWeb) {
+          await u.reauthenticateWithPopup(OAuthProvider('apple.com'));
+          return true;
+        }
+        final rawNonce = _generateNonce();
+        final hashedNonce = sha256.convert(utf8.encode(rawNonce)).toString();
+        final cred = await SignInWithApple.getAppleIDCredential(
+          scopes: const [AppleIDAuthorizationScopes.email],
+          nonce: hashedNonce,
+        );
+        await u.reauthenticateWithCredential(OAuthProvider('apple.com')
+            .credential(idToken: cred.identityToken, rawNonce: rawNonce));
+        return true;
+      }
+    } catch (_) {}
+    return false;
+  }
 }

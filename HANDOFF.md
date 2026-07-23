@@ -3,6 +3,13 @@
 > 새 세션에서 이 파일을 먼저 읽고 이어서 진행. 모든 작업물은 디스크에 있고 main에 커밋됨.
 > ⚠️ 아래 좌표 일부는 구 Windows 경로(C:\dev\…) — 현재는 Mac `/Users/doonghwi/Documents/dailyapp/`.
 
+## 2026-07-23(11차) 🍎 앱스토어 1.0 반려(5.1.1(v)) → 계정 삭제 구현 + 빌드 30 업로드
+- **반려 확인**: 출시 탭 스크립트 갱신 → 1.0(빌드 29) REJECTED(7/17 심사). 사유 = **계정 생성만 있고 계정 삭제 없음**(Guideline 5.1.1(v)). 구글 프로덕션 승격은 아직(액세스 신청 결과는 이메일 — API로 못 봄).
+- **계정 삭제 구현**(`lib/meta/account_deletion.dart` + 설정 시트 메뉴, cloudUid 있을 때만 노출): 확인 다이얼로그(삭제 항목 명시) → ①친구 그래프 상호 삭제 ②보낸 요청 회수(로컬 기록 기반) ③friendReqs/presence/invites/users 노드 삭제 ④닉네임 매핑 트랜잭션 해제 ⑤시즌 랭킹은 규칙상 삭제 불가(pts 증가만 허용) → **이름만 '떠난 카우보이'로 익명화**(이번 주+지난 주) ⑥Auth 계정 삭제, requires-recent-login이면 `AuthService.reauthenticate()`(구글/애플 재인증) 후 재시도 ⑦로컬 닉네임 초기화(`Meta.clearNicknameLocal`, 기기 게임 데이터는 유지). 전부 베스트에포트 — 노드 일부 실패해도 계정 삭제는 진행. **RTDB 규칙 변경 없음**(기존 규칙이 상호 삭제·본인 삭제 허용).
+- **검증**: 테스트 264(다이얼로그 위젯 2 신규)·analyze 0·**에뮬 E2E로 실계정 삭제**(게스트 doonghw2 → nicknames/presence 소거를 공개 REST로 확인, 실사용자 계정 무사). 스크린샷 3장 자료실.
+- **빌드 30**(pubspec+kBuildNo) → `tools/upload_appstore.sh`로 ASC 업로드. **남은 사용자 액션**: TestFlight 빌드 30 설치 → 아이폰 화면 녹화(로그인→계정 삭제 완주) → 반려 메시지 회신(영어 회신문 준비됨)+영상 첨부 → 빌드 30으로 재제출. 가이드 `growth/APP_REVIEW_REPLY_0723.md`(자료실 노출).
+- 배포 동결 유지: 안드로이드·웹 배포 없음. iOS 업로드는 심사 재제출용(스토어 공개 아님).
+
 ## 2026-07-18(10차) 사용자 제보 2건 — 빠른 시작 쏠림(잔존 건) + 친구 탭 '보낸 요청' (커밋만, 배포 동결)
 - **①빠른 시작 랭커 카드 왼쪽 쏠림(v26 ① 잔존 건)**: 원인 = **소인원 방(n<5)의 좌석 슬롯 폭 110px vs SeatCard(mini) 92px** 불일치. 일반 카드는 tight 제약이 이겨 110으로 늘어나 정상인데, **휘장 카드는 TierFramed의 Stack이 제약을 loose로 풀어** 92px 카드가 topStart(왼쪽)로 붙음 → 랭커만 ~9px 쏠림. 6인방(슬롯 92px)은 폭 일치라 v26 수정 후 정상 — 그래서 "빠른 시작에서만 여전히"였음. 수정 = `tier_frame.dart` Stack에 `fit: StackFit.passthrough` 1줄. 진단법: 에뮬 실매칭(신규 계정은 휘장 없어 재현 안 됨) + 위젯 프로브로 n=4+rankTier 지오메트리 측정. 회귀 `test/profile_shift_probe_test.dart`(캡처 도구 겸용, PROFILE_PROBE_DIR).
 - **②친구 탭 '보낸 요청(대기중)'**: 서버 규칙상 friendReqs는 받는 쪽만 읽을 수 있어 **보낸 쪽은 로컬 기록**(SharedPreferences `sent_reqs_v1`, FriendService.sentRequests/cancelRequest/pruneSentByFriends). 보내면 즉시 '대기중' 카드, 상대 수락으로 친구가 되면 자동 정리, **취소** 버튼은 상대의 받은 요청함에서도 제거(쓰기 규칙이 보낸 이 허용 — 규칙 변경·배포 불필요). 실패 시(닉네임 없음 등) 기록 안 남음. 테스트 `test/friends_sent_pending_test.dart`(FRIENDS_CAPTURE_DIR 캡처 겸용).

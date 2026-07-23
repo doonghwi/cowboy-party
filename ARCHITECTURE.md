@@ -179,6 +179,8 @@ dailyapp_stats/cowboy_party: 사용량(중앙 대시보드)
 - [x] **Stage 5**: ??? 해금 게이트(canBuyMystery, 전 캐릭터 보유 시) + 선물코드 + 에뮬 검증 + 배포.
 
 ## 최근 변경 (2026-07)
+### 계정 삭제 — App Store 5.1.1(v) 반려 대응 (2026-07-23, 빌드 30)
+- `lib/meta/account_deletion.dart`: `AccountDeletion.deleteAccount()`(서버 개인 데이터 삭제→Auth 삭제→로컬 닉네임 초기화, 전부 베스트에포트) + `showDeleteAccountDialog()`(확인→스피너→토스트). 설정 시트에 진입점(cloudUid 있을 때만). 시즌 랭킹은 규칙상 삭제 불가 → 이름 익명화. requires-recent-login은 `AuthService.reauthenticate()`(구글/애플)로 처리. 규칙 변경 없음.
 ### 빠른 시작 쏠림 잔존 건 + 친구 '보낸 요청' (2026-07-18, 커밋만 — 배포 동결)
 - **좌석 슬롯 폭 규칙**: `circular_table.dart`의 슬롯 폭은 n<5 → 110px, n≥5 → 92px인데 `SeatCard`(mini)는 92px 고정 — 일반 카드는 tight 제약으로 110에 맞춰지지만, 제약을 loose로 푸는 래퍼(예: Stack)가 끼면 92로 남아 topStart로 쏠린다. `TierFramed`가 그 경우였고 `fit: StackFit.passthrough`로 고정(회귀: test/profile_shift_probe_test.dart). **좌석 카드를 새 위젯으로 감쌀 땐 제약 전달을 확인할 것.**
 - **보낸 친구 요청(대기중)**: `friend_service.dart`에 로컬 기록(`sent_reqs_v1`) — sentRequests/cancelRequest/forgetSent/pruneSentByFriends. friends_tab '보낸 요청' 카드(대기중 칩+취소). 서버 규칙 변경 없음(friendReqs 쓰기는 보낸 이 허용이라 취소 가능, 읽기는 수신자 전용이라 로컬 기록 채택).
