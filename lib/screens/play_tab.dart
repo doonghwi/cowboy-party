@@ -28,12 +28,28 @@ class _PlayTabState extends State<PlayTab> {
   bool _loading = false;
   Timer? _auto;
 
+  /// 특훈 권유 중복 방지 — 리스너가 여러 번 울려도 한 번만.
+  bool _tutorialOfferAsked = false;
+
   @override
   void initState() {
     super.initState();
     _refresh();
     _auto = Timer.periodic(const Duration(seconds: 15), (_) => _refresh());
     // #6: 첫 실행이면 게임 방법을 팝업으로 한 번 안내(재방문자는 안 뜸).
+    WidgetsBinding.instance
+        .addPostFrameCallback((_) => _maybeShowFirstRunTutorial());
+    // 첫 실행엔 온보딩(닉네임)이 떠 있어 위 호출이 건너뛰어진다 — 닉네임이
+    // 정해지는 순간 같은 세션에서 바로 특훈을 권한다(2026-07-27 제보:
+    // "다음 실행으로 미루기"는 튜토리얼이 안 뜨는 것처럼 보였음).
+    Meta.I.addListener(_maybeOfferTutorialOnNickname);
+  }
+
+  void _maybeOfferTutorialOnNickname() {
+    if (_tutorialOfferAsked || !mounted) return;
+    if (Meta.I.nickname.isEmpty || Meta.I.tutorialSeen) return;
+    _tutorialOfferAsked = true;
+    // 온보딩 다이얼로그가 닫히는 프레임과 겹치지 않게 다음 프레임에.
     WidgetsBinding.instance
         .addPostFrameCallback((_) => _maybeShowFirstRunTutorial());
   }
@@ -104,6 +120,7 @@ class _PlayTabState extends State<PlayTab> {
   @override
   void dispose() {
     _auto?.cancel();
+    Meta.I.removeListener(_maybeOfferTutorialOnNickname);
     super.dispose();
   }
 

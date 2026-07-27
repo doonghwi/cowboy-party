@@ -17,7 +17,36 @@ KEY_FILE="$HOME/.appstoreconnect/private_keys/AuthKey_${API_KEY}.p8"
 
 if [ "${1:-}" != "--skip-build" ]; then
   echo "== flutter build ipa =="
-  flutter build ipa --release
+  # Xcode 계정 세션이 만료되면 export 단계가 'No Accounts'로 실패한다(2026-07-27).
+  # 그 경우 아카이브는 살아 있으므로 ASC API 키 클라우드 서명으로 직접 export.
+  if ! flutter build ipa --release; then
+    echo "== flutter export 실패 → API 키 클라우드 서명 export 폴백 =="
+    cat > /tmp/cowboy_export_options.plist <<'PLIST'
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+  <key>method</key><string>app-store-connect</string>
+  <key>signingStyle</key><string>automatic</string>
+  <key>teamID</key><string>8ZQLPP4N24</string>
+  <key>uploadSymbols</key><true/>
+</dict>
+</plist>
+PLIST
+    xcodebuild -exportArchive \
+      -archivePath build/ios/archive/Runner.xcarchive \
+      -exportPath build/ios/ipa \
+      -exportOptionsPlist /tmp/cowboy_export_options.plist \
+      -allowProvisioningUpdates \
+      -authenticationKeyPath "$KEY_FILE" \
+      -authenticationKeyID "$API_KEY" \
+      -authenticationKeyIssuerID "$API_ISSUER"
+  fi
+  # 스테일 ipa 업로드 방지: 방금 만든 아카이브보다 ipa가 오래됐으면 중단
+  # (7/27 실제 사고 — 옛 ipa가 올라가 '중복 빌드 번호' 에러).
+  if [ build/ios/archive/Runner.xcarchive -nt build/ios/ipa ]; then
+    echo "❌ ipa가 아카이브보다 오래됨 — export 실패 의심, 업로드 중단"; exit 1
+  fi
 fi
 
 IPA=$(ls build/ios/ipa/*.ipa 2>/dev/null | head -1)

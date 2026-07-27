@@ -395,6 +395,21 @@ class OnlineService {
     return true;
   }
 
+  /// 이 닉네임의 전역 레지스트리 주인이 나인지 — 로그인 복원 시 클라우드
+  /// 표시 이름을 닉네임으로 되살려도 되는지 판단용(2026-07-27).
+  Future<bool> ownsNickname(String name) async {
+    final uid = AuthService.I.cloudUid;
+    if (uid == null) return false;
+    final key = _nickKey(name);
+    if (key.isEmpty) return false;
+    try {
+      final snap = await _root.child('nicknames/$key').get();
+      return snap.value == uid;
+    } catch (_) {
+      return false;
+    }
+  }
+
   Future<void> createRoom(String code, String name, int capacity,
       {int charIndex = 0,
       String title = '',

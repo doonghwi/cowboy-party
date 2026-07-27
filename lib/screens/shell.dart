@@ -30,7 +30,7 @@ const bool kShowAdPlaceholder = true;
 
 /// 앱 빌드 번호(versionCode와 일치시켜 손으로 올린다). 설정에 표시해서
 /// 폰에 어떤 버전이 깔렸는지 눈으로 확인할 수 있게 한다.
-const int kBuildNo = 30;
+const int kBuildNo = 31;
 
 /// 하단 5탭 셸(#1, 2026-07-15): [상점] [보상] [플레이] [친구] [랭킹] —
 /// 플레이가 가운데. + 코인칩 + 설정.
@@ -119,7 +119,10 @@ class _ShellScreenState extends State<ShellScreen> {
     showDialog(
       context: context,
       barrierDismissible: false,
-      builder: (ctx) => AlertDialog(
+      // 닉네임 필수(2026-07-27 제보) — 뒤로가기로도 못 빠져나간다.
+      builder: (ctx) => PopScope(
+        canPop: false,
+        child: AlertDialog(
         backgroundColor: CD.parchment,
         title: Text('카우보이에 온 걸 환영해요!', style: posterTitle(20)),
         content: Column(
@@ -144,6 +147,9 @@ class _ShellScreenState extends State<ShellScreen> {
             const SizedBox(height: 6),
             const Text('랭킹에 오르려면 구글 로그인이 필요해요(게스트는 미등록).',
                 style: TextStyle(fontSize: 11.5, color: CD.muted)),
+            const SizedBox(height: 6),
+            const Text('이미 계정이 있으면 닉네임 없이 바로 로그인하세요 — 쓰던 닉네임을 되살려 드려요.',
+                style: TextStyle(fontSize: 11.5, color: CD.muted)),
           ],
         ),
         actions: [
@@ -158,38 +164,115 @@ class _ShellScreenState extends State<ShellScreen> {
           if (AuthService.I.showAppleButton)
             FilledButton.icon(
               style: FilledButton.styleFrom(backgroundColor: Colors.black),
-              onPressed: () async {
-                if (!await _applyOnboardName(ctx, ctl.text)) return;
-                final ok = await AuthService.I.signInWithApple();
-                if (ok) await Meta.I.mergeFromCloud();
-                if (ctx.mounted) Navigator.pop(ctx);
-              },
+              onPressed: () =>
+                  _onboardLogin(ctx, ctl.text, AuthService.I.signInWithApple),
               icon: const Icon(Icons.apple, size: 20),
               label: const Text('Apple로 로그인',
                   style: TextStyle(fontWeight: FontWeight.w900)),
             ),
           FilledButton.icon(
             style: FilledButton.styleFrom(backgroundColor: CD.rust),
-            onPressed: () async {
-              if (!await _applyOnboardName(ctx, ctl.text)) return;
-              final ok = await AuthService.I.signInWithGoogle();
-              if (ok) await Meta.I.mergeFromCloud();
-              if (ctx.mounted) Navigator.pop(ctx);
-            },
+            onPressed: () =>
+                _onboardLogin(ctx, ctl.text, AuthService.I.signInWithGoogle),
             icon: const Icon(Icons.login, size: 18),
             label: const Text('구글 로그인',
                 style: TextStyle(fontWeight: FontWeight.w900)),
           ),
         ],
+        ),
       ),
     );
   }
 
-  // 온보딩 닉네임 적용. 비속어·중복이면 막고 false 반환(다이얼로그 유지). 빈 값은 통과.
+  /// 온보딩의 구글/애플 로그인 — **로그인 먼저, 닉네임은 그 다음**(2026-07-27
+  /// 제보: 애플 로그인 후 닉네임을 정할 기회가 없던 문제). 로그인 성공 시
+  /// 클라우드에 쓰던 닉네임이 있으면 복원하고, 없으면 강제 설정 다이얼로그.
+  Future<void> _onboardLogin(BuildContext dialogCtx, String typed,
+      Future<bool> Function() signInFn) async {
+    final nav = Navigator.of(dialogCtx);
+    final messenger = ScaffoldMessenger.of(dialogCtx);
+    final ok = await signInFn();
+    if (!ok) {
+      if (AuthService.I.lastError != null) {
+        messenger.showSnackBar(SnackBar(
+            content: Text(AuthService.I.lastError!),
+            behavior: SnackBarBehavior.floating));
+      }
+      return; // 다이얼로그 유지 — 다시 시도하거나 게스트 선택 가능
+    }
+    await Meta.I.mergeFromCloud();
+    // 기존 계정: 클라우드 표시 이름이 내가 점유한 닉네임이면 자동 복원.
+    if (Meta.I.nickname.isEmpty && Meta.I.cloudName.isNotEmpty) {
+      if (await OnlineService().ownsNickname(Meta.I.cloudName)) {
+        Meta.I.setNickname(Meta.I.cloudName);
+      }
+    }
+    // 입력칸에 미리 써둔 닉네임이 있으면 적용 시도(중복 등 실패 시 아래 강제 설정).
+    if (Meta.I.nickname.isEmpty && typed.trim().isNotEmpty) {
+      await Meta.I.changeNickname(typed);
+    }
+    nav.pop();
+    if (Meta.I.nickname.isEmpty) _forceNicknameDialog();
+  }
+
+  /// 닉네임 강제 설정 — 성공 전엔 닫을 수 없다(닉네임 필수, 2026-07-27).
+  void _forceNicknameDialog() {
+    if (!mounted) return;
+    final ctl = TextEditingController();
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (ctx) => PopScope(
+        canPop: false,
+        child: AlertDialog(
+          backgroundColor: CD.parchment,
+          title: Text('닉네임을 정해주세요', style: posterTitle(20)),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              TextField(
+                controller: ctl,
+                maxLength: 8,
+                autofocus: true,
+                decoration: const InputDecoration(
+                  counterText: '',
+                  labelText: '닉네임 (최대 8자)',
+                  border: OutlineInputBorder(),
+                ),
+              ),
+              const Text('닉네임이 있어야 게임을 시작할 수 있어요. 나중에 바꾸려면 변경권이 필요해요.',
+                  style: TextStyle(fontSize: 11.5, color: CD.muted)),
+            ],
+          ),
+          actions: [
+            FilledButton(
+              style: FilledButton.styleFrom(backgroundColor: CD.rust),
+              onPressed: () async {
+                final nav = Navigator.of(ctx);
+                if (!await _applyOnboardName(ctx, ctl.text)) return;
+                nav.pop();
+              },
+              child: const Text('결정!',
+                  style: TextStyle(fontWeight: FontWeight.w900)),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  // 온보딩 닉네임 적용. 빈 값·비속어·중복이면 막고 false 반환(다이얼로그 유지).
   Future<bool> _applyOnboardName(BuildContext dialogCtx, String raw) async {
     final n = raw.trim();
-    if (n.isEmpty) return true;
     final messenger = ScaffoldMessenger.of(dialogCtx);
+    // 닉네임 없이는 시작 불가(2026-07-27 제보 — 빈 값 통과가 이상하다).
+    if (n.isEmpty) {
+      messenger.showSnackBar(const SnackBar(
+          content: Text('닉네임을 입력해야 시작할 수 있어요'),
+          behavior: SnackBarBehavior.floating));
+      return false;
+    }
     final r = await Meta.I.changeNickname(n);
     if (!r.ok) {
       messenger.showSnackBar(SnackBar(

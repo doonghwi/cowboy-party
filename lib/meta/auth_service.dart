@@ -70,6 +70,23 @@ class AuthService extends ChangeNotifier {
     notifyListeners();
   }
 
+  /// google_sign_in 인스턴스 — 플랫폼별 클라이언트 ID를 **명시**한다.
+  /// iOS는 GoogleService-Info.plist가 Xcode 번들에 없어(Firebase는 Dart 옵션으로
+  /// 초기화) 플러그인이 clientId를 못 찾아 **버튼 즉시 크래시**하던 원인
+  /// (2026-07-27 제보). URL 스킴(REVERSED_CLIENT_ID)은 Info.plist에 이미 있음.
+  static GoogleSignIn _googleSignIn() => GoogleSignIn(
+        scopes: const ['email'],
+        // iOS/macOS 전용 클라이언트(GoogleService-Info.plist의 CLIENT_ID).
+        clientId: (defaultTargetPlatform == TargetPlatform.iOS ||
+                defaultTargetPlatform == TargetPlatform.macOS)
+            ? '162098390378-cc79cakq7hehgimfr4kn7i7gajhq3svo.apps.googleusercontent.com'
+            : null,
+        // serverClientId(웹 클라이언트)를 명시해야 Android에서 Firebase용 idToken이
+        // 확실히 발급된다. 없으면 계정 선택 뒤 토큰 교환이 조용히 실패(→게스트)할 수 있다.
+        serverClientId:
+            '162098390378-s2ad0lmi20u81aq3slp4lv581o06oh29.apps.googleusercontent.com',
+      );
+
   /// Google 로그인. 성공 true. 실패 시 lastError에 사람이 읽을 메시지.
   Future<bool> signInWithGoogle() async {
     lastError = null;
@@ -77,13 +94,7 @@ class AuthService extends ChangeNotifier {
       if (kIsWeb) {
         await FirebaseAuth.instance.signInWithPopup(GoogleAuthProvider());
       } else {
-        // serverClientId(웹 클라이언트)를 명시해야 Android에서 Firebase용 idToken이
-        // 확실히 발급된다. 없으면 계정 선택 뒤 토큰 교환이 조용히 실패(→게스트)할 수 있다.
-        final g = await GoogleSignIn(
-          scopes: const ['email'],
-          serverClientId:
-              '162098390378-s2ad0lmi20u81aq3slp4lv581o06oh29.apps.googleusercontent.com',
-        ).signIn();
+        final g = await _googleSignIn().signIn();
         if (g == null) {
           lastError = '로그인이 취소됐어요';
           return false;
@@ -211,11 +222,7 @@ class AuthService extends ChangeNotifier {
           await u.reauthenticateWithPopup(GoogleAuthProvider());
           return true;
         }
-        final g = await GoogleSignIn(
-          scopes: const ['email'],
-          serverClientId:
-              '162098390378-s2ad0lmi20u81aq3slp4lv581o06oh29.apps.googleusercontent.com',
-        ).signIn();
+        final g = await _googleSignIn().signIn();
         if (g == null) return false;
         final auth = await g.authentication;
         await u.reauthenticateWithCredential(GoogleAuthProvider.credential(

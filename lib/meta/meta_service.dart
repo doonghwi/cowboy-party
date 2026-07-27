@@ -778,8 +778,18 @@ class Meta extends ChangeNotifier {
         _dailyStreak = cStreak;
         _dailyLast = cLast;
       }
+      // 클라우드에 저장돼 있던 표시 이름 — 닉네임 복원 후보(호출 측이
+      // nicknames 레지스트리 소유 확인 후 setNickname). 직접 복원하지 않는
+      // 이유: displayName 폴백('카우보이' 등)이 섞여 있을 수 있어서.
+      final cName = cloud['name'];
+      if (cName is String && cName.trim().isNotEmpty) {
+        cloudName = cName.trim();
+      }
       await _save();
       notifyListeners();
     } catch (_) {}
   }
+
+  /// mergeFromCloud가 발견한 클라우드 표시 이름(비영속) — 온보딩 복원용.
+  String cloudName = '';
 }
