@@ -316,7 +316,8 @@ class _OfflineGameScreenState extends State<OfflineGameScreen> {
     if (!widget.tutorial || _phase != _Phase.choosing) return null;
     return switch (_turn) {
       0 => '어서 와, 신참! 먼저 "장전"을 눌러 총알을 채워봐. 총알이 있어야 빵야를 쏠 수 있지.',
-      1 => '저 녀석, 방아쇠에 손가락이 갔군. "방어"를 누르면 이번 턴 모든 공격을 막아낸다!',
+      // 상대 행동을 미리 아는 듯한 문구 금지(2026-07-27 사용자) — 심리 게임이니까.
+      1 => '이번엔 "방어"를 눌러보자. 방어는 이번 턴 모든 공격을 막아낸다!',
       2 => '빈틈이다! 총을 쏜 녀석은 총알이 없어. 지금 "빵야"로 갚아줘!',
       _ => '기본기는 끝났다 — 이제 네 마음대로 해봐!',
     };

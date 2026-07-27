@@ -27,7 +27,7 @@ void main() {
     await t.pump(const Duration(milliseconds: 120));
 
     // 턴1 — 봇이 쏘는 턴, 방어만 활성.
-    expect(find.textContaining('방아쇠'), findsOneWidget);
+    expect(find.textContaining('방어"를 눌러보자'), findsOneWidget);
     await t.tap(inBar('방어'));
     await t.pump(const Duration(milliseconds: 60));
     await t.tap(inBar('결정!'));

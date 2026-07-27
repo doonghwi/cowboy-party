@@ -3,6 +3,13 @@
 > 새 세션에서 이 파일을 먼저 읽고 이어서 진행. 모든 작업물은 디스크에 있고 main에 커밋됨.
 > ⚠️ 아래 좌표 일부는 구 Windows 경로(C:\dev\…) — 현재는 Mac `/Users/doonghwi/Documents/dailyapp/`.
 
+## 2026-07-27(15차) 온보딩 개편(로그인→닉네임 순서)·튜토리얼 문구 + 애플 로그인 진단 + 빌드 32
+- **온보딩 v2(사용자)**: 이름 입력 칸 제거 — 게스트=랜덤 닉네임 자동(`Meta.assignGuestNickname`, nicknameSet false 유지로 첫 직접 설정 무료), 구글/애플=로그인 후 닉네임 팝업(클라우드 소유 닉네임이면 자동 복원). 에뮬 QA: 게스트 시작 즉시 튜토리얼 팝업 확인.
+- **튜토리얼 문구(사용자)**: 권유 팝업 '특훈'→'튜토리얼', '게임 방법 글로 보기' 버튼 제거, 코치 턴1 대사 "저 녀석, 방아쇠에…"(상대 행동 아는 듯) → "이번엔 \"방어\"를 눌러보자…". tutorial_flow_test 단언 동기화.
+- **애플 로그인 credential 오류 진단**: ①빌드 31 ipa entitlements 정상(applesignin 포함) ②번들 ID 일치 ③**Firebase Apple 공급자 켜져 있음**(signInWithIdp 프로브가 공급자 통과 후 토큰 파싱 단계 도달 — createAuthUri의 'Code flow not enabled'는 웹 플로우 얘기) → 서버/서명 아님. 남은 후보: 기기 Apple ID 상태(아이패드 iCloud 로그인 필요) 또는 토큰/nonce 이슈. **빌드 32는 에러 상세(code·message)를 그대로 표시** — 한 번 재시도하면 원인 확정 가능. (참고: 빌드 30의 "애플 되네"는 구 코드가 실패해도 다이얼로그를 닫아 성공처럼 보였던 것일 수 있음.)
+- **빌드 32 ASC 업로드**. ⚠️ upload_appstore.sh 함정 추가 수정: **flutter build ipa는 export 실패해도 exit 0** → 폴백 트리거를 종료코드가 아닌 ipa 신선도로 변경(스테일 가드가 오업로드 1회 방어함). 안드로이드는 31이 프로덕션 심사 중이라 32 미업로드(심사 리셋 방지) — 공개 후 32+로 동기화.
+- 테스트 264·analyze 0. 애플 재제출은 **빌드 32**로(영상은 구글 로그인+삭제 촬영분 그대로 유효).
+
 ## 2026-07-27(14차) 🚀 구글 프로덕션 1.0.0(31) 검토 제출 완료
 - 사용자가 콘솔에서 전체 국가 선택 → Claude가 제출. ⚠️ 함정: fastlane supply는 `--skip_upload_aab`일 때 `--release_status completed`를 트랙에 반영하지 않음(성공 로그만 찍힘) → **Android Publisher REST로 직접** edits.tracks.update(status=completed)+commit(200 확인). 출시 탭에서 production=completed(31) 검증.
 - 구글 검토(수 시간~며칠) 통과 시 자동 공개. 공개 확인되면 웹(deploy_web.sh)도 같은 커밋으로 배포해 버전 맞출 것. 애플은 빌드 31 녹화·회신·재제출 대기.

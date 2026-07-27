@@ -468,6 +468,16 @@ class Meta extends ChangeNotifier {
     notifyListeners();
   }
 
+  /// 게스트 시작 시 랜덤 닉네임 자동 부여(2026-07-27 온보딩 개편) —
+  /// _nicknameSet은 false 유지: 본인이 직접 정하는 첫 설정은 여전히 무료.
+  void assignGuestNickname(String n) {
+    final t = n.trim();
+    if (t.isEmpty) return;
+    _nickname = t;
+    _save();
+    notifyListeners();
+  }
+
   /// 계정 삭제 후 로컬 닉네임 초기화 — 서버 닉네임 매핑이 사라졌으므로
   /// 이 기기도 미설정 상태로 돌린다(다음 설정은 다시 무료).
   void clearNicknameLocal() {

@@ -165,20 +165,24 @@ class AuthService extends ChangeNotifier {
       }
       return true;
     } on SignInWithAppleAuthorizationException catch (e) {
+      // 원인 파악용 상세 노출(2026-07-27 'credential 문제' 제보 — 코드만으론
+      // iOS 기기 Apple ID 상태인지 서버 문제인지 구분 불가).
       lastError = e.code == AuthorizationErrorCode.canceled
           ? '로그인이 취소됐어요'
-          : 'Apple 로그인 실패';
+          : 'Apple 로그인 실패 (${e.code.name}'
+              '${e.message.isNotEmpty ? ' · ${e.message}' : ''})';
       return false;
     } on FirebaseAuthException catch (e) {
       lastError = switch (e.code) {
         'operation-not-allowed' =>
           '아직 서버에 Apple 로그인이 준비 중이에요. 게스트로 플레이해 주세요!',
         'network-request-failed' => '네트워크를 확인해 주세요',
-        _ => '로그인 실패 (${e.code})',
+        _ => '로그인 실패 (${e.code}'
+            '${(e.message != null && e.message!.isNotEmpty) ? ' · ${e.message}' : ''})',
       };
       return false;
-    } catch (_) {
-      lastError = '로그인 실패 — 잠시 후 다시 시도해 주세요';
+    } catch (e) {
+      lastError = '로그인 실패: $e';
       return false;
     }
   }

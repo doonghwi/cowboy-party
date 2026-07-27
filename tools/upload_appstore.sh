@@ -19,8 +19,12 @@ if [ "${1:-}" != "--skip-build" ]; then
   echo "== flutter build ipa =="
   # Xcode 계정 세션이 만료되면 export 단계가 'No Accounts'로 실패한다(2026-07-27).
   # 그 경우 아카이브는 살아 있으므로 ASC API 키 클라우드 서명으로 직접 export.
-  if ! flutter build ipa --release; then
-    echo "== flutter export 실패 → API 키 클라우드 서명 export 폴백 =="
+  flutter build ipa --release || true
+  # ⚠️ flutter는 export가 실패해도 exit 0일 수 있다(2026-07-27 확인) —
+  # ipa가 없거나 아카이브보다 낡았으면 폴백을 태운다.
+  if [ ! -e build/ios/ipa/cowboy_party.ipa ] || \
+     [ build/ios/archive/Runner.xcarchive -nt build/ios/ipa/cowboy_party.ipa ]; then
+    echo "== flutter export 누락/스테일 → API 키 클라우드 서명 export 폴백 =="
     cat > /tmp/cowboy_export_options.plist <<'PLIST'
 <?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
@@ -44,8 +48,9 @@ PLIST
   fi
   # 스테일 ipa 업로드 방지: 방금 만든 아카이브보다 ipa가 오래됐으면 중단
   # (7/27 실제 사고 — 옛 ipa가 올라가 '중복 빌드 번호' 에러).
-  if [ build/ios/archive/Runner.xcarchive -nt build/ios/ipa ]; then
-    echo "❌ ipa가 아카이브보다 오래됨 — export 실패 의심, 업로드 중단"; exit 1
+  if [ ! -e build/ios/ipa/cowboy_party.ipa ] || \
+     [ build/ios/archive/Runner.xcarchive -nt build/ios/ipa/cowboy_party.ipa ]; then
+    echo "❌ ipa가 없거나 아카이브보다 오래됨 — export 실패, 업로드 중단"; exit 1
   fi
 fi
 

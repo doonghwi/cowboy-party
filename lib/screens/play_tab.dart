@@ -80,9 +80,10 @@ class _PlayTabState extends State<PlayTab> {
         title: const Text('🤠 카우보이 파티에 오신 걸 환영해요!',
             style: TextStyle(
                 color: CD.ink, fontWeight: FontWeight.w900, fontSize: 17)),
+        // '특훈' 대신 '튜토리얼'로, '게임 방법 글로 보기'는 제거(2026-07-27 사용자).
         content: const Text(
           '2~6명이 눈치로 빵야·장전·방어를 겨루는 서부 대결이에요.\n'
-          '보안관의 3분 특훈으로 기본기를 익혀볼까요? (완주 보상 있어요)',
+          '3분 튜토리얼로 기본기를 익혀볼까요? (완주 보상 있어요)',
           style: TextStyle(color: CD.ink, fontSize: 14, height: 1.4),
         ),
         actions: [
@@ -91,15 +92,10 @@ class _PlayTabState extends State<PlayTab> {
             child: const Text('나중에',
                 style: TextStyle(color: CD.leather, fontWeight: FontWeight.w700)),
           ),
-          TextButton(
-            onPressed: () => Navigator.pop(ctx, 'howto'),
-            child: const Text('게임 방법 글로 보기',
-                style: TextStyle(color: CD.leather, fontWeight: FontWeight.w700)),
-          ),
           FilledButton(
             onPressed: () => Navigator.pop(ctx, 'tutorial'),
             style: FilledButton.styleFrom(backgroundColor: CD.rust),
-            child: const Text('특훈 시작!',
+            child: const Text('튜토리얼 시작!',
                 style: TextStyle(fontWeight: FontWeight.w800)),
           ),
         ],
@@ -111,9 +107,6 @@ class _PlayTabState extends State<PlayTab> {
           context,
           MaterialPageRoute(
               builder: (_) => const OfflineGameScreen(tutorial: true)));
-    } else if (go == 'howto') {
-      Navigator.push(context,
-          MaterialPageRoute(builder: (_) => const HowToPlayScreen()));
     }
   }
 

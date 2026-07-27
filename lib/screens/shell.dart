@@ -30,7 +30,7 @@ const bool kShowAdPlaceholder = true;
 
 /// 앱 빌드 번호(versionCode와 일치시켜 손으로 올린다). 설정에 표시해서
 /// 폰에 어떤 버전이 깔렸는지 눈으로 확인할 수 있게 한다.
-const int kBuildNo = 31;
+const int kBuildNo = 32;
 
 /// 하단 5탭 셸(#1, 2026-07-15): [상점] [보상] [플레이] [친구] [랭킹] —
 /// 플레이가 가운데. + 코인칩 + 설정.
@@ -115,11 +115,11 @@ class _ShellScreenState extends State<ShellScreen> {
 
   void _showOnboarding() {
     if (!mounted) return;
-    final ctl = TextEditingController();
+    // 2026-07-27 사용자: 온보딩에서 이름 칸 제거 — 로그인부터 고르고,
+    // 닉네임은 **로그인 후** 팝업으로 정한다. 게스트는 랜덤 닉네임 자동 부여.
     showDialog(
       context: context,
       barrierDismissible: false,
-      // 닉네임 필수(2026-07-27 제보) — 뒤로가기로도 못 빠져나간다.
       builder: (ctx) => PopScope(
         canPop: false,
         child: AlertDialog(
@@ -132,32 +132,21 @@ class _ShellScreenState extends State<ShellScreen> {
             Text('시작 보너스로 $kNewAccountGold코인을 드렸어요 🎉',
                 style: const TextStyle(
                     fontWeight: FontWeight.w800, color: CD.leather)),
-            const SizedBox(height: 10),
-            TextField(
-              controller: ctl,
-              maxLength: 8,
-              decoration: const InputDecoration(
-                counterText: '',
-                labelText: '닉네임 (최대 8자)',
-                border: OutlineInputBorder(),
-              ),
-            ),
-            const Text('닉네임은 나중에 바꾸려면 변경권이 필요해요. 신중히 정해주세요!',
+            const SizedBox(height: 8),
+            const Text('구글/Apple로 로그인하면 랭킹 등록과 기기 간 연동이 돼요. '
+                '닉네임은 로그인 후에 정해요.',
                 style: TextStyle(fontSize: 11.5, color: CD.muted)),
             const SizedBox(height: 6),
-            const Text('랭킹에 오르려면 구글 로그인이 필요해요(게스트는 미등록).',
-                style: TextStyle(fontSize: 11.5, color: CD.muted)),
-            const SizedBox(height: 6),
-            const Text('이미 계정이 있으면 닉네임 없이 바로 로그인하세요 — 쓰던 닉네임을 되살려 드려요.',
+            const Text('게스트는 랜덤 닉네임으로 바로 시작해요(나중에 로그인·변경 가능).',
                 style: TextStyle(fontSize: 11.5, color: CD.muted)),
           ],
         ),
         actions: [
           TextButton(
-            onPressed: () async {
-              final nav = Navigator.of(ctx);
-              if (!await _applyOnboardName(ctx, ctl.text)) return;
-              nav.pop();
+            onPressed: () {
+              // 게스트 = 랜덤 닉네임 자동 부여(첫 직접 설정은 여전히 무료).
+              Meta.I.assignGuestNickname(OnlineService.randomNickname());
+              Navigator.pop(ctx);
             },
             child: const Text('게스트로 시작'),
           ),
@@ -165,7 +154,7 @@ class _ShellScreenState extends State<ShellScreen> {
             FilledButton.icon(
               style: FilledButton.styleFrom(backgroundColor: Colors.black),
               onPressed: () =>
-                  _onboardLogin(ctx, ctl.text, AuthService.I.signInWithApple),
+                  _onboardLogin(ctx, AuthService.I.signInWithApple),
               icon: const Icon(Icons.apple, size: 20),
               label: const Text('Apple로 로그인',
                   style: TextStyle(fontWeight: FontWeight.w900)),
@@ -173,7 +162,7 @@ class _ShellScreenState extends State<ShellScreen> {
           FilledButton.icon(
             style: FilledButton.styleFrom(backgroundColor: CD.rust),
             onPressed: () =>
-                _onboardLogin(ctx, ctl.text, AuthService.I.signInWithGoogle),
+                _onboardLogin(ctx, AuthService.I.signInWithGoogle),
             icon: const Icon(Icons.login, size: 18),
             label: const Text('구글 로그인',
                 style: TextStyle(fontWeight: FontWeight.w900)),
@@ -184,11 +173,10 @@ class _ShellScreenState extends State<ShellScreen> {
     );
   }
 
-  /// 온보딩의 구글/애플 로그인 — **로그인 먼저, 닉네임은 그 다음**(2026-07-27
-  /// 제보: 애플 로그인 후 닉네임을 정할 기회가 없던 문제). 로그인 성공 시
-  /// 클라우드에 쓰던 닉네임이 있으면 복원하고, 없으면 강제 설정 다이얼로그.
-  Future<void> _onboardLogin(BuildContext dialogCtx, String typed,
-      Future<bool> Function() signInFn) async {
+  /// 온보딩의 구글/애플 로그인 — **로그인 먼저, 닉네임은 그 다음**(2026-07-27).
+  /// 성공 시 클라우드에 쓰던 닉네임이 있으면 복원, 없으면 닉네임 설정 팝업.
+  Future<void> _onboardLogin(
+      BuildContext dialogCtx, Future<bool> Function() signInFn) async {
     final nav = Navigator.of(dialogCtx);
     final messenger = ScaffoldMessenger.of(dialogCtx);
     final ok = await signInFn();
@@ -206,10 +194,6 @@ class _ShellScreenState extends State<ShellScreen> {
       if (await OnlineService().ownsNickname(Meta.I.cloudName)) {
         Meta.I.setNickname(Meta.I.cloudName);
       }
-    }
-    // 입력칸에 미리 써둔 닉네임이 있으면 적용 시도(중복 등 실패 시 아래 강제 설정).
-    if (Meta.I.nickname.isEmpty && typed.trim().isNotEmpty) {
-      await Meta.I.changeNickname(typed);
     }
     nav.pop();
     if (Meta.I.nickname.isEmpty) _forceNicknameDialog();
