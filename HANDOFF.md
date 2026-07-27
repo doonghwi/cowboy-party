@@ -3,6 +3,10 @@
 > 새 세션에서 이 파일을 먼저 읽고 이어서 진행. 모든 작업물은 디스크에 있고 main에 커밋됨.
 > ⚠️ 아래 좌표 일부는 구 Windows 경로(C:\dev\…) — 현재는 Mac `/Users/doonghwi/Documents/dailyapp/`.
 
+## 2026-07-27(14차) 🚀 구글 프로덕션 1.0.0(31) 검토 제출 완료
+- 사용자가 콘솔에서 전체 국가 선택 → Claude가 제출. ⚠️ 함정: fastlane supply는 `--skip_upload_aab`일 때 `--release_status completed`를 트랙에 반영하지 않음(성공 로그만 찍힘) → **Android Publisher REST로 직접** edits.tracks.update(status=completed)+commit(200 확인). 출시 탭에서 production=completed(31) 검증.
+- 구글 검토(수 시간~며칠) 통과 시 자동 공개. 공개 확인되면 웹(deploy_web.sh)도 같은 커밋으로 배포해 버전 맞출 것. 애플은 빌드 31 녹화·회신·재제출 대기.
+
 ## 2026-07-27(13차) 사용자 제보 5건 수정 → 빌드 31 양대 업로드 (+릴리스 파이프라인 자가치유)
 - **①iOS 구글 로그인 즉사**: GoogleService-Info.plist가 Xcode 번들에 없어(Firebase는 Dart 옵션 초기화라 그 외 기능은 정상) google_sign_in이 clientId를 못 찾던 것 → `AuthService._googleSignIn()`에 **iOS clientId 명시**(URL 스킴은 이미 정상). 재인증 경로도 동일 헬퍼로 통일.
 - **②iOS 앱 이름**: CFBundleDisplayName 'Cowboy Party' → **카우보이**(안드로이드는 이미 카우보이).
