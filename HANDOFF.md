@@ -3,6 +3,11 @@
 > 새 세션에서 이 파일을 먼저 읽고 이어서 진행. 모든 작업물은 디스크에 있고 main에 커밋됨.
 > ⚠️ 아래 좌표 일부는 구 Windows 경로(C:\dev\…) — 현재는 Mac `/Users/doonghwi/Documents/dailyapp/`.
 
+## 2026-07-30(17차) 🍎 애플 로그인 원인 확정·수정 — Firebase Apple 공급자 clientId 공란
+- 사용자 재시도 결과 "구글 OAuth가 안 된다"는 에러 → **Firebase(Identity Toolkit) 쪽 거부** 확정. firebase CLI 로그인 토큰으로 admin v2 API를 열어 보니 `defaultSupportedIdpConfigs/apple.com`이 **enabled인데 clientId가 완전 공란** — 네이티브 앱은 clientId에 **번들 ID**(com.doonghwi.cowboyParty)가 있어야 애플 idToken의 audience 검증을 통과한다. PATCH로 등록(서버 설정이라 **재빌드 불필요**, 빌드 30~32 전부 즉시 회복).
+- 진단 경로 기록: 플레이 SA는 다른 프로젝트(cowboy-play-publisher)라 무용 → **firebase-tools 리프레시 토큰**(~/.config/configstore)으로 액세스 토큰 발급 → identitytoolkit admin v2 GET/PATCH. LESSONS에 함정 기록.
+- 다음: 사용자 애플 로그인 재시도(같은 빌드 32) → 성공 시 ASC 회신+apple.mp4 첨부 → 빌드 32 재제출.
+
 ## 2026-07-29(16차) 🎉 구글 플레이 정식 출시 확인 + 웹 배포
 - **Play 스토어 공개 확인**(공개 페이지 200, "카우보이") — 1.0.0(빌드 31), 전 국가. 첫 프로덕션 심사 통과.
 - 예정대로 **웹 재배포**(deploy_web.sh, 최신 main=빌드 32 상당 코드, 스모크 통과) — 한 달 만의 웹 갱신이라 logicV 게이트·신기능 전부 반영됨.
