@@ -32,12 +32,14 @@ class AuthService extends ChangeNotifier {
   /// (랭킹 등록·기기 간 연동의 게이트. 이름은 호환을 위해 유지.)
   bool get isGoogle => state == AuthState.google;
 
-  /// 'Apple로 로그인' 버튼을 보여줄 플랫폼인지(iOS/macOS/웹). Apple은 다른
-  /// 소셜 로그인을 제공하면 Apple 로그인도 필수(App Store 4.8).
+  /// 'Apple로 로그인' 버튼을 보여줄 플랫폼인지(iOS/macOS). Apple은 다른
+  /// 소셜 로그인을 제공하면 Apple 로그인도 필수(App Store 4.8 — iOS 앱 기준).
+  /// 웹은 제외(2026-07-30): 웹 애플 로그인은 코드 플로우라 Apple Services ID+
+  /// 키 설정이 따로 필요 — 설정 전엔 깨진 버튼이라 숨긴다(웹은 구글 로그인).
   bool get showAppleButton =>
-      kIsWeb ||
-      defaultTargetPlatform == TargetPlatform.iOS ||
-      defaultTargetPlatform == TargetPlatform.macOS;
+      !kIsWeb &&
+      (defaultTargetPlatform == TargetPlatform.iOS ||
+          defaultTargetPlatform == TargetPlatform.macOS);
 
   /// 서버 기록에 쓸 수 있는 uid (Firebase Auth 로그인 시에만).
   String? get cloudUid => _user?.uid;
