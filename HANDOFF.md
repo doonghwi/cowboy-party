@@ -3,6 +3,11 @@
 > 새 세션에서 이 파일을 먼저 읽고 이어서 진행. 모든 작업물은 디스크에 있고 main에 커밋됨.
 > ⚠️ 아래 좌표 일부는 구 Windows 경로(C:\dev\…) — 현재는 Mac `/Users/doonghwi/Documents/dailyapp/`.
 
+## 2026-07-30(19차) 빌드 33 TestFlight 끼임 → 빌드 34 재업로드
+- 사용자 제보: 33이 TestFlight에 안 뜸. 진단: **processingState=VALID인데 buildBetaDetails가 0건 + 그룹 빌드 목록에 부재 + 그룹 강제 연결도 404** — App Store 카탈로그엔 있는데 TestFlight 하위 시스템이 인식 못 하는 애플 쪽 글리치(32까지는 정상이라 설정 문제 아님).
+- 대응: **같은 코드로 빌드 34 재업로드**(가장 빠른 우회 — 지원 티켓은 며칠). 업로드 시 flutter export 실패 → **스크립트의 클라우드 서명 폴백이 자동 작동**(18차 패치 검증됨). ASC 폴링으로 34의 betaDetail 생성 확인 후 사용자 안내.
+- 교훈: "빌드가 TestFlight에 안 떠요"는 buildBetaDetails 존재 여부로 즉시 판별 가능 — VALID인데 0건이면 기다리지 말고 재업로드.
+
 ## 2026-07-30(18차) 애플 로그인 2차 대응 — SDK 일임 경로로 교체(빌드 33)
 - clientId 등록 후에도 아이패드(빌드 32)에서 여전히 credential/OAuth 오류(사용자, 에러 전문은 미확보). 프로브상 서버 audience 관문은 정상 통과 확인 → **수동 nonce 경로 자체를 의심**.
 - **빌드 33**: 애플 로그인을 `signInWithProvider(AppleAuthProvider)`(Firebase 권장 — nonce 포함 전 과정을 네이티브 SDK가 처리) 1차로 교체, 실패 시 기존 sign_in_with_apple 수동 nonce **자동 폴백**, 둘 다 실패하면 **[1차 ...] [2차 ...] 에러를 모두 표시**. 재인증도 동일 구조. 웹은 애플 버튼 숨김(코드 플로우 미설정 — 17차)·웹 재배포됨.
