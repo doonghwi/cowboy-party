@@ -3,6 +3,12 @@
 > 새 세션에서 이 파일을 먼저 읽고 이어서 진행. 모든 작업물은 디스크에 있고 main에 커밋됨.
 > ⚠️ 아래 좌표 일부는 구 Windows 경로(C:\dev\…) — 현재는 Mac `/Users/doonghwi/Documents/dailyapp/`.
 
+## 2026-07-30(18차) 애플 로그인 2차 대응 — SDK 일임 경로로 교체(빌드 33)
+- clientId 등록 후에도 아이패드(빌드 32)에서 여전히 credential/OAuth 오류(사용자, 에러 전문은 미확보). 프로브상 서버 audience 관문은 정상 통과 확인 → **수동 nonce 경로 자체를 의심**.
+- **빌드 33**: 애플 로그인을 `signInWithProvider(AppleAuthProvider)`(Firebase 권장 — nonce 포함 전 과정을 네이티브 SDK가 처리) 1차로 교체, 실패 시 기존 sign_in_with_apple 수동 nonce **자동 폴백**, 둘 다 실패하면 **[1차 ...] [2차 ...] 에러를 모두 표시**. 재인증도 동일 구조. 웹은 애플 버튼 숨김(코드 플로우 미설정 — 17차)·웹 재배포됨.
+- ASC 업로드 완료. 다음: 사용자 TestFlight 33에서 애플 로그인 재시도 → 성공 시 회신+재제출 / 실패 시 에러 전문 사진.
+- ⚠️ 안드로이드는 31(스토어 공개) 유지 — 32·33 변경분은 다음 동기화 릴리스에서 반영 예정.
+
 ## 2026-07-30(17차) 🍎 애플 로그인 원인 확정·수정 — Firebase Apple 공급자 clientId 공란
 - 사용자 재시도 결과 "구글 OAuth가 안 된다"는 에러 → **Firebase(Identity Toolkit) 쪽 거부** 확정. firebase CLI 로그인 토큰으로 admin v2 API를 열어 보니 `defaultSupportedIdpConfigs/apple.com`이 **enabled인데 clientId가 완전 공란** — 네이티브 앱은 clientId에 **번들 ID**(com.doonghwi.cowboyParty)가 있어야 애플 idToken의 audience 검증을 통과한다. PATCH로 등록(서버 설정이라 **재빌드 불필요**, 빌드 30~32 전부 즉시 회복).
 - 진단 경로 기록: 플레이 SA는 다른 프로젝트(cowboy-play-publisher)라 무용 → **firebase-tools 리프레시 토큰**(~/.config/configstore)으로 액세스 토큰 발급 → identitytoolkit admin v2 GET/PATCH. LESSONS에 함정 기록.

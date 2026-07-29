@@ -129,9 +129,12 @@ class AuthService extends ChangeNotifier {
     }
   }
 
-  /// Apple로 로그인. 성공 true. iOS/macOS/웹에서 동작.
-  /// **Firebase 콘솔에 Apple 공급자가 켜져 있어야 실제로 작동** — 꺼져 있으면
-  /// operation-not-allowed로 안내 후 게스트 유지(앱은 안 깨짐).
+  /// Apple로 로그인. 성공 true. iOS/macOS에서 동작(웹은 버튼 숨김).
+  ///
+  /// 2026-07-30 credential 오류 대응: **1차 = Firebase SDK 일임**
+  /// (signInWithProvider — nonce 등 전 과정을 네이티브 SDK가 처리, 권장 API),
+  /// 실패 시 **2차 = sign_in_with_apple 수동 nonce 경로** 자동 폴백.
+  /// 둘 다 실패하면 두 에러를 모두 표시해 원인을 특정한다.
   Future<bool> signInWithApple() async {
     lastError = null;
     try {
@@ -142,7 +145,23 @@ class AuthService extends ChangeNotifier {
         await FirebaseAuth.instance.signInWithPopup(provider);
         return true;
       }
-      // 네이티브: nonce로 리플레이 공격 방지(Apple → Firebase 표준 절차).
+      String detail(FirebaseAuthException e) => '${e.code}'
+          '${(e.message != null && e.message!.isNotEmpty) ? ' · ${e.message}' : ''}';
+      FirebaseAuthException? first;
+      try {
+        await FirebaseAuth.instance
+            .signInWithProvider(AppleAuthProvider()..addScope('email'));
+        return true;
+      } on FirebaseAuthException catch (e) {
+        if (e.code == 'canceled' ||
+            e.code == 'user-cancelled' ||
+            e.code == 'web-context-cancelled') {
+          lastError = '로그인이 취소됐어요';
+          return false;
+        }
+        first = e; // 폴백 시도로
+      }
+      // 폴백: 수동 nonce 경로(구 방식).
       final rawNonce = _generateNonce();
       final hashedNonce = sha256.convert(utf8.encode(rawNonce)).toString();
       final cred = await SignInWithApple.getAppleIDCredential(
@@ -152,36 +171,33 @@ class AuthService extends ChangeNotifier {
         ],
         nonce: hashedNonce,
       );
-      final oauth = OAuthProvider('apple.com').credential(
-        idToken: cred.identityToken,
-        rawNonce: rawNonce,
-      );
-      await FirebaseAuth.instance.signInWithCredential(oauth);
-      // Apple은 첫 로그인에만 이름을 준다 — displayName이 비어 있으면 채운다.
-      final name = [cred.givenName, cred.familyName]
-          .where((e) => e != null && e.isNotEmpty)
-          .join(' ');
-      final u = FirebaseAuth.instance.currentUser;
-      if (name.isNotEmpty && (u?.displayName == null || u!.displayName!.isEmpty)) {
-        await u?.updateDisplayName(name);
+      try {
+        await FirebaseAuth.instance.signInWithCredential(
+          OAuthProvider('apple.com').credential(
+            idToken: cred.identityToken,
+            rawNonce: rawNonce,
+          ),
+        );
+        return true;
+      } on FirebaseAuthException catch (e2) {
+        lastError = switch (e2.code) {
+          'operation-not-allowed' =>
+            '아직 서버에 Apple 로그인이 준비 중이에요. 게스트로 플레이해 주세요!',
+          'network-request-failed' => '네트워크를 확인해 주세요',
+          _ => '로그인 실패 [1차 ${detail(first)}] [2차 ${detail(e2)}]',
+        };
+        return false;
       }
-      return true;
     } on SignInWithAppleAuthorizationException catch (e) {
-      // 원인 파악용 상세 노출(2026-07-27 'credential 문제' 제보 — 코드만으론
-      // iOS 기기 Apple ID 상태인지 서버 문제인지 구분 불가).
+      // 원인 파악용 상세 노출(2026-07-27 'credential 문제' 제보).
       lastError = e.code == AuthorizationErrorCode.canceled
           ? '로그인이 취소됐어요'
           : 'Apple 로그인 실패 (${e.code.name}'
               '${e.message.isNotEmpty ? ' · ${e.message}' : ''})';
       return false;
     } on FirebaseAuthException catch (e) {
-      lastError = switch (e.code) {
-        'operation-not-allowed' =>
-          '아직 서버에 Apple 로그인이 준비 중이에요. 게스트로 플레이해 주세요!',
-        'network-request-failed' => '네트워크를 확인해 주세요',
-        _ => '로그인 실패 (${e.code}'
-            '${(e.message != null && e.message!.isNotEmpty) ? ' · ${e.message}' : ''})',
-      };
+      lastError = '로그인 실패 (${e.code}'
+          '${(e.message != null && e.message!.isNotEmpty) ? ' · ${e.message}' : ''})';
       return false;
     } catch (e) {
       lastError = '로그인 실패: $e';
@@ -239,6 +255,13 @@ class AuthService extends ChangeNotifier {
         if (kIsWeb) {
           await u.reauthenticateWithPopup(OAuthProvider('apple.com'));
           return true;
+        }
+        // 1차: SDK 일임(권장) → 실패 시 수동 nonce 폴백(로그인과 동일 구조).
+        try {
+          await u.reauthenticateWithProvider(AppleAuthProvider());
+          return true;
+        } on FirebaseAuthException {
+          // 아래 폴백으로
         }
         final rawNonce = _generateNonce();
         final hashedNonce = sha256.convert(utf8.encode(rawNonce)).toString();
