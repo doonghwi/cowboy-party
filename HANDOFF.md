@@ -3,6 +3,12 @@
 > 새 세션에서 이 파일을 먼저 읽고 이어서 진행. 모든 작업물은 디스크에 있고 main에 커밋됨.
 > ⚠️ 아래 좌표 일부는 구 Windows 경로(C:\dev\…) — 현재는 Mac `/Users/doonghwi/Documents/dailyapp/`.
 
+## 2026-10-17(22차) 🍎 앱스토어 1.0 재제출 완료 — 빌드 35, API 대행
+- 배경: 7/30 이후 재제출 단계가 빠져 있었음. 10/14 애플이 영상 회신에 "수정 후 다시 제출하라"고 답함(= 반려 상태 그대로, 빌드 29는 10/14 만료). 사용자가 ASC에서 새 개발자 계약 동의(미동의 상태에선 API가 `REQUIRED_AGREEMENTS_MISSING_OR_EXPIRED`로 거부 — 동의 후에도 몇 분간 일부 엔드포인트만 간헐 거부, 재시도로 통과).
+- 처리(순수 REST, fastlane deliver는 같은 계약 오류로 중단): ①`PATCH /appStoreVersions/{1.0}/relationships/build` → 빌드 35 ②옛 reviewSubmission(7/16, UNRESOLVED_ISSUES)은 버전을 붙들고 있어 `canceled:true`로 취소(COMPLETE 될 때까지 10초 폴링) ③새 reviewSubmission 생성 → 1.0 item 추가 → `submitted:true`. 결과 **WAITING_FOR_REVIEW (2026-10-17 09:21Z)**.
+- 함정: fastlane 2.237+는 `asc_api_key.json`에 `key_filepath` 대신 `key`(p8 본문) 필드를 요구 — upload_appstore.sh/release_ios.sh 재사용 전 키 JSON 갱신 필요(이번엔 임시 파일로 우회). 스크립트 `cowboy_release_check.py`의 COWBOY 경로는 구 Documents/dailyapp — ~/dev/cowboy_party로 수정 필요.
+- 다음: 심사 결과(1~3일) 확인 → 승인 시 자동 출시(releaseType AFTER_APPROVAL). 반려 시 Resolution Center 메시지 확인 후 대응.
+
 ## 2026-07-30(21차) 애플 로그인 성공 확인 → 반려 회신 가이드 최신화(빌드 35)
 - 사용자가 실기기에서 **애플 로그인 성공 확인**. ASC API로 재검증: **빌드 27~35 전부 processingState=VALID**(TestFlight 인식 여부와 무관하게 심사 제출엔 문제없음) — 최신은 35.
 - `growth/APP_REVIEW_REPLY_0723.md` 최신화: 회신문 빌드 번호 30→35, 사용자가 헷갈려한 "메일이 아니라 ASC 내 Resolution Center 메시지창"이라는 점 명시, 회신 작성·영상 첨부(애플 공개 API 없음 — 사용자 필수)와 빌드 선택·심사 제출(세션이 API로 대행 가능)을 단계별로 분리 설명.
