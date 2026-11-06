@@ -10,6 +10,7 @@
 | [TOOLS_SETUP.md](TOOLS_SETUP.md) | 에셋 생성 툴 연결 체크리스트(무료/유료 구분) | **키 발급 여부** |
 | [PLAY_UPLOAD_SETUP.md](PLAY_UPLOAD_SETUP.md) | Play 콘솔 업로드 자동화 — 사용자 1회 설정 가이드 | **서비스계정 설정(15분)** |
 | [PROMO_PLAN.md](PROMO_PLAN.md) | 한국 시장 홍보 플레이북 + 4주 캘린더 + 스토어 에셋 스펙 | 캘린더 승인 |
+| [FEEDBACK_REPLY_PLAN.md](FEEDBACK_REPLY_PLAN.md) | 제보 1:1 답변·원격 공지·사망 원인 표시 — 2026-11-06 제보(방어 뚫림) 대응 기획 | **승인 + 결정 3개** |
 
 ## 전체 그림 — 왜 이 순서인가
 
