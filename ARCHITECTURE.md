@@ -163,7 +163,7 @@ dailyapp_stats/cowboy_party: 사용량(중앙 대시보드)
 feedback/<uid>/<pushId>: { text, at, build, reply?, repliedAt?, readAt? }   (.read/.write 본인만, reply·repliedAt은 관리자 CLI만)
 notices/<pushId>: { date, title, body, until? }   (.read 공개, 쓰기 관리자 CLI만 — 앱 업데이트 없이 공지)
 ```
-- **제보·답변·원격 공지(2026-11)**: 앱 `meta/feedback_service.dart`(제보 저장+ntfy, 내 제보·답변 구독, 미읽음 답변 → 설정 빨간 점), `meta/notices.dart`(시작 시 `notices` 읽어 내장 `announcements.dart`와 합침). 관리자는 이 맥의 Firebase CLI 로그인으로 `tools/feedback_reply.py list|reply|message`, `tools/notice.py post|list|remove`. iOS 심사 제출은 `tools/asc_submit.py submit <버전> <빌드>`.
+- **제보·답변·원격 공지(2026-11)**: 앱 `meta/feedback_service.dart`(제보 저장+ntfy, 내 제보·답변 구독, 미읽음 답변 → 설정 빨간 점), `meta/notices.dart`(시작 시 `notices` 읽어 내장 `announcements.dart`와 합침). 관리자는 이 맥의 Firebase CLI 로그인으로 `tools/feedback_reply.py list|reply|message`, `tools/notice.py post|list|remove`. iOS 심사 제출은 `tools/asc_submit.py submit <버전> <빌드>`. `tools/play_promote.py status|promote <버전코드>`: Play 트랙 조회·alpha→production 승격(REST 직접).
 - 보안 규칙: `database.rules.json`. **orderByChild 쓰는 경로엔 반드시 `.indexOn`**
   (rooms.createdAt, seasons.$sid.pts) — 없으면 쿼리 거부 → 빈 목록 버그.
 
