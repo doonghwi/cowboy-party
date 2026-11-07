@@ -4,6 +4,7 @@
     python3 tools/asc_submit.py status                 # 버전·빌드·제출 상태
     python3 tools/asc_submit.py submit 1.0.1 36        # 버전(없으면 생성) + 빌드 연결 + 심사 제출
     python3 tools/asc_submit.py submit 1.0.1 36 --wait # 빌드 처리(PROCESSING→VALID)를 기다렸다가 제출
+    python3 tools/asc_submit.py submit 1.0.1 36 --wait --notes "- 바뀐 점 한 줄"  # 새 버전은 '새로운 기능(whatsNew)' 필수
 
 인증: ~/.appstoreconnect/private_keys/AuthKey_D3TN3JP93R.p8 (PyJWT 필요).
 함정: 계약 미동의면 REQUIRED_AGREEMENTS_MISSING_OR_EXPIRED — ASC에서 동의 후 몇 분간 간헐 거부(자동 재시도).
@@ -81,7 +82,22 @@ def find_build(no, wait):
         time.sleep(60)
 
 
-def submit(ver, build_no, wait=False):
+def ensure_whats_new(vid, notes):
+    """새 버전은 모든 언어의 whatsNew가 차 있어야 심사 제출이 된다(2026-11-08 409 ENTITY_ERROR.ATTRIBUTE.REQUIRED)."""
+    locs = req("GET", f"/appStoreVersions/{vid}/appStoreVersionLocalizations",
+               params={"fields[appStoreVersionLocalizations]": "locale,whatsNew"})["data"]
+    for l in locs:
+        a = l["attributes"]
+        if a.get("whatsNew"):
+            print(f"whatsNew({a['locale']}) 있음"); continue
+        if not notes:
+            raise SystemExit(f"{a['locale']} 의 '새로운 기능'이 비어 있음 — --notes \"...\" 로 넘기거나 ASC에서 입력")
+        req("PATCH", f"/appStoreVersionLocalizations/{l['id']}", json={"data": {
+            "type": "appStoreVersionLocalizations", "id": l["id"], "attributes": {"whatsNew": notes}}})
+        print(f"whatsNew({a['locale']}) 입력")
+
+
+def submit(ver, build_no, wait=False, notes=None):
     vid = None
     for v in versions():
         if v["attributes"]["versionString"] == ver:
@@ -91,6 +107,7 @@ def submit(ver, build_no, wait=False):
             "versionString": ver, "platform": "IOS", "releaseType": "AFTER_APPROVAL"},
             "relationships": {"app": {"data": {"type": "apps", "id": APP}}}}})["data"]["id"]
         print(f"버전 {ver} 생성: {vid}")
+    ensure_whats_new(vid, notes)
     bid = find_build(build_no, wait)
     req("PATCH", f"/appStoreVersions/{vid}/relationships/build",
         json={"data": {"type": "builds", "id": bid}})
@@ -114,6 +131,7 @@ if __name__ == "__main__":
     if not a or a[0] == "status":
         status()
     elif a[0] == "submit" and len(a) >= 3:
-        submit(a[1], a[2], wait="--wait" in a)
+        notes = a[a.index("--notes") + 1] if "--notes" in a else None
+        submit(a[1], a[2], wait="--wait" in a, notes=notes)
     else:
         print(__doc__)
