@@ -9,6 +9,7 @@
 - 사고·수정: ①맥의 `dartaotruntime`(Flutter의 Dart 컴파일러)이 Gatekeeper 평가에 걸려 실행 직후 멈춤(`_dyld_start`에서 정지, CPU 0%) → `flutter test/build` 하루 넘게 무한 대기. 격리 플래그 제거로도 안 풀려 **파일을 복사본으로 교체**(새 inode)하니 정상. 증상 재발 시 `cp dartaotruntime x && mv x dartaotruntime`. ②에뮬 E2E에서 제보 창이 답변이 생긴 뒤 **안 뜨는 버그** 발견 — AlertDialog 안 ListView(고유 너비 계산 불가) → SingleChildScrollView+Column 으로 수정. ③설정 시트가 작은 화면에서 24px 넘침(계정 삭제 추가 후부터) → 스크롤로 수정. ④첫 제보 전송 직후 한 번 코인 표시 0·PlayTab 재마운트 현상(재현 2회 실패, 재시작 후 정상, 코인 손실 없음) — 원인 미상, 재발 시 조사.
 - E2E 확인(에뮬, 스크린샷): 원격 공지 배너·목록 맨 위 ✓ / 제보 → `feedback/{uid}` 저장 ✓ / `feedback_reply.py reply` → 설정 톱니 빨간 점 + '답변 도착' 칩 ✓ / 창 열면 답변 표시·점 해제 ✓. 관통 배지는 엔진 테스트로만 확인(화면 스크린샷은 봇 캐릭터를 고를 수 없어 생략).
 - 배포 도구 추가: `tools/asc_submit.py status|submit <버전> <빌드> [--wait]` — 22차에 손으로 한 REST 절차(버전 생성→빌드 연결→심사 제출)를 도구로.
+- 배포: **Android 36 → Play alpha 업로드 완료**(19:50). **iOS 는 막힘** — 맥 로그인 키체인이 잠겨 있어(`security show-keychain-info` → "User interaction is not allowed"; Figma/Vercel MCP 자격증명 실패도 같은 원인) 아카이브 단계 CodeSign 실패. 시도해 본 우회: ①서명 없이 아카이브 → API 키 클라우드 서명 export: 본체만 서명되고 프레임워크 10개가 미서명으로 남아 altool 거부(90035) ②아카이브에 `CODE_SIGN_IDENTITY=Apple Distribution` 강제: SPM 패키지들의 자동 서명과 충돌(exit 65). **정답은 키체인 잠금 해제**: 맥에서 `security unlock-keychain ~/Library/Keychains/login.keychain-db`(맥 비밀번호 입력) 또는 VNC로 화면 로그인 → 그 뒤 `bash tools/upload_appstore.sh && python3 tools/asc_submit.py submit 1.0.1 36 --wait`.
 - 배포 후 완료: 첫 원격 공지 "🛡️ 방어가 안 먹힌 것 같나요?" 게시, ㅇㅅㅇ에게 운영자 메시지 전송(앱 1.0.1에서 보임).
 
 ## 2026-10-17(22차) 🍎 앱스토어 1.0 재제출 완료 — 빌드 35, API 대행
