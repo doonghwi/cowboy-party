@@ -160,7 +160,10 @@ users/<uid>:   { name, coins, unlocked[], equipped, dailyLast, dailyStreak }   (
 seasons/<sid>/<uid>: { name, pts }   (.indexOn: pts)
 nicknames/<정규화키>: uid   (닉네임 전역 유일성. .write: 빈칸이거나 내 uid일 때만)
 dailyapp_stats/cowboy_party: 사용량(중앙 대시보드)
+feedback/<uid>/<pushId>: { text, at, build, reply?, repliedAt?, readAt? }   (.read/.write 본인만, reply·repliedAt은 관리자 CLI만)
+notices/<pushId>: { date, title, body, until? }   (.read 공개, 쓰기 관리자 CLI만 — 앱 업데이트 없이 공지)
 ```
+- **제보·답변·원격 공지(2026-11)**: 앱 `meta/feedback_service.dart`(제보 저장+ntfy, 내 제보·답변 구독, 미읽음 답변 → 설정 빨간 점), `meta/notices.dart`(시작 시 `notices` 읽어 내장 `announcements.dart`와 합침). 관리자는 이 맥의 Firebase CLI 로그인으로 `tools/feedback_reply.py list|reply|message`, `tools/notice.py post|list|remove`. iOS 심사 제출은 `tools/asc_submit.py submit <버전> <빌드>`.
 - 보안 규칙: `database.rules.json`. **orderByChild 쓰는 경로엔 반드시 `.indexOn`**
   (rooms.createdAt, seasons.$sid.pts) — 없으면 쿼리 거부 → 빈 목록 버그.
 
@@ -289,6 +292,7 @@ dailyapp_stats/cowboy_party: 사용량(중앙 대시보드)
 4. **특수행동 배치(D3)** — `SpecialSlot` 지정(parallel/turnSlot/alwaysRow/none) + action_bar 렌더.
 5. **밸런스/판정** — party_logic.dart `resolvePartyTurn` 한 곳. 랜덤은 `seededRoll`만(결정성).
 6. **단위테스트** — characters_test.dart(규칙) / online_service_test.dart(표시·은폐·정체).
-7. **게임방법/공지 반영** — how_to_play(자동 순회) 확인 + H1 공지(announcements.dart)에 한 줄.
+7. **게임방법/공지 반영** — how_to_play(자동 순회) 확인 + H1 공지(announcements.dart)에 한 줄. 앱 업데이트 없이 알릴 땐 `tools/notice.py post`.
+10. **피격 쪽 표시** — 방어가 뚫리는 판정(관통·슈퍼빵야)은 `TurnOutcome.pierceVictim/superVictim`으로 맞은 사람 좌석에도 배지('관통당함!' 등) + 하단 배너.
 8. **??? 풀 영향** — `kMysteryPool`(mystery·commoner 제외)에 자동 포함되는지. 능력이 ???로 변신 가능한지.
 9. **온/오프라인 양쪽** — offline_game_screen + online computeView/SeatView 둘 다 배선.

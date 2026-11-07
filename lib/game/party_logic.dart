@@ -341,6 +341,8 @@ class TurnOutcome {
   final List<bool> reflectKill; // 덫 반사로 사망
   final List<bool> evaded; // 연막으로 회피
   final List<bool> pierced; // 스나이퍼 관통
+  final List<bool> pierceVictim; // 방어했는데 스나이퍼 관통에 맞아 사망(피격 측)
+  final List<bool> superVictim; // 슈퍼빵야에 맞아 사망(피격 측)
   final List<bool> smoked;
   final List<bool> doubleLoad; // 스피드로더 +2
   final List<bool> rouletteFired; // 운명의 방아쇠 발동
@@ -367,6 +369,8 @@ class TurnOutcome {
     this.reflectKill = const [],
     this.evaded = const [],
     this.pierced = const [],
+    this.pierceVictim = const [],
+    this.superVictim = const [],
     this.smoked = const [],
     this.doubleLoad = const [],
     this.rouletteFired = const [],
@@ -454,6 +458,8 @@ TurnOutcome resolvePartyTurn({
   final firedTarget = List<int>.filled(n, -1);
   final spent = List<int>.filled(n, 0);
   final pierced = List<bool>.filled(n, false);
+  final pierceVictim = List<bool>.filled(n, false);
+  final superVictim = List<bool>.filled(n, false);
   final trapSet = List<bool>.filled(n, false);
   final smoked = List<bool>.filled(n, false);
   final doubleLoad = List<bool>.filled(n, false);
@@ -553,6 +559,7 @@ TurnOutcome resolvePartyTurn({
         reflectKill[s] = true;
       } else if (!defending || pierce) {
         lethal = true;
+        if (defending && pierce) pierceVictim[t] = true; // 방어를 뚫림(표시용)
       }
     }
     for (final s in superAt[t]) {
@@ -561,6 +568,7 @@ TurnOutcome resolvePartyTurn({
         continue;
       }
       lethal = true;
+      superVictim[t] = true; // 슈퍼빵야 피격(표시용)
     }
     if (lethal) hit[t] = true;
     if (dodged && !lethal) evaded[t] = true;
@@ -598,6 +606,8 @@ TurnOutcome resolvePartyTurn({
       curseKill[i] = false;
       evaded[i] = false;
       rouletteSelf[i] = false;
+      pierceVictim[i] = false;
+      superVictim[i] = false;
     }
   }
 
@@ -700,6 +710,8 @@ TurnOutcome resolvePartyTurn({
         reflectKill: reflectKill,
         evaded: evaded,
         pierced: pierced,
+        pierceVictim: pierceVictim,
+        superVictim: superVictim,
         smoked: smoked,
         doubleLoad: doubleLoad,
         rouletteFired: rouletteFired,

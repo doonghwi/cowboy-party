@@ -52,7 +52,8 @@ class HowToPlayScreen extends StatelessWidget {
                 title: '방어 (전부 막기)',
                 body: '이번 턴에 나에게 오는 공격을 모두 막아요. '
                     '여러 명이 동시에 나를 쏴도 방어 한 번이면 전부 무효! '
-                    '단, 슈퍼빵야는 못 막아요.',
+                    '못 막는 것 4가지: 슈퍼빵야 · 스나이퍼의 관통(20% 확률) · '
+                    '저주 만료 · 운명의 방아쇠 자해. 뚫리면 화면에 이유가 떠요.',
               ),
               _Rule(
                 icon: Icons.bolt,

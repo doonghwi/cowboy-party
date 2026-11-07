@@ -40,6 +40,8 @@ class TableSeat {
   final bool reflectedFx;
   final bool doubleLoadFx;
   final bool piercedFx; // 스나이퍼 관통(D1)
+  final bool pierceVictimFx; // 방어했는데 관통에 맞음(피격 측)
+  final bool superVictimFx; // 슈퍼빵야에 맞음(피격 측)
   final bool resetFx; // 리셋터 무효(D4)
 
   /// 러시안룰렛이 자신에게 빗나가 자해(꽝)한 좌석 — 시전자 자해 모션용.
@@ -88,6 +90,8 @@ class TableSeat {
     this.reflectedFx = false,
     this.doubleLoadFx = false,
     this.piercedFx = false,
+    this.pierceVictimFx = false,
+    this.superVictimFx = false,
     this.resetFx = false,
     this.rouletteSelfFx = false,
     this.curseTurnsLeft = 0,
@@ -495,6 +499,8 @@ class CircularTable extends StatelessWidget {
     if (s.reflectedFx) return '덫 반사!';
     if (s.piercedFx) return '관통!';
     if (s.healedFx) return '치료!';
+    if (s.pierceVictimFx) return '관통당함!';
+    if (s.superVictimFx) return '슈퍼빵야 피격!';
     if (s.evadedFx) return '회피!';
     if (s.doubleLoadFx) return '+2 장전!';
     return null;

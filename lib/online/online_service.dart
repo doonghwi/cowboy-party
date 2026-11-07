@@ -42,6 +42,8 @@ class SeatView {
   final bool smokedFx; // 이 턴 연막 사용
   final bool doubleLoadFx; // 스피드로더 +2
   final bool piercedFx; // 스나이퍼 관통 발동(D1)
+  final bool pierceVictimFx; // 방어했는데 관통당함(피격 측)
+  final bool superVictimFx; // 슈퍼빵야 피격
   final bool resetFx; // 리셋터 무효 발동(D4)
   final bool rouletteSelfFx; // 러시안룰렛 자기-꽝(자해)
   final String? abilityUses; // 유한 능력 사용량 '사용/총'(#11, 모두에게 표시)
@@ -85,6 +87,8 @@ class SeatView {
     this.smokedFx = false,
     this.doubleLoadFx = false,
     this.piercedFx = false,
+    this.pierceVictimFx = false,
+    this.superVictimFx = false,
     this.resetFx = false,
     this.rouletteSelfFx = false,
     this.abilityUses,
@@ -1302,6 +1306,8 @@ class OnlineService {
     var smokedFx = List<bool>.filled(n, false);
     var doubleLoadFx = List<bool>.filled(n, false);
     var piercedFx = List<bool>.filled(n, false);
+    var pierceVictimFx = List<bool>.filled(n, false);
+    var superVictimFx = List<bool>.filled(n, false);
     var resetFx = List<bool>.filled(n, false);
     var rouletteSelfFx = List<bool>.filled(n, false);
     var banner = '행동을 골라라!';
@@ -1497,6 +1503,8 @@ class OnlineService {
           smokedFx: smokedFx,
           doubleLoadFx: doubleLoadFx,
           piercedFx: piercedFx,
+          pierceVictimFx: pierceVictimFx,
+          superVictimFx: superVictimFx,
           resetFx: resetFx,
           rouletteSelfFx: rouletteSelfFx,
           abilityUses: abilityUsesNow(),
@@ -1548,6 +1556,8 @@ class OnlineService {
       smokedFx = out.smoked;
       doubleLoadFx = out.doubleLoad;
       piercedFx = out.pierced;
+      pierceVictimFx = out.pierceVictim;
+      superVictimFx = out.superVictim;
       resetFx = out.resetActive;
       rouletteSelfFx = out.rouletteSelf;
       alive = out.aliveAfter;
@@ -1692,6 +1702,8 @@ class OnlineService {
           smokedFx: smokedFx,
           doubleLoadFx: doubleLoadFx,
           piercedFx: piercedFx,
+          pierceVictimFx: pierceVictimFx,
+          superVictimFx: superVictimFx,
           resetFx: resetFx,
           rouletteSelfFx: rouletteSelfFx,
           abilityUses: abilityUsesNow(),
@@ -1752,6 +1764,8 @@ class OnlineService {
     List<bool> smokedFx = const [],
     List<bool> doubleLoadFx = const [],
     List<bool> piercedFx = const [],
+    List<bool> pierceVictimFx = const [],
+    List<bool> superVictimFx = const [],
     List<bool> resetFx = const [],
     List<bool> rouletteSelfFx = const [],
     List<String?> abilityUses = const [],
@@ -1817,6 +1831,8 @@ class OnlineService {
           smokedFx: fx(smokedFx, s),
           doubleLoadFx: fx(doubleLoadFx, s),
           piercedFx: fx(piercedFx, s),
+          pierceVictimFx: fx(pierceVictimFx, s),
+          superVictimFx: fx(superVictimFx, s),
           resetFx: fx(resetFx, s),
           rouletteSelfFx: fx(rouletteSelfFx, s),
           abilityUses: s < abilityUses.length ? abilityUses[s] : null,
@@ -1935,6 +1951,21 @@ class OnlineService {
     }
     if (roulette && downed.isNotEmpty) {
       return '운명의 방아쇠! ${downed.join(", ")} 쓰러졌다!';
+    }
+    // 방어가 뚫린 이유를 명시(제보 2026-11: "방어해도 맞는다" 혼란 방지).
+    final pierceVictims = <String>[
+      for (var s = 0; s < out.pierceVictim.length; s++)
+        if (out.pierceVictim[s] && out.hit[s]) nameOf(s)
+    ];
+    if (pierceVictims.isNotEmpty) {
+      return '스나이퍼 관통! ${pierceVictims.join(", ")} 방어가 뚫렸다!';
+    }
+    final superVictims = <String>[
+      for (var s = 0; s < out.superVictim.length; s++)
+        if (out.superVictim[s] && out.hit[s]) nameOf(s)
+    ];
+    if (superVictims.isNotEmpty) {
+      return '슈퍼빵야! ${superVictims.join(", ")} 방어 무시 명중!';
     }
     if (downed.isNotEmpty) return '${downed.join(", ")} 명중!';
     if (voodooCasters.isNotEmpty) {

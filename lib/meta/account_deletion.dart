@@ -66,6 +66,7 @@ class AccountDeletion {
         'friendReqs/$uid',
         'presence/$uid',
         'invites/$uid',
+        'feedback/$uid',
         'users/$uid',
       ]) {
         try {

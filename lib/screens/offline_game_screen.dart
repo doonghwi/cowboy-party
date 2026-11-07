@@ -615,6 +615,21 @@ class _OfflineGameScreenState extends State<OfflineGameScreen> {
     if (out.rouletteFired.any((x) => x) && downed.isNotEmpty) {
       return '운명의 방아쇠! ${downed.join(", ")} 쓰러졌다!';
     }
+    // 방어가 뚫린 이유를 명시(제보 2026-11: "방어해도 맞는다" 혼란 방지).
+    final pierceVictims = <String>[
+      for (var s = 0; s < out.pierceVictim.length; s++)
+        if (out.pierceVictim[s] && out.hit[s]) _names[s]
+    ];
+    if (pierceVictims.isNotEmpty) {
+      return '스나이퍼 관통! ${pierceVictims.join(", ")} 방어가 뚫렸다!';
+    }
+    final superVictims = <String>[
+      for (var s = 0; s < out.superVictim.length; s++)
+        if (out.superVictim[s] && out.hit[s]) _names[s]
+    ];
+    if (superVictims.isNotEmpty) {
+      return '슈퍼빵야! ${superVictims.join(", ")} 방어 무시 명중!';
+    }
     if (downed.isNotEmpty) return '${downed.join(", ")} 명중!';
     final voodooCasters = <String>[
       for (var s = 0; s < out.voodooCast.length; s++)
@@ -896,6 +911,8 @@ class _OfflineGameScreenState extends State<OfflineGameScreen> {
           reflectedFx: fx(_lastOut?.reflectKill, s),
           doubleLoadFx: fx(_lastOut?.doubleLoad, s),
           piercedFx: fx(_lastOut?.pierced, s),
+          pierceVictimFx: fx(_lastOut?.pierceVictim, s),
+          superVictimFx: fx(_lastOut?.superVictim, s),
           resetFx: fx(_lastOut?.resetActive, s),
           rouletteSelfFx: fx(_lastOut?.rouletteSelf, s),
           // 파파라치 엿보기는 _peekUsed로 추적(pstate엔 안 남음) — 사용 시 0으로.

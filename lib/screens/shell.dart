@@ -8,6 +8,7 @@ import '../meta/account_deletion.dart';
 import '../meta/announcements.dart';
 import '../meta/auth_service.dart';
 import '../meta/feedback_service.dart';
+import '../meta/notices.dart';
 import '../meta/meta_service.dart';
 import '../online/friend_service.dart';
 import '../online/online_service.dart';
@@ -30,7 +31,7 @@ const bool kShowAdPlaceholder = true;
 
 /// 앱 빌드 번호(versionCode와 일치시켜 손으로 올린다). 설정에 표시해서
 /// 폰에 어떤 버전이 깔렸는지 눈으로 확인할 수 있게 한다.
-const int kBuildNo = 35;
+const int kBuildNo = 36;
 
 /// 하단 5탭 셸(#1, 2026-07-15): [상점] [보상] [플레이] [친구] [랭킹] —
 /// 플레이가 가운데. + 코인칩 + 설정.
@@ -54,6 +55,9 @@ class _ShellScreenState extends State<ShellScreen> {
     super.initState();
     Meta.I.addListener(_onMeta);
     AuthService.I.addListener(_onMeta);
+    // 원격 공지 + 운영자 답변 수신(2026-11-06).
+    RemoteNotices.I.load();
+    FeedbackService.I.watch();
     // 친구 MVP: 온라인 표시용 presence + 방 초대 수신(앱 켜져 있을 때만).
     FriendService.I.startPresence();
     _inviteSub = FriendService.I.watchInvites()?.listen(_onInvite);
@@ -332,6 +336,7 @@ class _ShellScreenState extends State<ShellScreen> {
   }
 
   void _onMeta() {
+    FeedbackService.I.watch(); // 로그인 변동 시 내 제보 구독 갱신
     if (mounted) setState(() {});
   }
 
@@ -438,10 +443,32 @@ class _ShellScreenState extends State<ShellScreen> {
                 color: Colors.white),
             tooltip: Sfx.muted ? '소리 켜기' : '소리 끄기',
           ),
-          IconButton(
-            onPressed: _openSettings,
-            icon: const Icon(Icons.settings, color: Colors.white),
-            tooltip: '설정',
+          ValueListenableBuilder<bool>(
+            valueListenable: FeedbackService.I.hasUnread,
+            builder: (_, unread, _) => IconButton(
+              onPressed: _openSettings,
+              tooltip: unread ? '설정 · 운영자 답변 도착' : '설정',
+              icon: Stack(
+                clipBehavior: Clip.none,
+                children: [
+                  const Icon(Icons.settings, color: Colors.white),
+                  if (unread)
+                    Positioned(
+                      right: -2,
+                      top: -2,
+                      child: Container(
+                        width: 10,
+                        height: 10,
+                        decoration: BoxDecoration(
+                          color: CD.danger,
+                          shape: BoxShape.circle,
+                          border: Border.all(color: Colors.white, width: 1.5),
+                        ),
+                      ),
+                    ),
+                ],
+              ),
+            ),
           ),
         ],
       ),
@@ -450,7 +477,13 @@ class _ShellScreenState extends State<ShellScreen> {
 
   // H1: 'AD 광고 자리'를 사용자 공지로 사용. 최신 공지를 보여주고, 탭하면 전체.
   Widget _adPlaceholder() {
-    final latest = kAnnouncements.isNotEmpty ? kAnnouncements.first : null;
+    return ValueListenableBuilder<List<Announcement>>(
+      valueListenable: RemoteNotices.I.all,
+      builder: (_, list, _) => _adBanner(list.isNotEmpty ? list.first : null),
+    );
+  }
+
+  Widget _adBanner(Announcement? latest) {
     return GestureDetector(
       onTap: latest == null ? null : _openAnnouncements,
       child: Container(
@@ -512,7 +545,7 @@ class _ShellScreenState extends State<ShellScreen> {
               ],
             ),
             const SizedBox(height: 12),
-            for (final a in kAnnouncements) ...[
+            for (final a in RemoteNotices.I.all.value) ...[
               Text(a.title,
                   style: const TextStyle(
                       fontWeight: FontWeight.w900, fontSize: 15)),
@@ -537,7 +570,8 @@ class _ShellScreenState extends State<ShellScreen> {
       shape: const RoundedRectangleBorder(
           borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
       builder: (ctx) => SafeArea(
-        child: Padding(
+        child: SingleChildScrollView(
+          // 항목이 늘어 작은 화면에서 넘치던 것(계정 삭제 추가 후) → 스크롤.
           padding: const EdgeInsets.fromLTRB(20, 16, 20, 20),
           child: Column(
             mainAxisSize: MainAxisSize.min,
@@ -619,8 +653,25 @@ class _ShellScreenState extends State<ShellScreen> {
                 dense: true,
                 contentPadding: EdgeInsets.zero,
                 leading: const Icon(Icons.mail_outline, color: CD.rust),
-                title: const Text('관리자에게 제보·문의',
-                    style: TextStyle(fontWeight: FontWeight.w800)),
+                title: Row(children: [
+                  const Text('관리자에게 제보·문의',
+                      style: TextStyle(fontWeight: FontWeight.w800)),
+                  if (FeedbackService.I.hasUnread.value) ...[
+                    const SizedBox(width: 6),
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 6, vertical: 1),
+                      decoration: BoxDecoration(
+                          color: CD.danger,
+                          borderRadius: BorderRadius.circular(8)),
+                      child: const Text('답변 도착',
+                          style: TextStyle(
+                              color: Colors.white,
+                              fontSize: 10,
+                              fontWeight: FontWeight.w900)),
+                    ),
+                  ],
+                ]),
                 subtitle: const Text('버그·건의를 보내요 (개인정보는 보내지 않아요)',
                     style: TextStyle(fontSize: 12)),
                 onTap: () => _openFeedback(context),
@@ -644,7 +695,7 @@ class _ShellScreenState extends State<ShellScreen> {
                 ),
               const SizedBox(height: 10),
               Center(
-                child: Text('카우보이  v1.0.0 · 빌드 $kBuildNo',
+                child: Text('카우보이  v1.0.1 · 빌드 $kBuildNo',
                     style: const TextStyle(fontSize: 11, color: CD.muted)),
               ),
               const SizedBox(height: 2),
@@ -660,10 +711,46 @@ class _ShellScreenState extends State<ShellScreen> {
     );
   }
 
-  // H2: 관리자 연락 — ntfy 채널로 익명 전송.
+  /// 제보 한 건 + 운영자 답변(있으면) 표시.
+  Widget _feedbackRow(FeedbackItem i) {
+    String when(int ms) {
+      if (ms <= 0) return '';
+      final d = DateTime.fromMillisecondsSinceEpoch(ms);
+      return '${d.month}/${d.day}';
+    }
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 8),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          if (i.text.isNotEmpty)
+            Text('나 (${when(i.at)}): ${i.text}',
+                style: const TextStyle(fontSize: 12, color: CD.muted)),
+          if (i.reply != null && i.reply!.isNotEmpty)
+            Container(
+              margin: const EdgeInsets.only(top: 3),
+              padding: const EdgeInsets.all(8),
+              decoration: BoxDecoration(
+                color: CD.sage.withValues(alpha: 0.18),
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: Text(
+                  '🤠 운영자 (${when(i.repliedAt ?? 0)}): ${i.reply}',
+                  style: const TextStyle(fontSize: 12.5, height: 1.4)),
+            )
+          else if (i.text.isNotEmpty)
+            const Text('  답변 대기 중',
+                style: TextStyle(fontSize: 11, color: CD.muted)),
+        ],
+      ),
+    );
+  }
+
+  // H2: 관리자 연락 — ntfy 채널로 익명 전송 + 서버 저장(답변 수신).
   void _openFeedback(BuildContext sheetContext) {
     final ctl = TextEditingController();
     bool sending = false;
+    FeedbackService.I.markAllRead(); // 창을 열면 답변 읽음 처리(빨간 점 해제)
     showDialog(
       context: context,
       builder: (ctx) => StatefulBuilder(
@@ -673,6 +760,26 @@ class _ShellScreenState extends State<ShellScreen> {
           content: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
+              // 내 제보·운영자 답변(최근 순). 서버 계정 없으면 비어 있음.
+              ValueListenableBuilder<List<FeedbackItem>>(
+                valueListenable: FeedbackService.I.mine,
+                builder: (_, items, _) => items.isEmpty
+                    ? const SizedBox.shrink()
+                    // AlertDialog 는 내용의 고유 너비를 재므로 ListView 를 쓰면
+                    // 레이아웃이 깨져 창이 안 뜬다 → 스크롤 + Column.
+                    : ConstrainedBox(
+                        constraints: const BoxConstraints(maxHeight: 180),
+                        child: SingleChildScrollView(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.stretch,
+                            children: [
+                              for (final i in items) _feedbackRow(i),
+                              const Divider(height: 16),
+                            ],
+                          ),
+                        ),
+                      ),
+              ),
               TextField(
                 controller: ctl,
                 maxLength: 500,
@@ -697,7 +804,8 @@ class _ShellScreenState extends State<ShellScreen> {
                   ? null
                   : () async {
                       setLocal(() => sending = true);
-                      final ok = await FeedbackService.I.send(ctl.text);
+                      final ok = await FeedbackService.I
+                          .send(ctl.text, build: kBuildNo);
                       if (ctx.mounted) Navigator.pop(ctx);
                       if (mounted) {
                         ScaffoldMessenger.of(context).showSnackBar(SnackBar(

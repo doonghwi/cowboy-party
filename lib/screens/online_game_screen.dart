@@ -926,6 +926,8 @@ class _OnlineGameScreenState extends State<OnlineGameScreen> {
             reflectedFx: sv.reflectedFx,
             doubleLoadFx: sv.doubleLoadFx,
             piercedFx: sv.piercedFx,
+            pierceVictimFx: sv.pierceVictimFx,
+            superVictimFx: sv.superVictimFx,
             resetFx: sv.resetFx,
             rouletteSelfFx: sv.rouletteSelfFx,
             blocked: sv.blocked,

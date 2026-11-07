@@ -3,6 +3,14 @@
 > 새 세션에서 이 파일을 먼저 읽고 이어서 진행. 모든 작업물은 디스크에 있고 main에 커밋됨.
 > ⚠️ 아래 좌표 일부는 구 Windows 경로(C:\dev\…) — 현재는 Mac `/Users/doonghwi/Documents/dailyapp/`.
 
+## 2026-11-07(23차) 📨 제보 답변 채널 + 원격 공지 + '방어 뚫림' 이유 표시 (빌드 36, 1.0.1)
+- 계기: 11/5 ntfy 제보 "가끔 방어를 해도 피해지는데 의도된 건가요"(닉 ㅇㅅㅇ, uid gfU6NA…). 점검 결과 **버그 아님** — 스나이퍼 관통 20%·슈퍼빵야·저주 만료·룰렛 자해는 설계상 방어 무시인데 맞은 사람 화면에 이유가 안 보였고, 답을 돌려줄 길도 없었음. 기획서 `growth/FEEDBACK_REPLY_PLAN.md`(승인 11/6).
+- 한 일: ①엔진 `TurnOutcome.pierceVictim/superVictim` + `test/death_cause_test.dart`(4건) → 맞은 좌석 배지 '관통당함!'/'슈퍼빵야 피격!' + 하단 배너(온/오프라인) ②게임방법 방어 설명에 못 막는 4가지 ③RTDB `feedback/{uid}`(본인만, reply는 관리자만)·`notices`(공개 읽기) 규칙 배포·REST 검증 ④앱: 제보 저장+ntfy, 내 제보·답변 목록, 미읽음 답변 → 설정 빨간 점, 원격 공지 합치기, 계정 삭제 시 feedback 삭제 ⑤관리자 CLI `tools/feedback_reply.py`·`tools/notice.py`(Firebase CLI 로그인 = 관리자, 새 키 불필요) ⑥버전 1.0.1+36, 공지 한 줄, Play 변경 로그 36.
+- 사고·수정: ①맥의 `dartaotruntime`(Flutter의 Dart 컴파일러)이 Gatekeeper 평가에 걸려 실행 직후 멈춤(`_dyld_start`에서 정지, CPU 0%) → `flutter test/build` 하루 넘게 무한 대기. 격리 플래그 제거로도 안 풀려 **파일을 복사본으로 교체**(새 inode)하니 정상. 증상 재발 시 `cp dartaotruntime x && mv x dartaotruntime`. ②에뮬 E2E에서 제보 창이 답변이 생긴 뒤 **안 뜨는 버그** 발견 — AlertDialog 안 ListView(고유 너비 계산 불가) → SingleChildScrollView+Column 으로 수정. ③설정 시트가 작은 화면에서 24px 넘침(계정 삭제 추가 후부터) → 스크롤로 수정. ④첫 제보 전송 직후 한 번 코인 표시 0·PlayTab 재마운트 현상(재현 2회 실패, 재시작 후 정상, 코인 손실 없음) — 원인 미상, 재발 시 조사.
+- E2E 확인(에뮬, 스크린샷): 원격 공지 배너·목록 맨 위 ✓ / 제보 → `feedback/{uid}` 저장 ✓ / `feedback_reply.py reply` → 설정 톱니 빨간 점 + '답변 도착' 칩 ✓ / 창 열면 답변 표시·점 해제 ✓. 관통 배지는 엔진 테스트로만 확인(화면 스크린샷은 봇 캐릭터를 고를 수 없어 생략).
+- 배포 도구 추가: `tools/asc_submit.py status|submit <버전> <빌드> [--wait]` — 22차에 손으로 한 REST 절차(버전 생성→빌드 연결→심사 제출)를 도구로.
+- 배포 후 완료: 첫 원격 공지 "🛡️ 방어가 안 먹힌 것 같나요?" 게시, ㅇㅅㅇ에게 운영자 메시지 전송(앱 1.0.1에서 보임).
+
 ## 2026-10-17(22차) 🍎 앱스토어 1.0 재제출 완료 — 빌드 35, API 대행
 - 배경: 7/30 이후 재제출 단계가 빠져 있었음. 10/14 애플이 영상 회신에 "수정 후 다시 제출하라"고 답함(= 반려 상태 그대로, 빌드 29는 10/14 만료). 사용자가 ASC에서 새 개발자 계약 동의(미동의 상태에선 API가 `REQUIRED_AGREEMENTS_MISSING_OR_EXPIRED`로 거부 — 동의 후에도 몇 분간 일부 엔드포인트만 간헐 거부, 재시도로 통과).
 - 처리(순수 REST, fastlane deliver는 같은 계약 오류로 중단): ①`PATCH /appStoreVersions/{1.0}/relationships/build` → 빌드 35 ②옛 reviewSubmission(7/16, UNRESOLVED_ISSUES)은 버전을 붙들고 있어 `canceled:true`로 취소(COMPLETE 될 때까지 10초 폴링) ③새 reviewSubmission 생성 → 1.0 item 추가 → `submitted:true`. 결과 **WAITING_FOR_REVIEW (2026-10-17 09:21Z)**.
